@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+    
+    <PropertyGroup>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0"/>
+        <PackageReference Include="NUnit" Version="4.4.0" />
+        <PackageReference Include="NUnit.Analyzers" Version="4.7.0"/>
+        <PackageReference Include="NUnit3TestAdapter" Version="5.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="NUnit.Framework"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\SimpleBitware.Aop.Attributes\SimpleBitware.Aop.Attributes.csproj" />
+      <ProjectReference Include="..\..\src\SimpleBitware.Aop.Runtime\SimpleBitware.Aop.Runtime.csproj" />
+      <ProjectReference Include="..\..\src\SimpleBitware.Aop.Generator\SimpleBitware.Aop.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+<!--    <ItemGroup>-->
+<!--        <Analyzer Include="$(OutputPath)SimpleBitware.Aop.Generator.dll" />-->
+<!--    </ItemGroup>-->
+
+<!--    <ItemGroup>-->
+<!--        <Compile Include="..\..\src\SimpleBitware.Aop.Package\buildTransitive\AopGeneratedPipeline.cs" />-->
+<!--        <Compile Include="..\..\src\SimpleBitware.Aop.Package\buildTransitive\AopGeneratedRegistrations.cs" />-->
+<!--    </ItemGroup>-->
+
+</Project>
