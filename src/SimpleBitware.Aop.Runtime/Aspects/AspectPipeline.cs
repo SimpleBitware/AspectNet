@@ -63,11 +63,11 @@ public sealed class AspectPipeline : IAspectPipeline
     // ------------------------------------------------------------
     // ASYNC PIPELINE
     // ------------------------------------------------------------
-    public async Task<object?> InvokeAsync(
+    public async Task<T> InvokeAsync<T>(
         string methodId,
         object? target,
         object?[] args,
-        Func<Task<object?>> invokeInnerAsync)
+        Func<Task<T>> invokeInnerAsync)
     {
         var descriptors = _registry.GetDescriptors(methodId);
 
@@ -94,6 +94,47 @@ public sealed class AspectPipeline : IAspectPipeline
                 a.OnSuccess(ctx);
 
             return result;
+        }
+        catch (Exception ex)
+        {
+            foreach (var a in aspects)
+                a.OnException(ctx, ex);
+
+            throw;
+        }
+    }
+
+    public async Task InvokeAsync(
+        string methodId,
+        object? target,
+        object?[] args,
+        Func<Task> invokeInnerAsync)
+    {
+        var descriptors = _registry.GetDescriptors(methodId);
+
+        var aspects = descriptors
+            .Select(d => (IMethodAspect)ActivatorUtilities.CreateInstance(_provider, d.AspectType, d.Arguments))
+            .ToList();
+
+        var ctx = new MethodContext
+        {
+            MethodId = methodId,
+            Target = target,
+            Arguments = args
+        };
+
+        foreach (var a in aspects)
+            a.OnBefore(ctx);
+
+        try
+        {
+            await invokeInnerAsync().ConfigureAwait(false);
+
+            // No return value → set to null
+            ctx.ReturnValue = null;
+
+            foreach (var a in aspects)
+                a.OnSuccess(ctx);
         }
         catch (Exception ex)
         {

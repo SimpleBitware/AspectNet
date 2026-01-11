@@ -1,9 +1,9 @@
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using Microsoft.CodeAnalysis;
-using SimpleBitware.Aop.Runtime.Aspects;
 
 namespace SimpleBitware.Aop.Generator;
 
@@ -17,11 +17,12 @@ public sealed class AspectGenerator : ISourceGenerator
 
     public void Execute(GeneratorExecutionContext context)
     {
-        System.Diagnostics.Debug.WriteLine("AspectGenerator: Execute() called");
-        System.Diagnostics.Debugger.Launch();
+        Debugger.Launch();
 
         if (context.SyntaxReceiver is not AspectSyntaxReceiver receiver)
             return;
+
+
 
         var compilation = context.Compilation;
 
@@ -87,6 +88,12 @@ public sealed class AspectGenerator : ISourceGenerator
         diBuilder.AppendLine("    public static IServiceCollection AddAop(this IServiceCollection services)");
         diBuilder.AppendLine("    {");
         diBuilder.AppendLine("        services.AddAopCore();");
+        diBuilder.AppendLine("        services.AddSingleton<IAspectRegistry>(provider =>");
+        diBuilder.AppendLine("        {");
+        diBuilder.AppendLine("              var registry = new AspectRegistry();");
+        diBuilder.AppendLine("              AopGeneratedPipeline.RegisterGeneratedAspects(registry);");
+        diBuilder.AppendLine("              return registry;");
+        diBuilder.AppendLine("        });");
 
         // ---------------------------------------------------------
         // PIPELINE BUILDER
@@ -270,7 +277,7 @@ public sealed class AspectGenerator : ISourceGenerator
 
         // Build method ID
         var methodId =
-            $"{typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}.{methodName}";
+            $"{typeSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}.{methodName}";
 
         //
         // Emit pipeline registration
@@ -293,18 +300,18 @@ public sealed class AspectGenerator : ISourceGenerator
                       " };");
 
         // Async detection
-        bool isTask = returnType == "System.Threading.Tasks.Task";
-        bool isTaskT = returnType.StartsWith("System.Threading.Tasks.Task<");
+        bool isTask = returnType == "global::System.Threading.Tasks.Task";
+        bool isTaskT = returnType.StartsWith("global::System.Threading.Tasks.Task<");
 
         if (isTask)
         {
             sb.AppendLine(
-                $"        return _pipeline.InvokeAsync(\"{methodId}\", _inner, __args, () => _inner.{methodName}({args}));");
+                $"        return _pipeline.InvokeAsync(\"{methodId}\", _inner, __args, async () => await _inner.{methodName}({args}));");
         }
         else if (isTaskT)
         {
             sb.AppendLine(
-                $"        return _pipeline.InvokeAsync(\"{methodId}\", _inner, __args, () => _inner.{methodName}({args}));");
+                $"        return ({returnType})_pipeline.InvokeAsync(\"{methodId}\", _inner, __args, () => _inner.{methodName}({args}));");
         }
         else if (returnType == "void")
         {
@@ -322,27 +329,35 @@ public sealed class AspectGenerator : ISourceGenerator
 
     private static string CreateAspectDescriptorFromAttribute(AttributeData attribute)
     {
-        // Map attribute → aspect type
         var attributeName = attribute.AttributeClass!
             .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-        var aspectType = attributeName switch
-        {
-            "global::SimpleBitware.Aop.Attributes.LogAttribute"
-                => "global::SimpleBitware.Aop.Attributes.LogMethodAspect",
+        // Map attribute → aspect
+        string aspectType =
+            attributeName.EndsWith(".LogAttribute")
+                ? "global::SimpleBitware.Aop.Attributes.LogMethodAspect"
+                : throw new InvalidOperationException($"Unknown aspect attribute: {attributeName}");
 
-            _ => throw new InvalidOperationException(
-                $"Unknown aspect attribute: {attributeName}")
-        };
-
-        // Convert constructor args to C# expressions
+        // Extract constructor args (if any)
         var args = attribute.ConstructorArguments
             .Select(ConvertTypedConstant)
             .ToList();
 
+        // If no constructor args, fall back to property
+        if (args.Count == 0)
+        {
+            var categoryProp = attribute.NamedArguments
+                .FirstOrDefault(kvp => kvp.Key == "Category")
+                .Value;
+
+            if (categoryProp.Value is string s)
+                args.Add($"\"{s}\"");
+            else
+                args.Add("null");
+        }
+
         var argsJoined = string.Join(", ", args);
 
-        // Emit C# code, not runtime objects
         return
             $"new global::SimpleBitware.Aop.Runtime.Aspects.AspectDescriptor(" +
             $"typeof({aspectType}), {argsJoined})";

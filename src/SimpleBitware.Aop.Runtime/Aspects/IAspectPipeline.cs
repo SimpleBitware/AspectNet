@@ -13,9 +13,15 @@ public interface IAspectPipeline
         Func<object?> invokeInner);
 
     // Async pipeline
-    Task<object?> InvokeAsync(
+    Task<T> InvokeAsync<T>(
         string methodId,
         object? target,
         object?[] args,
-        Func<Task<object?>> invokeInnerAsync);
+        Func<Task<T>> invokeInnerAsync);
+
+    Task InvokeAsync(
+        string methodId,
+        object? target,
+        object?[] args,
+        Func<Task> invokeInnerAsync);
 }
