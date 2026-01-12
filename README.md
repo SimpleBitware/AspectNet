@@ -1,6 +1,6 @@
-# SimpleBitware.Aop
+# SimpleBitware.AspectNet
 
-Compile-time AOP for .NET using Roslyn source generators and DI-based pipelines.
+Compile-time aspect oriented programming for .NET using Roslyn source generators and DI-based pipelines.
 
 ## Features
 
@@ -12,7 +12,7 @@ Compile-time AOP for .NET using Roslyn source generators and DI-based pipelines.
 
 ## Basic usage
 
-1. Reference the `SimpleBitware.Aop` NuGet package.
+1. Reference the `SimpleBitware.AspectNet` NuGet package.
 2. Add attributes to your methods:
 
 ```csharp

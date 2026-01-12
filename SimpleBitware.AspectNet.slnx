@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests\SimpleBitware.AspectNet.Tests.Unit\SimpleBitware.AspectNet.Tests.Unit.csproj" />
+  </Folder>
+</Solution>
