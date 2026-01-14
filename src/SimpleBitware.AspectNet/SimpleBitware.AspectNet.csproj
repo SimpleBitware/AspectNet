@@ -1,120 +1,40 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PackageId>SimpleBitware.AspectNet</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Lucian Bornaz</Authors>
+    <Company>Simple Bitware</Company>
+    <Description>Aspect-Oriented Programming for .NET with Roslyn Source Code Weaver.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <BuildOutputTargetFolder>tools</BuildOutputTargetFolder>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+  </PropertyGroup>
 
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <PackageId>SimpleBitware.AspectNet</PackageId>
-        <Version>1.0.0</Version>
-        <Authors>Lucian Bornaz</Authors>
-        <Company>Simple Bitware</Company>
-        <Description>Aspect-Oriented Programming for .NET with Roslyn Source Generators.</Description>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/SimpleBitware/Aop</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/SimpleBitware/Aop</RepositoryUrl>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <IncludeBuildOutput>false</IncludeBuildOutput>
-        <BuildOutputTargetFolder />
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-        <BuildProjectReferences>true</BuildProjectReferences>
-        <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
-        <IsPackable>true</IsPackable>
-        <MinVerTagPrefix>v</MinVerTagPrefix>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <None Include="..\..\README.md" Pack="true" PackagePath="README.md" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="MinVer" Version="6.0.0">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
-    </ItemGroup>
-    
-    <ItemGroup>
-        <!-- Attributes library -->
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" PrivateAssets="all" >
-            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-            <IncludeAssets>SimpleBitware.AspectNet.Attributes.dll</IncludeAssets>
-        </ProjectReference>
-        
-        <!-- Runtime library -->
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" PrivateAssets="compile" />
-        
-        <!-- Analyzer (source generator) -->
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-        
-        <!-- Ship design-time stubs to consumers -->
-        <None Include="contentFiles\*.cs" Pack="true" PackagePath="contentFiles/cs/any" BuildAction="Compile" CopyToOutput="Never" />
-    </ItemGroup>
-
-<!--    <Target Name="IncludeReferencedDlls" BeforeTargets="GenerateNuspec">-->
-<!--        <ItemGroup>-->
-<!--            <None-->
-<!--                Include="@(ProjectReference->'%(TargetPath)')"-->
-<!--                Condition=" '%(Extension)' == '.dll' "-->
-<!--                Pack="true"-->
-<!--                PackagePath="lib/$(TargetFramework)/%(Filename)%(Extension)" />-->
-<!--        </ItemGroup>-->
-<!--    </Target>-->
-
-    <Target Name="BuildReferencesBeforePack" BeforeTargets="Pack">
-        <MSBuild Projects="@(ProjectReference)"
-                 Targets="Build"
-                 Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
-    </Target>
-
-    <Target Name="IncludeReferencedDllsInPackage"
-            BeforeTargets="_GetPackageFiles">
-
-        <!-- Resolve referenced projects -->
-        <ItemGroup>
-            <_RefProjects Include="@(ProjectReference)">
-                <ProjectDir>$([System.IO.Path]::GetDirectoryName('%(Identity)'))</ProjectDir>
-                <ProjectName>%(Filename)</ProjectName>
-                <IsAnalyzer>%(ProjectReference.OutputItemType)</IsAnalyzer>
-            </_RefProjects>
-        </ItemGroup>
-
-        <!-- Compute canonical output DLL paths -->
-        <ItemGroup>
-            <_RefAssemblies Include="@(_RefProjects)">
-                <OutputDll>
-                    $([System.IO.Path]::Combine(
-                    '%(_RefProjects.ProjectDir)',
-                    'bin',
-                    '$(Configuration)',
-                    '$(TargetFramework)',
-                    '%(_RefProjects.ProjectName).dll'
-                    ))
-                </OutputDll>
-            </_RefAssemblies>
-        </ItemGroup>
-
-        <!-- Add analyzers -->
-        <ItemGroup>
-            <None Include="%(_RefAssemblies.OutputDll)"
-                  Condition="'%(_RefAssemblies.IsAnalyzer)' == 'Analyzer'">
-                <Pack>true</Pack>
-                <PackagePath>analyzers/dotnet/cs</PackagePath>
-            </None>
-        </ItemGroup>
-
-        <!-- Add normal runtime DLLs -->
-        <ItemGroup>
-            <Content Include="%(_RefAssemblies.OutputDll)"
-                     Condition="'%(_RefAssemblies.IsAnalyzer)' != 'Analyzer'">
-                <Pack>true</Pack>
-                <PackagePath>lib/$(TargetFramework)</PackagePath>
-            </Content>
-        </ItemGroup>
-
-    </Target>
-
-    
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Framework" Version="18.0.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.0.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="buildTransitive\SimpleBitware.AspectNet.props" Pack="true" PackagePath="buildTransitive/SimpleBitware.AspectNet.props" />
+    <None Include="buildTransitive\SimpleBitware.AspectNet.targets" Pack="true" PackagePath="buildTransitive/SimpleBitware.AspectNet.targets" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>

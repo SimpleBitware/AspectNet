@@ -1,0 +1,28 @@
+<Project>
+  <UsingTask TaskName="SimpleBitware.AspectNet.SourceWeaver" AssemblyFile="$(MSBuildThisFileDirectory)..\tools\$(AspectNetWeaverTfm)\SimpleBitware.AspectNet.dll" />
+  <Target Name="SimpleBitware_AspectNet_Weaver" Condition="'$(AspectNetWeaverEnabled)'=='true'" BeforeTargets="CoreCompile" DependsOnTargets="ResolveReferences">
+    <MakeDir Directories="$(AspectNetOut)" />
+    <SourceWeaver ProjectDir="$(MSBuildProjectDirectory)" OutDir="$(AspectNetOut)" />
+    <ItemGroup>
+      <_OriginalCompile Include="@(Compile)" />
+      <Compile Remove="@(_OriginalCompile)" Condition="Exists('$(AspectNetOut)%(Identity)')" />
+      <Compile Include="$(AspectNetOut)**\*.cs" />
+    </ItemGroup>
+  </Target>
+</Project>
+
+
+<!--<UsingTask TaskName="SimpleBitware.AspectNet.SourceWeaver.Task" AssemblyFile="$(MSBuildThisFileDirectory)..\tools\netstandard2.0\SimpleBitware.AspectNet.dll" />-->
+<!--<Project>-->
+<!--  <UsingTask TaskName="SimpleBitware.AspectNet.SourceWeaver.Task"-->
+<!--             AssemblyFile="$(MSBuildThisPackageRoot)tools/$(AspectNetWeaverTfm)/SimpleBitware.AspectNet.dll" />-->
+<!--  -->
+<!--  <Target Name="RunAspectNetWeaver"-->
+<!--          BeforeTargets="CoreCompile"-->
+<!--          DependsOnTargets="ResolveReferences">-->
+<!--    <SimpleBitware.AspectNet.SourceWeaver.Task-->
+<!--            ProjectDir="$(ProjectDir)"-->
+<!--            IntermediateOutputPath="$(IntermediateOutputPath)"-->
+<!--            BuildEngine="$(BuildEngine)" />-->
+<!--  </Target>-->
+<!--</Project>-->

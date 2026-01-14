@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <AspectNetWeaverEnabled Condition="'$(AspectNetWeaverEnabled)'==''">true</AspectNetWeaverEnabled>
+    <AspectNetOut>$(IntermediateOutputPath)AspectNet\</AspectNetOut>
+    <AspectNetWeaverTfm>netstandard2.1</AspectNetWeaverTfm>
+  </PropertyGroup>
+</Project>
+
+<!--<Project>-->
+
+<!--  &lt;!&ndash; Enable the weaver by default &ndash;&gt;-->
+<!--  <PropertyGroup>-->
+<!--    <AspectNetWeaverEnabled>true</AspectNetWeaverEnabled>-->
+
+<!--    &lt;!&ndash; Output folder for generated sources &ndash;&gt;-->
+<!--    <AspectNetOut>$(IntermediateOutputPath)AspectNet\</AspectNetOut>-->
+<!--    <AspectNetWeaverTfm>netstandard2.1</AspectNetWeaverTfm>-->
+<!--  </PropertyGroup>-->
+
+<!--</Project>-->
