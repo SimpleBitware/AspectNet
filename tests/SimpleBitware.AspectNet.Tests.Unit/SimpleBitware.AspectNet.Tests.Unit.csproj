@@ -27,10 +27,10 @@
         <Using Include="NUnit.Framework"/>
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" />
-      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" />
-      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    </ItemGroup>
+<!--    <ItemGroup>-->
+<!--      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" />-->
+<!--      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" />-->
+<!--      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />-->
+<!--    </ItemGroup>-->
 
 </Project>

@@ -18,6 +18,9 @@
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <BuildOutputTargetFolder />
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        <BuildProjectReferences>true</BuildProjectReferences>
+        <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
         <IsPackable>true</IsPackable>
         <MinVerTagPrefix>v</MinVerTagPrefix>
     </PropertyGroup>
@@ -35,10 +38,13 @@
     
     <ItemGroup>
         <!-- Attributes library -->
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" PrivateAssets="none" ReferenceOutputAssembly="true" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" PrivateAssets="all" >
+            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+            <IncludeAssets>SimpleBitware.AspectNet.Attributes.dll</IncludeAssets>
+        </ProjectReference>
         
         <!-- Runtime library -->
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" PrivateAssets="none" ReferenceOutputAssembly="true" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Runtime\SimpleBitware.AspectNet.Runtime.csproj" PrivateAssets="compile" />
         
         <!-- Analyzer (source generator) -->
         <ProjectReference Include="..\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
@@ -47,12 +53,57 @@
         <None Include="buildTransitive\*.cs" Pack="true" PackagePath="buildTransitive\" />
     </ItemGroup>
 
-    <ItemGroup>
-        <!-- Pack Attributes DLL -->
-        <None Include="bin\$(Configuration)\netstandard2.0\SimpleBitware.AspectNet.Attributes.dll" Pack="true" PackagePath="lib/netstandard2.0/" />
+<!--    <Target Name="IncludeReferencedDlls" BeforeTargets="GenerateNuspec">-->
+<!--        <ItemGroup>-->
+<!--            <None-->
+<!--                Include="@(ProjectReference->'%(TargetPath)')"-->
+<!--                Condition=" '%(Extension)' == '.dll' "-->
+<!--                Pack="true"-->
+<!--                PackagePath="lib/$(TargetFramework)/%(Filename)%(Extension)" />-->
+<!--        </ItemGroup>-->
+<!--    </Target>-->
 
-        <!-- Pack Runtime DLL -->
-        <None Include="bin\$(Configuration)\netstandard2.0\SimpleBitware.AspectNet.Runtime.dll" Pack="true" PackagePath="lib/netstandard2.0/" />
-    </ItemGroup>
+    <Target Name="BuildReferencesBeforePack" BeforeTargets="Pack">
+        <MSBuild Projects="@(ProjectReference)"
+                 Targets="Build"
+                 Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+    </Target>
+
+    <Target Name="IncludeReferencedDllsInPackage"
+            BeforeTargets="_GetPackageFiles">
+
+        <!-- Resolve referenced project directories -->
+        <ItemGroup>
+            <_RefProjects Include="@(ProjectReference)">
+                <ProjectDir>$([System.IO.Path]::GetDirectoryName('%(Identity)'))</ProjectDir>
+                <ProjectName>%(Filename)</ProjectName>
+            </_RefProjects>
+        </ItemGroup>
+
+        <!-- Compute output DLL paths -->
+        <ItemGroup>
+            <_RefAssemblies Include="@(_RefProjects)">
+                <OutputDll>
+                    $([System.IO.Path]::Combine(
+                    '%(_RefProjects.ProjectDir)',
+                    'bin',
+                    '$(Configuration)',
+                    '$(TargetFramework)',
+                    '%(_RefProjects.ProjectName).dll'
+                    ))
+                </OutputDll>
+            </_RefAssemblies>
+        </ItemGroup>
+
+        <!-- Add to package -->
+        <ItemGroup>
+            <Content Include="%(_RefAssemblies.OutputDll)">
+                <Pack>true</Pack>
+                <PackagePath>lib\$(TargetFramework)</PackagePath>
+            </Content>
+        </ItemGroup>
+
+    </Target>
+
 
 </Project>

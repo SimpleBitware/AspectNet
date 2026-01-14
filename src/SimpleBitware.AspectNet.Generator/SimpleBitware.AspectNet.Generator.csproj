@@ -7,7 +7,8 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <IsRoslynComponent>false</IsRoslynComponent>
+        <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
+<!--        <IsRoslynComponent>false</IsRoslynComponent>-->
         <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
         
         <!-- REQUIRED for source generators -->
