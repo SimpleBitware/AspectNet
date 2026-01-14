@@ -21,6 +21,7 @@
         <PackageReference Include="NUnit" Version="4.4.0" />
         <PackageReference Include="NUnit.Analyzers" Version="4.7.0"/>
         <PackageReference Include="NUnit3TestAdapter" Version="5.0.0"/>
+        <PackageReference Include="SimpleBitware.AspectNet" Version="0.0.0-alpha.0.4" />
     </ItemGroup>
 
     <ItemGroup>

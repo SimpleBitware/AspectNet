@@ -50,7 +50,7 @@
         <ProjectReference Include="..\SimpleBitware.AspectNet.Generator\SimpleBitware.AspectNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
         
         <!-- Ship design-time stubs to consumers -->
-        <None Include="buildTransitive\*.cs" Pack="true" PackagePath="buildTransitive\" />
+        <None Include="contentFiles\*.cs" Pack="true" PackagePath="contentFiles/cs/any" BuildAction="Compile" CopyToOutput="Never" />
     </ItemGroup>
 
 <!--    <Target Name="IncludeReferencedDlls" BeforeTargets="GenerateNuspec">-->
@@ -72,15 +72,16 @@
     <Target Name="IncludeReferencedDllsInPackage"
             BeforeTargets="_GetPackageFiles">
 
-        <!-- Resolve referenced project directories -->
+        <!-- Resolve referenced projects -->
         <ItemGroup>
             <_RefProjects Include="@(ProjectReference)">
                 <ProjectDir>$([System.IO.Path]::GetDirectoryName('%(Identity)'))</ProjectDir>
                 <ProjectName>%(Filename)</ProjectName>
+                <IsAnalyzer>%(ProjectReference.OutputItemType)</IsAnalyzer>
             </_RefProjects>
         </ItemGroup>
 
-        <!-- Compute output DLL paths -->
+        <!-- Compute canonical output DLL paths -->
         <ItemGroup>
             <_RefAssemblies Include="@(_RefProjects)">
                 <OutputDll>
@@ -95,15 +96,25 @@
             </_RefAssemblies>
         </ItemGroup>
 
-        <!-- Add to package -->
+        <!-- Add analyzers -->
         <ItemGroup>
-            <Content Include="%(_RefAssemblies.OutputDll)">
+            <None Include="%(_RefAssemblies.OutputDll)"
+                  Condition="'%(_RefAssemblies.IsAnalyzer)' == 'Analyzer'">
                 <Pack>true</Pack>
-                <PackagePath>lib\$(TargetFramework)</PackagePath>
+                <PackagePath>analyzers/dotnet/cs</PackagePath>
+            </None>
+        </ItemGroup>
+
+        <!-- Add normal runtime DLLs -->
+        <ItemGroup>
+            <Content Include="%(_RefAssemblies.OutputDll)"
+                     Condition="'%(_RefAssemblies.IsAnalyzer)' != 'Analyzer'">
+                <Pack>true</Pack>
+                <PackagePath>lib/$(TargetFramework)</PackagePath>
             </Content>
         </ItemGroup>
 
     </Target>
 
-
+    
 </Project>
