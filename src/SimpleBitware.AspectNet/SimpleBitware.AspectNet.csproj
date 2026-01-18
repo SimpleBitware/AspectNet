@@ -35,6 +35,6 @@
   <ItemGroup>
     <None Include="buildTransitive\SimpleBitware.AspectNet.props" Pack="true" PackagePath="buildTransitive/SimpleBitware.AspectNet.props" />
     <None Include="buildTransitive\SimpleBitware.AspectNet.targets" Pack="true" PackagePath="buildTransitive/SimpleBitware.AspectNet.targets" />
-    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 </Project>
