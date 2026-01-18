@@ -1,7 +1,6 @@
 <Project>
   <PropertyGroup>
     <AspectNetWeaverEnabled Condition="'$(AspectNetWeaverEnabled)'==''">true</AspectNetWeaverEnabled>
-    <AspectNetWeaverTfm>netstandard2.1</AspectNetWeaverTfm>
     <AspectNetFolderName>.AspectNet</AspectNetFolderName>
   </PropertyGroup>
 </Project>

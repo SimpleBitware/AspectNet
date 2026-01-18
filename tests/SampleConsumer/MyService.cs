@@ -1,15 +1,18 @@
 using System;
+
+namespace SampleConsumer;
+
 public class MyService
 {
-    [Log]
+    // [Log]
     public MyService() { }
 
-    [Log]
+    // [Log]
     public int Add(int a, int b) => a + b;
 
-    [Log]
+    // [Log]
     public string Name { get; set; } = "Default";
     
-    [Log]
+    // [Log]
     private static string StaticName { get; set; } = "Default";
 }

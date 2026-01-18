@@ -1,8 +1,8 @@
 <Project>
 
     <!-- Load the weaver task -->
-    <UsingTask TaskName="SimpleBitware.AspectNet.SourceWeaver"
-               AssemblyFile="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\tools\$(AspectNetWeaverTfm)\SimpleBitware.AspectNet.dll'))" />
+    <UsingTask TaskName="SimpleBitware.AspectNet.Build.SourceWeaver"
+               AssemblyFile="$(MSBuildThisFileDirectory)..\tools\SimpleBitware.AspectNet.Build.dll" />
 
     <PropertyGroup>
         <AspectNetOut Condition="'$(AspectNetOut)'=='' and '$(IntermediateOutputPath)'!=''">$(IntermediateOutputPath)$(AspectNetFolderName)/</AspectNetOut>

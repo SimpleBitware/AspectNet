@@ -1,7 +1,8 @@
 using System;
+using SampleConsumer;
+
 class Program
 {
-    [Log]
     static void Main()
     {
         var s = new MyService();
