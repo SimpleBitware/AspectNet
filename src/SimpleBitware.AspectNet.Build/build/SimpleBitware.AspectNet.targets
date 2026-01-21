@@ -5,8 +5,8 @@
                AssemblyFile="$(MSBuildThisFileDirectory)..\tools\SimpleBitware.AspectNet.Build.dll" />
 
     <PropertyGroup>
-        <AspectNetOut Condition="'$(AspectNetOut)'=='' and '$(IntermediateOutputPath)'!=''">$(IntermediateOutputPath)$(AspectNetFolderName)/</AspectNetOut>
-        <AspectNetOut Condition="'$(AspectNetOut)'==''">$(MSBuildProjectDirectory)/obj/$(AspectNetFolderName)/</AspectNetOut>
+        <GeneratedFilesOutputDirectory Condition="'$(GeneratedFilesOutputDirectory)'=='' and '$(IntermediateOutputPath)'!=''">$(IntermediateOutputPath)$(GeneratedFilesDirectoryName)/</GeneratedFilesOutputDirectory>
+        <GeneratedFilesOutputDirectory Condition="'$(GeneratedFilesOutputDirectory)'==''">$(MSBuildProjectDirectory)/obj/$(GeneratedFilesDirectoryName)/</GeneratedFilesOutputDirectory>
     </PropertyGroup>
 
     <!-- Run the weaver -->
@@ -15,8 +15,8 @@
             AfterTargets="ResolveReferences"
             BeforeTargets="PrepareForBuild">
 
-        <MakeDir Directories="$(AspectNetOut)" />
-        <SourceWeaver ProjectDir="$(MSBuildProjectDirectory)" OutDir="$(AspectNetOut)" />
+        <MakeDir Directories="$(GeneratedFilesOutputDirectory)" />
+        <SourceWeaver ProjectDirectory="$(MSBuildProjectDirectory)" OutputDirectory="$(GeneratedFilesOutputDirectory)" DebugMode="$(DebugMode)"/>
     </Target>
 
     <!-- Rewrite Compile items -->
@@ -27,7 +27,7 @@
 
         <ItemGroup>
             <!-- Load generated files -->
-            <AspectNetGenerated Include="$(AspectNetOut)**\*.cs" />
+            <AspectNetGenerated Include="$(GeneratedFilesOutputDirectory)**\*.cs" />
 
             <!-- Snapshot original compile items (now WITHOUT generated files) -->
             <_OriginalCompile Include="@(Compile)" />

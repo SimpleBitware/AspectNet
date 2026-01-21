@@ -1,33 +1,74 @@
-using System;
-using System.IO;
-using Microsoft.CodeAnalysis;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace SimpleBitware.AspectNet.Engine;
 
 public sealed class Weaver
 {
-    public void Run(string projectDir, string outDir)
+    private static readonly string[] ExcludedDirectories = ["bin", "obj"];
+    private readonly ICodeFileWeaver[] weavers = [new CSharpFileWeaver()];
+
+    public void Run(string projectDirectory, string outDirectory, bool debugMode)
     {
-        Directory.CreateDirectory(outDir);
+        if (debugMode)
+            WaitForDebuggerToAttach();
 
-        foreach (var file in Directory.EnumerateFiles(projectDir, "*.cs", SearchOption.AllDirectories))
+        Directory.CreateDirectory(outDirectory);
+
+        foreach (var fullFilePath in EnumerateProjectFiles(projectDirectory))
         {
-            var text = File.ReadAllText(file);
-            var tree = CSharpSyntaxTree.ParseText(text);
-            var root = tree.GetRoot();
+            var fileContent = File.ReadAllText(fullFilePath);
+            var fileExtension = Path.GetExtension(fullFilePath);
 
-            var newText = "// Rewritten by AspectNet\n" + root.ToFullString();
+            var generatedFileContent = weavers
+                .Select(x => x.Run(fileExtension, fileContent))
+                .FirstOrDefault(x => x != null);
 
-            var relative = GetRelativePath(projectDir, file);
-            var outPath = Path.Combine(outDir, relative);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-            File.WriteAllText(outPath, newText);
+            if (generatedFileContent != null)
+                CreateGeneratedFile(projectDirectory, outDirectory, fullFilePath, generatedFileContent);
         }
     }
 
-    public static string GetRelativePath(string basePath, string fullPath)
+    private static void WaitForDebuggerToAttach()
+    {
+        if (!Debugger.IsAttached)
+        {
+            Console.WriteLine($"Waiting for debugger. PID: {Process.GetCurrentProcess().Id}");
+            while (!Debugger.IsAttached)
+                Thread.Sleep(1000);
+        }
+
+        Debugger.Break();
+    }
+
+    private static IEnumerable<string> EnumerateProjectFiles(string currentDirectory)
+    {
+        if (ExcludedDirectories.Any(x => string.Equals(x, Path.GetFileName(currentDirectory.TrimEnd(Path.DirectorySeparatorChar)), StringComparison.InvariantCultureIgnoreCase)))
+            yield break;
+
+        foreach (var fullFilePath in Directory.EnumerateFiles(currentDirectory, "*.*", SearchOption.TopDirectoryOnly))
+            yield return fullFilePath;
+
+        foreach (var directory in Directory.EnumerateDirectories(currentDirectory))
+        {
+            foreach (var fullFilePath in EnumerateProjectFiles(directory))
+            {
+                yield return fullFilePath;
+            }
+        }
+    }
+
+    private static void CreateGeneratedFile(string projectDirectory, string outDirectory, string fullFilePath, string generatedFileContent)
+    {
+        var relative = GetRelativePath(projectDirectory, fullFilePath);
+        var outPath = Path.Combine(outDirectory, relative);
+
+        var outputFileDirectory = Path.GetDirectoryName(outPath) ?? string.Empty;
+        Directory.CreateDirectory(outputFileDirectory);
+        File.WriteAllText(outPath, generatedFileContent);
+    }
+
+    private static string GetRelativePath(string basePath, string fullPath)
     {
         var baseUri = new Uri(AppendDirectorySeparator(basePath));
         var fullUri = new Uri(fullPath);
@@ -43,5 +84,4 @@ public sealed class Weaver
             return path + Path.DirectorySeparatorChar;
         return path;
     }
-
 }

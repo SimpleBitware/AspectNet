@@ -8,40 +8,25 @@ namespace SimpleBitware.AspectNet.Build;
 
 public sealed class SourceWeaver : Task
 {
-    [Required]
-    public string ProjectDir { get; set; }
+    private const string AspectNetEngineAssemblyName = "SimpleBitware.AspectNet.Engine.dll";
+    private const string WeaverTypeName = "SimpleBitware.AspectNet.Engine.Weaver";
+    private const string WeaverEntryMethodName = "Run";
 
+    [Required] 
+    public string ProjectDirectory { get; set; }
+
+    [Required] 
+    public string OutputDirectory { get; set; }
+    
     [Required]
-    public string OutDir { get; set; }
+    public bool DebugMode  { get; set; }
 
     public override bool Execute()
     {
-        System.Diagnostics.Debugger.Launch();
-
         try
         {
-            var taskDir = Path.GetDirectoryName(GetType().Assembly.Location);
-            var enginePath = Path.Combine(taskDir, "SimpleBitware.AspectNet.Engine.dll");
-
-            var engineAsm = Assembly.LoadFrom(enginePath);
-            var weaverType = engineAsm.GetType("SimpleBitware.AspectNet.Engine.Weaver", true);
-            var weaver = Activator.CreateInstance(weaverType);
-
-            var run = weaverType.GetMethod("Run");
-
-            try
-            {
-                run.Invoke(weaver, new object[] { ProjectDir, OutDir });
-            }
-            catch (TargetInvocationException tie)
-            {
-                var inner = tie.InnerException ?? tie;
-                Log.LogError($"AspectNet engine error: {inner.GetType().Name}: {inner.Message}");
-                Log.LogError(inner.StackTrace);
-                return false;
-            }
-
-            return true;
+            var weaverType = GetWeaverType();
+            return ExecuteWeaver(weaverType);
         }
         catch (Exception ex)
         {
@@ -50,4 +35,34 @@ public sealed class SourceWeaver : Task
         }
     }
 
+    private Type GetWeaverType()
+    {
+        var taskDir = Path.GetDirectoryName(GetType().Assembly.Location) ?? string.Empty;
+        var enginePath = Path.Combine(taskDir, AspectNetEngineAssemblyName);
+        var engineAssembly = Assembly.LoadFrom(enginePath);
+        return engineAssembly.GetType(WeaverTypeName, true);
+    }
+
+    private bool ExecuteWeaver(Type weaverType)
+    {
+        var weaverEntryMethod = weaverType.GetMethod(WeaverEntryMethodName);
+        if (weaverEntryMethod == null)
+        {
+            Log.LogError("AspectNet engine error: {1} method not found", WeaverEntryMethodName);
+            return false;
+        }
+
+        try
+        {
+            var weaver = Activator.CreateInstance(weaverType);
+            weaverEntryMethod.Invoke(weaver, [ProjectDirectory, OutputDirectory, DebugMode]);
+            return true;
+        }
+        catch (TargetInvocationException ex)
+        {
+            var exception = ex.InnerException ?? ex;
+            Log.LogErrorFromException(exception,  true);
+            return false;
+        }
+    }
 }
