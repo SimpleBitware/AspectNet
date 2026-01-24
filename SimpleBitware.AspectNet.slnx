@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/SimpleBitware.AspectNet.DependencyInjection/SimpleBitware.AspectNet.DependencyInjection.csproj" />
     <Project Path="src\SimpleBitware.AspectNet.Build\SimpleBitware.AspectNet.Build.csproj" />
     <Project Path="src\SimpleBitware.AspectNet.Engine\SimpleBitware.AspectNet.Engine.csproj" />
   </Folder>

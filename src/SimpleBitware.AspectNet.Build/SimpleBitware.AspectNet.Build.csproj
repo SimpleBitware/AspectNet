@@ -44,6 +44,9 @@
         <ProjectReference Include="..\SimpleBitware.AspectNet.Engine\SimpleBitware.AspectNet.Engine.csproj"
                           ReferenceOutputAssembly="false"
                           PrivateAssets="all" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.DependencyInjection\SimpleBitware.AspectNet.DependencyInjection.csproj"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
     </ItemGroup>
 
     <!-- Build task assembly -->
@@ -57,10 +60,15 @@
     <!-- Engine + Roslyn deps (minimal curated set) -->
     <PropertyGroup>
         <EngineBinFolder>../SimpleBitware.AspectNet.Engine/bin/$(Configuration)/$(TargetFramework)</EngineBinFolder>
+        <DependecyInjectionBinFolder>../SimpleBitware.AspectNet.DependencyInjection/bin/$(Configuration)/$(TargetFramework)</DependecyInjectionBinFolder>
     </PropertyGroup>
 
     <ItemGroup>
         <None Include="$(EngineBinFolder)/SimpleBitware.AspectNet.Engine.dll"
+              Pack="true"
+              PackagePath="tools/"
+              Visible="false" />
+        <None Include="$(DependecyInjectionBinFolder)/SimpleBitware.AspectNet.DependencyInjection.dll"
               Pack="true"
               PackagePath="tools/"
               Visible="false" />
