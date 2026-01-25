@@ -6,9 +6,9 @@ namespace SimpleBitware.AspectNet.Engine;
 
 public class CSharpFileWeaver : ICodeFileWeaver
 {
-    public string? Run(string fileEntension, string fileContent)
+    public string? Run(string fileExtension, string fileContent)
     {
-        if (!string.Equals(fileEntension, ".cs", StringComparison.InvariantCultureIgnoreCase))
+        if (!string.Equals(fileExtension, ".cs", StringComparison.InvariantCultureIgnoreCase))
             return null;
         
         var tree = CSharpSyntaxTree.ParseText(fileContent);
