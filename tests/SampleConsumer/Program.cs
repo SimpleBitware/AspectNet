@@ -1,6 +1,8 @@
 using System;
 using SampleConsumer;
 
+namespace SampleConsumer;
+
 class Program
 {
     static void Main()
