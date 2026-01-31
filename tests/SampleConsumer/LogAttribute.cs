@@ -1,5 +1,6 @@
 using System;
 using SimpleBitware.AspectNet;
+using SimpleBitware.AspectNet.Abstractions;
 
 namespace SampleConsumer;
 

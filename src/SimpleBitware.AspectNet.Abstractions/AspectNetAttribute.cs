@@ -1,6 +1,6 @@
 using System;
 
-namespace SimpleBitware.AspectNet;
+namespace SimpleBitware.AspectNet.Abstractions;
 
 public abstract class AspectNetAttribute : Attribute
 {

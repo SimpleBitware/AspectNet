@@ -2,7 +2,7 @@ using System;
 
 namespace SampleConsumer;
 
-public partial class MyService
+public class MyService
 {
     [Log]
     public MyService() { }

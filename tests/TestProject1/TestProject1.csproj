@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <!-- Test framework + runner -->
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+        <PackageReference Include="NUnit" Version="4.3.2" />
+        <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+        <!-- Removed NUnit.Analyzers because it drags in Roslyn 1.0 -->
+    </ItemGroup>
+
+    <!-- Roslyn Testing (NUnit) -->
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeFix.Testing" Version="1.1.3" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" Version="1.1.3" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" PrivateAssets="all" />
+    </ItemGroup>
+
+    <!-- IMPORTANT: reference analyzer assemblies as *normal references* -->
+    <ItemGroup>
+        <Reference Include="SimpleBitware.AspectNet.Analyzers">
+            <HintPath>..\..\src\SimpleBitware.AspectNet.Analyzers\bin\Debug\netstandard2.0\SimpleBitware.AspectNet.Analyzers.dll</HintPath>
+        </Reference>
+
+        <Reference Include="SimpleBitware.AspectNet.CodeFixes">
+            <HintPath>..\..\src\SimpleBitware.AspectNet.CodeFixes\bin\Debug\netstandard2.0\SimpleBitware.AspectNet.CodeFixes.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <!-- Optional: global using -->
+    <ItemGroup>
+        <Using Include="NUnit.Framework" />
+    </ItemGroup>
+
+</Project>

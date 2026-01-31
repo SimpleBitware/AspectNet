@@ -5,7 +5,12 @@
     </PropertyGroup>
     
     <ItemGroup>
-      <PackageReference Include="AspectNet.Generator" Version="1.0.0" />
+        <Analyzer Include="..\..\src\SimpleBitware.AspectNet.Analyzers\bin\Debug\netstandard2.0\SimpleBitware.AspectNet.Analyzers.dll"/>
+        <Analyzer Include="..\..\src\SimpleBitware.AspectNet.CodeFixes\bin\Debug\netstandard2.0\SimpleBitware.AspectNet.CodeFixes.dll"/>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="SimpleBitware.AspectNet" Version="1.0.0" />
     </ItemGroup>
     
 </Project>

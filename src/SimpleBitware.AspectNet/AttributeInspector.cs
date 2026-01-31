@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SimpleBitware.AspectNet.Abstractions;
 
 namespace SimpleBitware.AspectNet;
 
