@@ -1,15 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SimpleBitware.AspectNet.Abstractions/SimpleBitware.AspectNet.Abstractions.csproj" />
-    <Project Path="src/SimpleBitware.AspectNet.Analyzers/SimpleBitware.AspectNet.Analyzers.csproj" />
-    <Project Path="src/SimpleBitware.AspectNet.DependencyInjection/SimpleBitware.AspectNet.DependencyInjection.csproj" />
-    <Project Path="src\SimpleBitware.AspectNet.Build\SimpleBitware.AspectNet.Build.csproj" />
-    <Project Path="src\SimpleBitware.AspectNet.CodeFixes\SimpleBitware.AspectNet.CodeFixes.csproj" />
-    <Project Path="src\SimpleBitware.AspectNet.Engine\SimpleBitware.AspectNet.Engine.csproj" />
-    <Project Path="src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
+    <Project Path="src/SimpleBitware.AspectNet.Common.Diagnostics/SimpleBitware.AspectNet.Common.Diagnostics.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.Common\SimpleBitware.AspectNet.Common.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.CSharp.Analyzers\SimpleBitware.AspectNet.CSharp.Analyzers.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.CSharp.CodeFixes\SimpleBitware.AspectNet.CSharp.CodeFixes.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.CSharp\SimpleBitware.AspectNet.CSharp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SampleConsumer/SampleConsumer.csproj" />
-    <Project Path="tests/TestProject1/TestProject1.csproj" />
   </Folder>
 </Solution>

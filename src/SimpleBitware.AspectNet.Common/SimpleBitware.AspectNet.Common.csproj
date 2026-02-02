@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0"/>
+    </ItemGroup>
+
+    <!-- Include dependecies to other packages within solution -->
+    <ItemGroup Condition="'$(Pack)' == 'true'">
+        <PackageReference Include="SimpleBitware.AspectNet.Abstractions" Version="$(Version)" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(Pack)' != 'true'">
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+    </ItemGroup>
+
+</Project>

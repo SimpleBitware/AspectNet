@@ -1,8 +1,8 @@
 using Microsoft.CodeAnalysis;
 
-namespace SimpleBitware.AspectNet.Analyzers;
+namespace SimpleBitware.AspectNet.Common.Diagnostics;
 
-internal static class DiagnosticDescriptors
+public static class DiagnosticDescriptors
 {
     public static readonly DiagnosticDescriptor ClassMustBePartial = new(
         id: "ASPECT001",

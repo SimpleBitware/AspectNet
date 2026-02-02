@@ -1,0 +1,122 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <NoWarn>NU5128</NoWarn>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>SimpleBitware.AspectNet.CSharp</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Lucian Bornaz</Authors>
+        <Company>Simple Bitware</Company>
+        <Description>AspectNet source generator for C#</Description>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
+        <PackageTags>source-generator;roslyn;aop;weaver;C#</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <MinVerTagPrefix>v</MinVerTagPrefix>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- Strongly recommended for analyzers/generators -->
+        <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MinVer" Version="6.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    </ItemGroup>
+
+    <!-- Include dependencies to other packages within solution -->
+    <ItemGroup Condition="'$(Pack)' == 'true'">
+        <PackageReference Include="SimpleBitware.AspectNet.Abstractions" Version="$(Version)" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(Pack)' != 'true'">
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+    </ItemGroup>
+
+    <!-- Build ordering only (no assembly reference) -->
+    <ItemGroup>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Common\SimpleBitware.AspectNet.Common.csproj">
+            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Common.Diagnostics\SimpleBitware.AspectNet.Common.Diagnostics.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.Analyzers\SimpleBitware.AspectNet.CSharp.Analyzers.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>    <!-- Do not reference analyzer assembly at compile time -->
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.CodeFixes\SimpleBitware.AspectNet.CSharp.CodeFixes.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>    <!-- Do not reference code fixes assembly at compile time -->
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+    </ItemGroup>
+
+    <!-- Include generator DLL in the NuGet package -->
+    <ItemGroup>
+        <None Include="$(OutputPath)$(AssemblyName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false"/>
+    </ItemGroup>
+
+    <!-- Include analyzers assemblies (without referencing them) -->
+    <PropertyGroup>
+        <AbstractionsProjectName>SimpleBitware.AspectNet.Abstractions</AbstractionsProjectName>
+        <AbstractionsBinFolder>../$(AbstractionsProjectName)/bin/$(Configuration)/$(TargetFramework)</AbstractionsBinFolder>
+        <CommonProjectName>SimpleBitware.AspectNet.Common</CommonProjectName>
+        <CommonBinFolder>../$(CommonProjectName)/bin/$(Configuration)/$(TargetFramework)</CommonBinFolder>
+        <CommonDiagnosticsProjectName>SimpleBitware.AspectNet.Common.Diagnostics</CommonDiagnosticsProjectName>
+        <CommonDiagnosticsBinFolder>../$(CommonDiagnosticsProjectName)/bin/$(Configuration)/$(TargetFramework)</CommonDiagnosticsBinFolder>
+        <AnalyzersProjectName>SimpleBitware.AspectNet.CSharp.Analyzers</AnalyzersProjectName>
+        <AnalyzersBinFolder>../$(AnalyzersProjectName)/bin/$(Configuration)/$(TargetFramework)</AnalyzersBinFolder>
+        <CodeFixesProjectName>SimpleBitware.AspectNet.CSharp.CodeFixes</CodeFixesProjectName>
+        <CodeFixesBinFolder>../$(CodeFixesProjectName)/bin/$(Configuration)/$(TargetFramework)</CodeFixesBinFolder>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(AbstractionsBinFolder)\$(AbstractionsProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false"/>
+        <None Include="$(CommonBinFolder)\$(CommonProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false"/>
+        <None Include="$(CommonDiagnosticsBinFolder)\$(CommonDiagnosticsProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false"/>
+        <None Include="$(AnalyzersBinFolder)\$(AnalyzersProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              IsAnalyzer="true"
+              Visible="false"/>
+        <None Include="$(CodeFixesBinFolder)\$(CodeFixesProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              IsAnalyzer="true"
+              Visible="false"/>
+    </ItemGroup>
+
+</Project>

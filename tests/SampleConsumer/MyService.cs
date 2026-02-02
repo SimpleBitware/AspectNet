@@ -1,5 +1,3 @@
-using System;
-
 namespace SampleConsumer;
 
 public class MyService
@@ -7,7 +5,7 @@ public class MyService
     [Log]
     public MyService() { }
 
-    // [Log]
+    [Log]
     public int Add(int a, int b) => a + b;
 
     // [Log]
