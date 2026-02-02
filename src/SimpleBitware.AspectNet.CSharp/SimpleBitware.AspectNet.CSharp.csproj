@@ -95,18 +95,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="$(AbstractionsBinFolder)\$(AbstractionsProjectName).dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="false"/>
-        <None Include="$(CommonBinFolder)\$(CommonProjectName).dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="false"/>
-        <None Include="$(CommonDiagnosticsBinFolder)\$(CommonDiagnosticsProjectName).dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="false"/>
         <None Include="$(AnalyzersBinFolder)\$(AnalyzersProjectName).dll"
               Pack="true"
               PackagePath="analyzers/dotnet/cs"
@@ -116,6 +104,20 @@
               Pack="true"
               PackagePath="analyzers/dotnet/cs"
               IsAnalyzer="true"
+              Visible="false"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="$(AbstractionsBinFolder)\$(AbstractionsProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/deps"
+              Visible="false"/>
+        <None Include="$(CommonBinFolder)\$(CommonProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/deps"
+              Visible="false"/>
+        <None Include="$(CommonDiagnosticsBinFolder)\$(CommonDiagnosticsProjectName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/deps"
               Visible="false"/>
     </ItemGroup>
 

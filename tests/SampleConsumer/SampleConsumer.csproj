@@ -2,10 +2,11 @@
     
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
+        <ReportAnalyzer>true</ReportAnalyzer>
     </PropertyGroup>
     
     <ItemGroup>
-      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.17" />
+      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.19" />
     </ItemGroup>
     
 </Project>

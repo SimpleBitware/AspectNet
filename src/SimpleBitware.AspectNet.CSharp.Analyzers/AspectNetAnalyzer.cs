@@ -6,12 +6,14 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Common.Diagnostics;
+using SimpleBitware.AspectNet.CSharp.Analyzers.Extensions;
 
 namespace SimpleBitware.AspectNet.CSharp.Analyzers;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class AspectNetAnalyzer : DiagnosticAnalyzer
 {
+    private static readonly string? AspectNetAttributeFullName = typeof(AspectNetAttribute).FullName;
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [DiagnosticDescriptors.ClassMustBePartial];
 
     public override void Initialize(AnalysisContext context)
@@ -30,8 +32,7 @@ public sealed class AspectNetAnalyzer : DiagnosticAnalyzer
             return;
 
         // Resolve the aspect attribute symbol
-        var aspectAttributeSymbol = context.Compilation.GetTypeByMetadataName(
-            typeof(AspectNetAttribute).FullName!);
+        var aspectAttributeSymbol = context.Compilation.GetTypeByMetadataName(AspectNetAttributeFullName);
 
         if (aspectAttributeSymbol is null)
             return; // attribute not referenced in this compilation
@@ -39,12 +40,7 @@ public sealed class AspectNetAnalyzer : DiagnosticAnalyzer
         // Check if ANY member has the aspect attribute
         var hasAspectMembers = typeSymbol
             .GetMembers()
-            .Any(member =>
-                member.GetAttributes()
-                    .Any(attr =>
-                        SymbolEqualityComparer.Default.Equals(
-                            attr.AttributeClass,
-                            aspectAttributeSymbol)));
+            .Any(member => member.GetAttributes().Any(attr => attr.AttributeClass.InheritsFrom(aspectAttributeSymbol)));
 
         if (!hasAspectMembers)
             return;
