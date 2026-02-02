@@ -1,7 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <AspectNetWeaverEnabled Condition="'$(AspectNetWeaverEnabled)'==''">true</AspectNetWeaverEnabled>
-    <GeneratedFilesDirectoryName>.SimpleBitware\AspectNet\Generated</GeneratedFilesDirectoryName>
-    <DebugMode Condition="'$(DebugMode)'==''">false</DebugMode>
-  </PropertyGroup>
-</Project>
