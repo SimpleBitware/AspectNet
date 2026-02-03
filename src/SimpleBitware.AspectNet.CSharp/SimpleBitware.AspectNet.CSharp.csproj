@@ -9,7 +9,6 @@
 
     <PropertyGroup>
         <PackageId>SimpleBitware.AspectNet.CSharp</PackageId>
-        <Version>1.0.0</Version>
         <Authors>Lucian Bornaz</Authors>
         <Company>Simple Bitware</Company>
         <Description>AspectNet source generator for C#</Description>
@@ -48,17 +47,28 @@
     <ItemGroup Condition="'$(Pack)' == 'true'">
         <PackageReference Include="SimpleBitware.AspectNet.Abstractions" Version="$(Version)" />
     </ItemGroup>
+    <ItemGroup Condition="'$(Pack)' != 'true'">
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+    </ItemGroup>
 
     <!-- Build ordering only (no assembly reference) -->
     <ItemGroup>
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Common\SimpleBitware.AspectNet.Common.csproj"
-                          PrivateAssets="all" />
-        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.Analyzers\SimpleBitware.AspectNet.CSharp.Analyzers.csproj"
-                          PrivateAssets="all"
-                          ExcludeAssets="runtime" />
-        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.CodeFixes\SimpleBitware.AspectNet.CSharp.CodeFixes.csproj"
-                          PrivateAssets="all"
-                          ExcludeAssets="runtime" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Common\SimpleBitware.AspectNet.Common.csproj">
+            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Common.Diagnostics\SimpleBitware.AspectNet.Common.Diagnostics.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.Analyzers\SimpleBitware.AspectNet.CSharp.Analyzers.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>    <!-- Do not reference analyzer assembly at compile time -->
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.CSharp.CodeFixes\SimpleBitware.AspectNet.CSharp.CodeFixes.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>    <!-- Do not reference code fixes assembly at compile time -->
+            <PrivateAssets>all</PrivateAssets>
+        </ProjectReference>
     </ItemGroup>
 
     <!-- Include generator DLL in the NuGet package -->

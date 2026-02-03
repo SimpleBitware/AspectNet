@@ -6,7 +6,7 @@
     </PropertyGroup>
     
     <ItemGroup>
-      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.19" />
+      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.21" />
     </ItemGroup>
     
 </Project>
