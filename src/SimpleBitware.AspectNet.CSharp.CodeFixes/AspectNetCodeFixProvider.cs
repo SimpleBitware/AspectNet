@@ -17,7 +17,7 @@ namespace SimpleBitware.AspectNet.CSharp.CodeFixes;
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(PartialModifierCodeFixProvider))]
 public sealed class PartialModifierCodeFixProvider : CodeFixProvider
 {
-    private const string CodeActionTitle = "Add 'partial' modifier to classes using AspectNetAttributes";
+    private const string CodeActionTitle = "Add 'partial' modifier to enable AspectNet weaving";
     
     public override ImmutableArray<string> FixableDiagnosticIds => [DiagnosticDescriptors.ClassMustBePartial.Id];
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -13,7 +14,7 @@ namespace SimpleBitware.AspectNet.CSharp.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class AspectNetAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string? AspectNetAttributeFullName = typeof(AspectNetAttribute).FullName;
+    private static readonly string AspectNetAttributeFullName = typeof(AspectNetAttribute).FullName ?? throw new ArgumentNullException(nameof(AspectNetAttributeFullName));
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [DiagnosticDescriptors.ClassMustBePartial];
 
     public override void Initialize(AnalysisContext context)
