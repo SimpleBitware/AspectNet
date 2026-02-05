@@ -26,3 +26,8 @@ public partial class OrderService : IOrderService
     [Log("Orders")]
     public async Task PlaceOrderAsync(string id) { ... }
 }
+
+
+Add the followings in the target project to save the geerated files on disk
+<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+<CompilerGeneratedFilesOutputPath>obj\Debug\.generated</CompilerGeneratedFilesOutputPath>

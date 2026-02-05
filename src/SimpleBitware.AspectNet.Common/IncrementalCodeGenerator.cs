@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Common.Debugging;
 using SimpleBitware.AspectNet.Common.Extensions;
 
 namespace SimpleBitware.AspectNet.Common;
@@ -12,19 +13,34 @@ namespace SimpleBitware.AspectNet.Common;
 /// <param name="weaver">The weaver used to generate code file content.</param>
 public class IncrementalCodeGenerator(IWeaver weaver) : IIncrementalGenerator
 {
+    private static readonly string AspectNetAttributeFullName = typeof(AspectNetAttribute).FullName!;
     private readonly IWeaver weaver = weaver ?? throw new ArgumentNullException(nameof(weaver));
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var weaveCandidates = context.SyntaxProvider
-            .ForAttributeWithMetadataName(
-                typeof(AspectNetAttribute).FullName!,
-                predicate: static (_, _) => true,
+        DebuggerHelper.WaitForDebuggerToAttach();
+
+        var weaveCandidates = context.SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (_, _) => true, // allow all nodes; filtering happens semantically
                 transform: static (syntaxContext, _) =>
-                    new WeaveCandidate(
-                        syntaxContext.TargetSymbol,
-                        syntaxContext.TargetNode,
-                        syntaxContext.SemanticModel));
+                {
+                    if (syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.Node) is not { } symbol)
+                        return null;
+
+                    var aspectBase = syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName(AspectNetAttributeFullName);
+                    if (aspectBase is null)
+                        return null;
+
+                    return symbol.GetAttributes()
+                        .Select(attr => attr.AttributeClass)
+                        .OfType<INamedTypeSymbol>()
+                        .Any(attrType => attrType.InheritsFromSymbol(aspectBase))
+                        ? new WeaveCandidate(
+                            symbol,
+                            syntaxContext.SemanticModel)
+                        : null;
+                })
+                .Where(static c => c is not null)!;
 
         var weaveCandidateGroups = weaveCandidates
             .Select((weaveTarget, _) =>

@@ -1,6 +1,6 @@
 namespace SampleConsumer;
 
-public class MyService
+public partial class MyService
 {
     [Log]
     public MyService() { }

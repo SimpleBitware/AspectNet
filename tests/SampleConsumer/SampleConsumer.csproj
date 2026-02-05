@@ -3,10 +3,12 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <ReportAnalyzer>true</ReportAnalyzer>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
     
     <ItemGroup>
-      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.21" />
+      <PackageReference Include="SimpleBitware.AspectNet.CSharp" Version="0.0.0-alpha.0.22" />
     </ItemGroup>
     
 </Project>
