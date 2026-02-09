@@ -5,5 +5,5 @@ namespace SimpleBitware.AspectNet.Common;
 
 public interface IWeaver
 {
-    IEnumerable<SourceFile> GenerateSourceFiles(ISemanticWeavingPlanner semanticWeavingPlanner, INamedTypeSymbol namedTypeSymbol, IReadOnlyList<WeaveCandidate> candidateSymbols);
+    IEnumerable<SourceFile> GenerateSourceFiles(SourceProductionContext sourceProductionContext, ISemanticWeavingPlanner semanticWeavingPlanner, INamedTypeSymbol namedTypeSymbol, IReadOnlyList<WeaveCandidate> candidateSymbols);
 }

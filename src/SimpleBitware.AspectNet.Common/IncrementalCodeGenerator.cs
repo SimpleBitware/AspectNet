@@ -18,59 +18,132 @@ public class IncrementalCodeGenerator(IWeaver weaver) : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        DebuggerHelper.WaitForDebuggerToAttach();
+        var weaveCandidates =
+            context.SyntaxProvider.CreateSyntaxProvider(
+                    predicate: static (_, _) => true, // semantic filtering below
+                    transform: static (syntaxContext, _) =>
+                    {
+                        if (syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.Node) is not { } symbol)
+                            return null;
 
-        var weaveCandidates = context.SyntaxProvider.CreateSyntaxProvider(
-                predicate: static (_, _) => true, // allow all nodes; filtering happens semantically
-                transform: static (syntaxContext, _) =>
-                {
-                    if (syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.Node) is not { } symbol)
-                        return null;
+                        var aspectBase =
+                            syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName(AspectNetAttributeFullName);
+                        if (aspectBase is null)
+                            return null;
 
-                    var aspectBase = syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName(AspectNetAttributeFullName);
-                    if (aspectBase is null)
-                        return null;
+                        var hasAspect =
+                            symbol.GetAttributes()
+                                .Select(attr => attr.AttributeClass)
+                                .OfType<INamedTypeSymbol>()
+                                .Any(attrType => attrType.InheritsFromSymbol(aspectBase));
 
-                    return symbol.GetAttributes()
-                        .Select(attr => attr.AttributeClass)
-                        .OfType<INamedTypeSymbol>()
-                        .Any(attrType => attrType.InheritsFromSymbol(aspectBase))
-                        ? new WeaveCandidate(
-                            symbol,
-                            syntaxContext.SemanticModel)
-                        : null;
-                })
+                        return hasAspect
+                            ? new WeaveCandidate(symbol, syntaxContext.Node, syntaxContext.SemanticModel)
+                            : null;
+                    })
                 .Where(static c => c is not null)!;
 
-        var weaveCandidateGroups = weaveCandidates
-            .Select((weaveTarget, _) =>
+        var weaveCandidateGroups =
+            weaveCandidates.Select((weaveTarget, _) =>
             {
                 var namedTypeSymbol = weaveTarget!.Symbol.ContainingType;
                 return (Key: namedTypeSymbol, Value: weaveTarget);
             });
 
-        var combinedWeaveCandidates = weaveCandidateGroups
-            .Collect()
-            .Combine(context.CompilationProvider)
-            .Select((tuple, _) =>
-            {
-                var (symbols, compilation) = tuple;
-                var semanticWeavingPlanner = new SemanticWeavingPlanner(compilation);
-                return (Symbols: symbols, SemanticWeavingPlanner: semanticWeavingPlanner);
-            });
+        var groupedWithCompilation =
+            weaveCandidateGroups
+                .Collect()
+                .Combine(context.CompilationProvider);
 
-        context.RegisterSourceOutput(combinedWeaveCandidates, (sourceProductionContext, combinedWeaveCandidate) =>
+        context.RegisterSourceOutput(groupedWithCompilation, (spc, tuple) =>
         {
-            var (symbols, semanticWeavingPlanner) = combinedWeaveCandidate;
+            //DebuggerHelper.WaitForDebuggerToAttach(spc);
+
+            var (symbols, compilation) = tuple;
+            if (!symbols.Any())
+                return;
+
+            var semanticWeavingPlanner = new SemanticWeavingPlanner(compilation);
             var namedTypeSymbolsGroups = symbols.ToSymbolGroups();
 
             var sourceFiles = namedTypeSymbolsGroups
-                .SelectMany(group => weaver.GenerateSourceFiles(semanticWeavingPlanner, group.Key, group.Value));
+                .SelectMany(group =>
+                    weaver.GenerateSourceFiles(
+                        spc,                        // <-- pass SourceProductionContext
+                        semanticWeavingPlanner,     // <-- pass planner
+                        group.Key,                  // containing type
+                        group.Value))               // its WeaveCandidates
+                .Where(x => x is not null);
 
             foreach (var sourceFile in sourceFiles)
             {
-                sourceProductionContext.AddSource(sourceFile.FileName, sourceFile.SourceText);
+                spc.AddSource(sourceFile.FileName, sourceFile.SourceText);
+                spc.WriteLine($"AspectNet generated code file {sourceFile.FileName}");
             }
         });
     }
 }
+
+
+    
+    
+    // public void Initialize(IncrementalGeneratorInitializationContext context)
+    // {
+    //     var weaveCandidates = context.SyntaxProvider.CreateSyntaxProvider(
+    //             predicate: static (_, _) => true, // allow all nodes; filtering happens semantically
+    //             transform: static (syntaxContext, _) =>
+    //             {
+    //                 if (syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.Node) is not { } symbol)
+    //                     return null;
+    //
+    //                 var aspectBase = syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName(AspectNetAttributeFullName);
+    //                 if (aspectBase is null)
+    //                     return null;
+    //
+    //                 return symbol.GetAttributes()
+    //                     .Select(attr => attr.AttributeClass)
+    //                     .OfType<INamedTypeSymbol>()
+    //                     .Any(attrType => attrType.InheritsFromSymbol(aspectBase))
+    //                     ? new WeaveCandidate(
+    //                         symbol,
+    //                         syntaxContext.Node,
+    //                         syntaxContext.SemanticModel)
+    //                     : null;
+    //             })
+    //             .Where(static c => c is not null)!;
+    //
+    //     var weaveCandidateGroups = weaveCandidates
+    //         .Select((weaveTarget, _) =>
+    //         {
+    //             var namedTypeSymbol = weaveTarget!.Symbol.ContainingType;
+    //             return (Key: namedTypeSymbol, Value: weaveTarget);
+    //         });
+    //
+    //     var combinedWeaveCandidates = weaveCandidateGroups
+    //         .Collect()
+    //         .Combine(context.CompilationProvider)
+    //         .Select((tuple, _) =>
+    //         {
+    //             var (symbols, compilation) = tuple;
+    //             var semanticWeavingPlanner = new SemanticWeavingPlanner(compilation);
+    //             return (Symbols: symbols, SemanticWeavingPlanner: semanticWeavingPlanner);
+    //         });
+    //
+    //     context.RegisterSourceOutput(combinedWeaveCandidates, (sourceProductionContext, combinedWeaveCandidate) =>
+    //     {
+    //         DebuggerHelper.WaitForDebuggerToAttach(sourceProductionContext);
+    //         
+    //         var (symbols, semanticWeavingPlanner) = combinedWeaveCandidate;
+    //         var namedTypeSymbolsGroups = symbols.ToSymbolGroups();
+    //
+    //         var sourceFiles = namedTypeSymbolsGroups
+    //             .SelectMany(group => weaver.GenerateSourceFiles(semanticWeavingPlanner, group.Key, group.Value));
+    //
+    //         foreach (var sourceFile in sourceFiles)
+    //         {
+    //             sourceProductionContext.AddSource(sourceFile.FileName, sourceFile.SourceText);
+    //             sourceProductionContext.WriteLine($"AspectNet generated code file {sourceFile.FileName}");
+    //         }
+    //     });
+    // }
+// }

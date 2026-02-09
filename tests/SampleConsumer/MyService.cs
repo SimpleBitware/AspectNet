@@ -2,11 +2,13 @@ namespace SampleConsumer;
 
 public partial class MyService
 {
-    [Log]
     public MyService() { }
 
     [Log]
-    public int Add(int a, int b) => a + b;
+    public int Add(int a, int b)
+    {
+        return a + b;
+    }
 
     // [Log]
     public string Name { get; set; } = "Default";

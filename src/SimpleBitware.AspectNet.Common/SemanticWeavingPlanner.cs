@@ -59,7 +59,11 @@ public class SemanticWeavingPlanner(Compilation compilation) : ISemanticWeavingP
             .GetAttributes()
             .Where(a => a.AttributeClass is not null)
             .Where(a => a.AttributeClass.InheritsFromSymbol(aspectNetAttributeSymbol))
-            .Select(a => new AspectInstance(a))
+            .Select((a, index) =>
+                new AspectInstance(
+                    Attribute: a,
+                    InstanceName: $"__aspect{index}"
+                ))
             .ToList();
     }
 

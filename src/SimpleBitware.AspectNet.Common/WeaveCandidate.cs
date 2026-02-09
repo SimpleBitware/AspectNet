@@ -8,5 +8,6 @@ namespace SimpleBitware.AspectNet.Common;
 /// </summary>
 public sealed record WeaveCandidate(
     ISymbol Symbol,
+    SyntaxNode SyntaxNode,
     SemanticModel SemanticModel
 );

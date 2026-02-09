@@ -25,4 +25,17 @@ public class Weaver(ICodeEmitter codeEmitter) : IWeaver
         
         yield return codeEmitter.Emit(namedTypeSymbol, semanticWeavingPlans);
     }
+
+    public IEnumerable<SourceFile> GenerateSourceFiles(SourceProductionContext sourceProductionContext, ISemanticWeavingPlanner semanticWeavingPlanner, INamedTypeSymbol namedTypeSymbol, IReadOnlyList<WeaveCandidate> candidateSymbols)
+    {
+        var semanticWeavingPlans = candidateSymbols
+            .Select(weaveTarget => semanticWeavingPlanner.TryGenerateWeavingPlan(in weaveTarget))
+            .OfType<SemanticWeavingPlan>()
+            .ToImmutableArray();
+
+        if (semanticWeavingPlans.Length == 0)
+            yield break;
+        
+        yield return codeEmitter.Emit(namedTypeSymbol, semanticWeavingPlans);
+    }
 }

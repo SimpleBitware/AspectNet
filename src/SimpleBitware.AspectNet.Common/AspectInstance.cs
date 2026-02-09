@@ -6,7 +6,7 @@ namespace SimpleBitware.AspectNet.Common;
 /// <summary>
 /// One concrete aspect instance applied to a member.
 /// </summary>
-public sealed record AspectInstance(AttributeData Attribute)
+public sealed record AspectInstance(AttributeData Attribute, string InstanceName)
 {
     private const string AspectNetAttributeOrderMethodName = nameof(AspectNetAttribute.Order);
     

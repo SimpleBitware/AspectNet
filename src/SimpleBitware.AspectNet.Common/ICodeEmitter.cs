@@ -5,5 +5,5 @@ namespace SimpleBitware.AspectNet.Common;
 
 public interface ICodeEmitter
 {
-    SourceFile Emit(INamedTypeSymbol namedTypeSymbol, IReadOnlyList<SemanticWeavingPlan> semanticWeavingPlans);
+    SourceFile? Emit(INamedTypeSymbol namedTypeSymbol, IReadOnlyList<SemanticWeavingPlan> semanticWeavingPlans);
 }
