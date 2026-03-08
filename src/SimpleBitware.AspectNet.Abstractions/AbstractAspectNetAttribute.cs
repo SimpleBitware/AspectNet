@@ -6,10 +6,3 @@ public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribut
     public virtual void OnExit(AspectNetReturnContext context) { }
     public virtual void OnException(AspectNetExceptionContext context) { }
 }
-
-public interface IAspectNetAttribute
-{
-    public void OnEntry(AspectNetContext context);
-    public void OnExit(AspectNetReturnContext context);
-    public void OnException(AspectNetExceptionContext context);
-}
