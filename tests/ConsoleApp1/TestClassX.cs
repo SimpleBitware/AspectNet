@@ -27,7 +27,8 @@ public class TestClassX
     public static async Task LogMe(string message)
     {
         Console.WriteLine($"LogMe: {message}");
-        await Task.Delay(100);
+        await Task.Delay(1);
+        throw new InvalidOperationException("Test exception in static method");
     }
     
     [Log]

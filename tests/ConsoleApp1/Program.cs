@@ -14,7 +14,16 @@ app.Services.UseAspectNet();   // <-- captures the real provider and initializes
 Console.WriteLine("FROM CONSTRUCTOR");
 var testClassX1 = new TestClassX();
 testClassX1.LogMe("Constructor", 1);
-TestClassX.LogMe("Constructor static").Wait();
+
+try
+{
+    TestClassX.LogMe("static async").Wait();
+}
+catch(Exception ex)
+{
+    
+}
+
 Console.WriteLine($"No={testClassX1.No}");
 
 Console.WriteLine("------------------");
@@ -22,7 +31,6 @@ Console.WriteLine("------------------");
 Console.WriteLine("FROM DI");
 var testClassX2 = app.Services.GetRequiredService<TestClassX>();
 testClassX2.LogMe("DI", 2);
-TestClassX.LogMe("DI static").Wait();
 Console.WriteLine($"No={testClassX2.No}");
 
 //app.Run();

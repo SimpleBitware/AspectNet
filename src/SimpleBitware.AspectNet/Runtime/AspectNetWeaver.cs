@@ -3,6 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Build;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Extensions.Cecil;
 
@@ -10,13 +11,13 @@ namespace SimpleBitware.AspectNet.Runtime;
 
 public static class AspectNetWeaver
 {
-    public static void Run(string assemblyPath)
+    public static string[] Run(string assemblyPath)
     {
         var pdbFilePath = GetPdbFilePath(assemblyPath);
         var targetAssemblyDirectory = GetTargetAssemblyDirectory(assemblyPath)!;
         var readerParams = GetReaderParameters(targetAssemblyDirectory, pdbFilePath);
         
-        ProcessModule(assemblyPath, pdbFilePath, readerParams);
+        return ProcessModule(assemblyPath, pdbFilePath, readerParams);
     }
 
     private static string? GetPdbFilePath(string assemblyPath) => Path.ChangeExtension(assemblyPath, "pdb");
@@ -36,10 +37,8 @@ public static class AspectNetWeaver
         };
     }
 
-    private static void ProcessModule(string assemblyPath, string? pdbFilePath, ReaderParameters readerParams)
+    private static string[] ProcessModule(string assemblyPath, string? pdbFilePath, ReaderParameters readerParams)
     {
-        Console.WriteLine($"Processing module {assemblyPath}");
-
         using var assemblyStream = new MemoryStream();
         using var pdbStream = new MemoryStream();
         using (var module = ModuleDefinition.ReadModule(assemblyPath, readerParams))
@@ -63,10 +62,12 @@ public static class AspectNetWeaver
             module.Write(assemblyStream, writerParams);
         }
 
-        assemblyStream.SaveToFile(assemblyPath);
-        pdbStream.SaveToFile(pdbFilePath);
-
-        Console.WriteLine($"Module weaving complete.");
+        return new[]
+            {
+                assemblyStream.SaveToFile(assemblyPath),
+                pdbStream.SaveToFile(pdbFilePath)
+            }
+            .Where(x => x != null).ToArray()!;
     }
 
     private static void ProcessType(ModuleDefinition module, TypeDefinition type, TypeDefinition baseAspectAttribute)
@@ -81,7 +82,7 @@ public static class AspectNetWeaver
             if (aspectAttrs.Count > 0)
                 WeaveMethod(module, method, aspectAttrs);
         }
-        
+
         // 2. Process Properties
         foreach (var property in type.Properties)
         {
@@ -150,14 +151,14 @@ public static class AspectNetWeaver
         // resolve base AspectNet attribute methods
         var onEntry = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnEntry), 1);
         var onExit = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnExit), 1);
-        var onException = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnException), 2);
+        var onException = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnException), 1);
 
         // aspect = AspectNetDependencyInjection.GetRequiredService<LogAttribute>();
         il.Append(Instruction.Create(OpCodes.Call, getRequiredServiceClosed));
         il.Append(Instruction.Create(OpCodes.Stloc, aspectVariableDefinition));
 
         method.WeaveWithContextAndReturn(aspectVariableDefinition, onEntry, onException, onExit, originalInstructions);
-        
+
         body.OptimizeMacros();
     }
 }

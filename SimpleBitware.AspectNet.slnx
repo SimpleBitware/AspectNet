@@ -5,6 +5,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConsoleApp1/ConsoleApp1.csproj" />
-    <Project Path="tests/SimpleBitware.AspectNet.Runtime.Tests.Unit/SimpleBitware.AspectNet.Runtime.Tests.Unit.csproj" />
   </Folder>
 </Solution>
