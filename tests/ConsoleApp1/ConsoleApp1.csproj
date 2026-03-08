@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
+    </ItemGroup>
+
+    <UsingTask
+            TaskName="AspectNetWeaverTask"
+            AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll" />
+
+    <Target Name="RunAspectNetWeaver" AfterTargets="Build">
+        <AspectNetWeaverTask AssemblyPath="$(TargetPath)" />
+    </Target>
+
+
+</Project>
