@@ -10,7 +10,7 @@ namespace SimpleBitware.AspectNet.Runtime;
 
 public static class AspectNetWeaver
 {
-    public static void Run(string assemblyPath, TaskLoggingHelper log)
+    public static void Run(string assemblyPath)
     {
         var pdbFilePath = GetPdbFilePath(assemblyPath);
         var targetAssemblyDirectory = GetTargetAssemblyDirectory(assemblyPath)!;
@@ -71,7 +71,8 @@ public static class AspectNetWeaver
 
     private static void ProcessType(ModuleDefinition module, TypeDefinition type, TypeDefinition baseAspectAttribute)
     {
-        foreach (var method in type.Methods.Where(m => m.HasBody && !m.IsConstructor))
+        // 1. Process methods and constructors
+        foreach (var method in type.Methods.Where(m => m.HasBody))
         {
             var aspectAttrs = method.CustomAttributes
                 .Where(a => a.AttributeType.Resolve().InheritsFrom(baseAspectAttribute))
@@ -79,6 +80,28 @@ public static class AspectNetWeaver
 
             if (aspectAttrs.Count > 0)
                 WeaveMethod(module, method, aspectAttrs);
+        }
+        
+        // 2. Process Properties
+        foreach (var property in type.Properties)
+        {
+            // Find attributes on the property itself
+            var aspectAttrs = property.CustomAttributes
+                .Where(a => a.AttributeType.Resolve()?.InheritsFrom(baseAspectAttribute) ?? false)
+                .ToList();
+
+            if (aspectAttrs.Count == 0) continue;
+            // Apply to the Getter if it exists
+            if (property.GetMethod != null && property.GetMethod.HasBody)
+            {
+                WeaveMethod(module, property.GetMethod, aspectAttrs);
+            }
+
+            // Apply to the Setter if it exists
+            if (property.SetMethod != null && property.SetMethod.HasBody)
+            {
+                WeaveMethod(module, property.SetMethod, aspectAttrs);
+            }
         }
     }
 
@@ -133,7 +156,6 @@ public static class AspectNetWeaver
         il.Append(Instruction.Create(OpCodes.Call, getRequiredServiceClosed));
         il.Append(Instruction.Create(OpCodes.Stloc, aspectVariableDefinition));
 
-        //method.WeaveTryCatchFinallyAroundBody(aspectVariableDefinition, onEntry, onException, onExit, originalInstructions);
         method.WeaveWithContextAndReturn(aspectVariableDefinition, onEntry, onException, onExit, originalInstructions);
         
         body.OptimizeMacros();

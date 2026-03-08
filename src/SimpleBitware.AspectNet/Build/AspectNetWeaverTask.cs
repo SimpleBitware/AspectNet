@@ -13,12 +13,12 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             if(AssemblyPath == null)
                 throw new ArgumentNullException(nameof(AssemblyPath));
             
-            AspectNetWeaver.Run(AssemblyPath, Log);
+            AspectNetWeaver.Run(AssemblyPath);
             return true;
         }
         catch (Exception ex)
         {
-            Log.LogError($"[AspectNet] {ex}");
+            Console.Error.WriteLine($"[AspectNet] {ex}");
             return false;
         }
     }
