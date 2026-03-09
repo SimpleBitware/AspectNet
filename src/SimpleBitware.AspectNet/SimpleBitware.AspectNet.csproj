@@ -17,4 +17,45 @@
       <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Package\" />
+    </ItemGroup>
+
 </Project>
+
+
+<!--<Project Sdk="Microsoft.NET.Sdk">-->
+
+<!--<PropertyGroup>-->
+<!--    <TargetFramework>netstandard2.0</TargetFramework>-->
+<!--    <PackageId>SimpleBitware.AspectNet</PackageId>-->
+<!--    <Version>1.0.0</Version>-->
+
+<!--    <IncludeBuildOutput>false</IncludeBuildOutput>-->
+<!--    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>-->
+<!--    <DevelopmentDependency>true</DevelopmentDependency>-->
+
+<!--    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>-->
+<!--</PropertyGroup>-->
+
+<!--<ItemGroup>-->
+<!--    <PackageReference Include="Mono.Cecil" Version="0.11.5" PrivateAssets="all" />-->
+<!--    <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />-->
+<!--</ItemGroup>-->
+
+<!--<ItemGroup>-->
+<!--    <None Include="Package\Build\SimpleBitware.AspectNet.targets"-->
+<!--          Pack="true"-->
+<!--          PackagePath="build\SimpleBitware.AspectNet.targets" />-->
+
+<!--    <None Include="$(OutputPath)\SimpleBitware.AspectNet.dll" Pack="true" PackagePath="tasks\" />-->
+<!--    <None Include="$(OutputPath)\Mono.Cecil.dll" Pack="true" PackagePath="tasks\" />-->
+<!--    <None Include="$(OutputPath)\Mono.Cecil.Pdb.dll" Pack="true" PackagePath="tasks\" />-->
+<!--    <None Include="$(OutputPath)\Mono.Cecil.Rocks.dll" Pack="true" PackagePath="tasks\" />-->
+
+<!--    <None Include="$(OutputPath)\SimpleBitware.AspectNet.Abstractions.dll"-->
+<!--          Pack="true"-->
+<!--          PackagePath="lib\netstandard2.0\" />-->
+<!--</ItemGroup>-->
+
+<!--</Project>-->

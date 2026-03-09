@@ -1,0 +1,10 @@
+<Project>
+    <UsingTask
+            TaskName="SimpleBitware.AspectNet.Build.AspectNetWeaverTask"
+            AssemblyFile="$(MSBuildThisFileDirectory)..\tasks\SimpleBitware.AspectNet.dll" />
+
+    <Target Name="AspectNetWeavingTarget" AfterTargets="CoreCompile" Condition="'$(SkipAspectNetWeaving)' != 'true'">
+        <SimpleBitware.AspectNet.Build.AspectNetWeaverTask AssemblyPath="@(IntermediateAssembly)" />
+        <Touch Files="@(IntermediateAssembly)" />
+    </Target>
+</Project>
