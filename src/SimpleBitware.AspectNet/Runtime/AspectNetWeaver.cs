@@ -1,9 +1,7 @@
-﻿using Microsoft.Build.Utilities;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using SimpleBitware.AspectNet.Abstractions;
-using SimpleBitware.AspectNet.Build;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Extensions.Cecil;
 
@@ -15,6 +13,10 @@ public static class AspectNetWeaver
     {
         var pdbFilePath = GetPdbFilePath(assemblyPath);
         var targetAssemblyDirectory = GetTargetAssemblyDirectory(assemblyPath)!;
+        
+        Console.WriteLine(targetAssemblyDirectory);
+        Console.WriteLine(assemblyPath);
+        
         var readerParams = GetReaderParameters(targetAssemblyDirectory, pdbFilePath);
         
         return ProcessModule(assemblyPath, pdbFilePath, readerParams);
@@ -148,16 +150,16 @@ public static class AspectNetWeaver
         var getRequiredServiceClosed = new GenericInstanceMethod(module.ImportReference(getRequiredServiceGeneric));
         getRequiredServiceClosed.GenericArguments.Add(aspectTypeRef);
 
-        // resolve base AspectNet attribute methods
-        var onEntry = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnEntry), 1);
-        var onExit = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnExit), 1);
-        var onException = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnException), 1);
-
-        // aspect = AspectNetDependencyInjection.GetRequiredService<LogAttribute>();
-        il.Append(Instruction.Create(OpCodes.Call, getRequiredServiceClosed));
-        il.Append(Instruction.Create(OpCodes.Stloc, aspectVariableDefinition));
-
-        method.WeaveWithContextAndReturn(aspectVariableDefinition, onEntry, onException, onExit, originalInstructions);
+        // // resolve base AspectNet attribute methods
+        // var onEntry = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnEntry), 1);
+        // var onExit = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnExit), 1);
+        // var onException = module.FindMethod(aspectTypeRef, nameof(AbstractAspectNetAttribute.OnException), 1);
+        //
+        // // aspect = AspectNetDependencyInjection.GetRequiredService<LogAttribute>();
+        // il.Append(Instruction.Create(OpCodes.Call, getRequiredServiceClosed));
+        // il.Append(Instruction.Create(OpCodes.Stloc, aspectVariableDefinition));
+        //
+        // method.WeaveWithContextAndReturn(aspectVariableDefinition, onEntry, onException, onExit, originalInstructions);
 
         body.OptimizeMacros();
     }

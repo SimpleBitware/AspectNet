@@ -4,7 +4,7 @@ public abstract class AbstractAspectNetContext
 {
     internal AbstractAspectNetContext() { }
     
-    public required string ClassName { get; set; }
-    public required string MemberName { get; set; }
-    public Dictionary<string, object> Parameters { get; set; } = [];
+    public required string ClassName { get; init; }
+    public required string MemberName { get; init; }
+    public Dictionary<string, object> Parameters { get; init; } = [];
 }

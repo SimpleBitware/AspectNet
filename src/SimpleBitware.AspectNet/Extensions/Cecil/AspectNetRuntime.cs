@@ -4,7 +4,7 @@ namespace SimpleBitware.AspectNet.Extensions.Cecil;
 
 public static class AspectNetRuntime
 {
-    public static void HandleAsyncExtension(object aspect, AspectNetReturnContext context)
+    public static void HandleAsyncExtension(object aspect, AspectNetExitContext context)
     {
         if (context.ReturnValue is Task task && aspect is IAspectNetAttribute aspectInterface)
         {

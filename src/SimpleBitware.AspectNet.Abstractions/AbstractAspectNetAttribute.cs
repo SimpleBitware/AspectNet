@@ -1,8 +1,19 @@
 ﻿namespace SimpleBitware.AspectNet.Abstractions;
 
+[AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited =  false)]
 public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
 {
-    public virtual void OnEntry(AspectNetContext context) { }
-    public virtual void OnExit(AspectNetReturnContext context) { }
-    public virtual void OnException(AspectNetExceptionContext context) { }
+    public int Priority { get; set; } = 0;
+
+    public virtual void OnEntry(AspectNetEntryContext entryContext)
+    {
+    }
+
+    public virtual void OnExit(AspectNetExitContext context)
+    {
+    }
+
+    public virtual void OnException(AspectNetExceptionContext context)
+    {
+    }
 }

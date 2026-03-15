@@ -3,6 +3,7 @@ namespace ConsoleApp1;
 public class TestClassX
 {
     [Log]
+    [Log2]
     public TestClassX( int no = 2)
     {
         this.No = no;
