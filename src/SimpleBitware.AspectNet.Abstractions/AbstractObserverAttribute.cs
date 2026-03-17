@@ -1,7 +1,7 @@
 ﻿namespace SimpleBitware.AspectNet.Abstractions;
 
 [AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited =  false)]
-public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
+public abstract class AbstractObserverAttribute : Attribute, IAspectNetAttribute
 {
     public int Priority { get; set; } = 0;
 

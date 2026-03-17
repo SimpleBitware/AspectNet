@@ -10,7 +10,7 @@ public static class CustomAttributeExtensions
     public static int GetPriorityValue(this CustomAttribute attribute)
     {
         var priorityProperty = attribute.Properties
-            .FirstOrDefault(p => p.Name == nameof(AbstractAspectNetAttribute.Priority));
+            .FirstOrDefault(p => p.Name == nameof(AbstractObserverAttribute.Priority));
 
         return priorityProperty is { Name: not null, Argument.Value: int value } 
             ? value 

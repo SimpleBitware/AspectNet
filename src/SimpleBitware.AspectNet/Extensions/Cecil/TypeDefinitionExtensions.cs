@@ -62,4 +62,36 @@ public static class TypeDefinitionExtensions
 
         return false;
     }
+    
+    public static bool DerivesFrom(this TypeDefinition? type, string targetBaseTypeName)
+    {
+        while (type != null)
+        {
+            // Check current base type
+            if (type.BaseType != null)
+            {
+                if (type.BaseType.Name == targetBaseTypeName || type.BaseType.FullName == targetBaseTypeName)
+                {
+                    return true;
+                }
+
+                // Move up the inheritance chain
+                try
+                {
+                    type = type.BaseType.Resolve();
+                }
+                catch
+                {
+                    // Assembly resolution failed (e.g., missing a reference)
+                    return false;
+                }
+            }
+            else
+            {
+                // Reached 'object' or a type with no base
+                break;
+            }
+        }
+        return false;
+    }
 }

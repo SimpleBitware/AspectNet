@@ -13,8 +13,8 @@ public class AspectReferences
     public AspectReferences(ModuleDefinition targetModule, TypeDefinition baseAspectNetAttributeTypeDefinition)
     {
         // We pass the targetModule down to the search helper
-        OnEntry = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractAspectNetAttribute.OnEntry), 1);
-        OnException = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractAspectNetAttribute.OnException), 1);
-        OnExit = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractAspectNetAttribute.OnExit), 1);
+        OnEntry = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnEntry), 1);
+        OnException = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnException), 1);
+        OnExit = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnExit), 1);
     }
 }

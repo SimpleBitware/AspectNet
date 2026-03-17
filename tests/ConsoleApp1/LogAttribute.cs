@@ -2,7 +2,7 @@ using SimpleBitware.AspectNet.Abstractions;
 
 namespace ConsoleApp1;
 
-public class LogAttribute : AbstractAspectNetAttribute
+public class LogAttribute : AbstractObserverAttribute
 {
    public override void OnEntry(AspectNetEntryContext entryContext)
    {
