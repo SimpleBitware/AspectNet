@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using SimpleBitware.AspectNet.Abstractions;
@@ -14,7 +13,8 @@ public static class CecilWeaver
         string targetAssemblyDirectory,
         string[] references,
         string assemblyPath,
-        string? pdbFilePath)
+        string? pdbFilePath,
+        bool debug)
     {
         return ProcessAssembly<AbstractObserverAttribute, AspectNetWovenAttribute>(
             targetAssemblyDirectory,
@@ -27,10 +27,11 @@ public static class CecilWeaver
                         [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
                     )
                     .Each(x => x
-                        .WeaveMethod()//aspectNetReferences)
+                        .WeaveMethod<AspectNetEntryContext>()
+                        .OptimizeMacros()
                         .ApplyMarkerAttribute(markerAttributeConstructor)
                     ),
-            false
+            debug
         );
     }
 
@@ -40,7 +41,7 @@ public static class CecilWeaver
         string assemblyPath,
         string? pdbFilePath,
         Action<IEnumerable<TypeDefinition>, TypeDefinition, MethodReference> weaveAction,
-        bool debug = false)
+        bool debug)
         where TAttribute : class
         where TMarker : class
     {
@@ -54,7 +55,7 @@ public static class CecilWeaver
                 throw new ApplicationException($"Module {assemblyPath} could not be loaded. Check the assembly path and ensure it is a valid .NET assembly.");
 
             if(debug)
-                File.WriteAllText("before.il", module.DumpModuleIL());
+                File.WriteAllText("before.il", module.DumpModule());
             
             var baseAspectNetAttribute = module.ImportReference(typeof(TAttribute)).Resolve()
                 ?? throw new SymbolsNotFoundException($"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
@@ -64,7 +65,7 @@ public static class CecilWeaver
             weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
 
             if(debug)
-                File.WriteAllText("after.il", module.DumpModuleIL());
+                File.WriteAllText("after.il", module.DumpModule());
 
             module.Write(assemblyStream, writerParameters);
         }

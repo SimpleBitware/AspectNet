@@ -33,6 +33,17 @@ public static class MethodDefinitionExtensions
         method.CustomAttributes.Add(new CustomAttribute(markerAttributeConstructor));
     }
 
+    /// <summary>
+    /// Optimizes method.
+    /// </summary>
+    /// <param name="method"></param>
+    /// <returns></returns>
+    public static MethodDefinition OptimizeMacros(this MethodDefinition method)
+    {
+        method.Body.OptimizeMacros();
+        return method;
+    }
+
 // Helper to handle generic method creation in Cecil
     public static MethodReference MakeGeneric(this MethodReference method, params TypeReference[] args)
     {
@@ -41,101 +52,85 @@ public static class MethodDefinitionExtensions
         return genericType;
     }
 
+    public static Instruction[] GetMethodInstructions(this MethodDefinition method)
+    {
+        var originalInstructions = method.Body.Instructions.ToList();
+        if (!method.IsConstructor) 
+            return originalInstructions.ToArray();
+        
+        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
+        if (baseCall == null) 
+            return originalInstructions.ToArray();
+            
+        var index = originalInstructions.IndexOf(baseCall);
+        return originalInstructions.Skip(index + 1).ToArray();
+    }
+    
+    public static Instruction[] GetMethodProlog(this MethodDefinition method)
+    {
+        if (!method.IsConstructor) 
+            return [];
+        
+        var originalInstructions = method.Body.Instructions.ToList();
+        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
+        if (baseCall == null) 
+            return [];
+        
+        var index = originalInstructions.IndexOf(baseCall);
+        return originalInstructions.Take(index + 1).ToArray();
+    }
+
+    public static void ClearMethodBody(this MethodDefinition method)
+    {
+        method.Body.Instructions.Clear();
+        method.Body.ExceptionHandlers.Clear();
+    }
+
     /// --------------
     ///
     ///
-    public static MethodDefinition WeaveMethod(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
+    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
         var aspectAttributes = methodWithAspects.Value;
         var il = method.Body.GetILProcessor();
         var module = method.Module;
 
-        // 1. Define Shared Entry Context Local
-        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(AspectNetEntryContext)));
-        method.Body.Variables.Add(entryContextVar);
-
         // 2. Extract Original Instructions & Prologue
-        var originalInstructions = method.Body.Instructions.ToList();
-        List<Instruction> prologue = new();
-        List<Instruction> workingBody = originalInstructions;
+        var prologue = method.GetMethodProlog();
+        var workingBody = method.GetMethodInstructions();
 
-        if (method.IsConstructor)
-        {
-            var baseCall = workingBody.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference mr && mr.Name == ".ctor");
-            if (baseCall != null)
-            {
-                int index = workingBody.IndexOf(baseCall);
-                prologue = workingBody.Take(index + 1).ToList();
-                workingBody = workingBody.Skip(index + 1).ToList();
-            }
-        }
-
-        method.Body.Instructions.Clear();
-        method.Body.ExceptionHandlers.Clear();
+        method.ClearMethodBody();
 
         // --- A. EMIT PROLOGUE ---
-        foreach (var instr in prologue) il.Append(instr);
+        prologue.Each(instruction => il.Append(instruction));
 
-        // --- B. INITIALIZE & POPULATE SHARED CONTEXT ---
-        // New EntryContext()
-        il.Emit(OpCodes.Newobj, module.ImportReference(typeof(AspectNetEntryContext).GetConstructor(Type.EmptyTypes)));
-        il.Emit(OpCodes.Stloc, entryContextVar);
-
-        // Set ClassName
-        il.Emit(OpCodes.Ldloc, entryContextVar);
-        il.Emit(OpCodes.Ldstr, method.DeclaringType.FullName);
-        il.Emit(OpCodes.Callvirt, module.ImportReference(typeof(AbstractAspectNetContext).GetProperty("ClassName").SetMethod));
-
-        // Set MemberName
-        il.Emit(OpCodes.Ldloc, entryContextVar);
-        il.Emit(OpCodes.Ldstr, method.Name);
-        il.Emit(OpCodes.Callvirt, module.ImportReference(typeof(AbstractAspectNetContext).GetProperty("MemberName").SetMethod));
-
-        // Populate Parameters Dictionary
-        var getParams = module.ImportReference(typeof(AbstractAspectNetContext).GetProperty("Parameters").GetMethod);
-        var dictAdd = module.ImportReference(typeof(Dictionary<string, object>).GetMethod("Add", new[] { typeof(string), typeof(object) }));
-
-        foreach (var param in method.Parameters)
-        {
-            il.Emit(OpCodes.Ldloc, entryContextVar);
-            il.Emit(OpCodes.Callvirt, getParams); // Push Dictionary
-            il.Emit(OpCodes.Ldstr, param.Name); // Push Key
-            il.Emit(OpCodes.Ldarg, param); // Push Value
-
-            if (param.ParameterType.IsValueType || param.ParameterType is GenericParameter)
-                il.Emit(OpCodes.Box, param.ParameterType);
-
-            il.Emit(OpCodes.Callvirt, dictAdd);
-        }
+        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TContext)));
+        il.CreateEntryContext<TContext>(module, entryContextVar, method);
+        method.Body.Variables.Add(entryContextVar);
 
         // --- C. RECURSIVE WRAP ---
-        // First attribute in list = Outermost layer. Reverse for the "Onion" wrap.
-        var reversedAttributes = aspectAttributes.AsEnumerable().Reverse();
-        foreach (var attr in reversedAttributes)
-        {
-            workingBody = WrapInAttributeLayer(method, attr, workingBody, entryContextVar);
-        }
-
+        aspectAttributes
+            .OrderBy(customAttribute => customAttribute.GetPriorityValue())
+            .Reverse()
+            .Each(attribute =>
+            {
+                workingBody = WrapInAttributeLayer(method, attribute, workingBody.ToArray(), entryContextVar);
+                method.CustomAttributes.Remove(attribute);
+            });
+        
         // --- D. FINAL ASSEMBLY ---
-        foreach (var instr in workingBody) il.Append(instr);
+        workingBody.Each(instruction => il.Append(instruction));
 
-        // Final Return Safety
-        if (method.Body.Instructions.Last().OpCode != OpCodes.Ret)
-        {
-            il.Emit(OpCodes.Ret);
-        }
-
-        foreach (var attr in aspectAttributes) method.CustomAttributes.Remove(attr);
-        method.Body.OptimizeMacros();
+        il.AddMethodReturn(method);
 
         return method;
     }
 
-    private static List<Instruction> WrapInAttributeLayer(
+    private static Instruction[] WrapInAttributeLayer(
         MethodDefinition method,
         CustomAttribute attr,
-        List<Instruction> innerInstructions,
+        Instruction[] innerInstructions,
         VariableDefinition entryContext)
     {
         var il = method.Body.GetILProcessor();
@@ -183,10 +178,14 @@ public static class MethodDefinitionExtensions
         {
             if (instr.OpCode == OpCodes.Ret)
             {
+                // Don't append the Ret!
                 if (returnVar != null) newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
                 newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
             }
-            else newLayer.Add(instr);
+            else
+            {
+                newLayer.Add(instr);
+            }
         }
 
         newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
@@ -259,6 +258,6 @@ public static class MethodDefinitionExtensions
             TryStart = nopTryStart, TryEnd = handlerFinallyStart, HandlerStart = handlerFinallyStart, HandlerEnd = exitPoint
         });
 
-        return newLayer;
+        return newLayer.ToArray();
     }
 }

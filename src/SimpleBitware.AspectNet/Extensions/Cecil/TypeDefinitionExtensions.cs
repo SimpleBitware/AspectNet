@@ -89,11 +89,7 @@ public static class TypeDefinitionExtensions
                                 .Union(classAspectNetAttributes, new AttributeTypeComparer())
                                 .ToArray()
                     }
-                    .Select(p =>
-                    {
-                        Console.WriteLine("[AspectNet] Type {0}, Property: {1}, Attributes {2}", type.Name, p.Key, p.Value.Length);
-                        return p;
-                    });
+                    .Select(p => p);
             })
             .SelectMany(x => x)
             .Where(x => x.Value.Any())

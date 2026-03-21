@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
+using SimpleBitware.AspectNet.Debug;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Runtime.Cecil;
 
@@ -12,12 +13,14 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 
     [Required]
     public required ITaskItem[] References { get; set; }
+    
+    public bool Debug { get; set; }
 
     public override bool Execute()
     {
         try
         {
-            Log.LogMessage(MessageImportance.High, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
+            Log.LogWhenDebug(Debug, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
 
             Guard.Against.NullOrEmpty(AssemblyPath);
             Guard.Against.FileDoesNotExists(AssemblyPath);
@@ -30,10 +33,10 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
                 .Distinct()
                 .ToArray();
 
-            var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath);
+            var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, Debug);
 
             LogUpdatedFiles(updatedFiles);
-            Log.LogMessage(MessageImportance.High, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
+            Log.LogWhenDebug(Debug, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
             return true;
         }
         catch (Exception ex)
@@ -56,6 +59,6 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     private void LogUpdatedFiles(string[] files)
     {
         foreach (var filePath in files)
-            Log.LogMessage(MessageImportance.Normal, "[AspectNet] Updated file: {0}", filePath);
+            Log.LogWhenDebug(Debug, "[AspectNet] Updated file: {0}", filePath);
     }
 }

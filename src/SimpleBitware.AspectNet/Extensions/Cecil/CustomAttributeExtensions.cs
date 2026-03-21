@@ -19,26 +19,13 @@ public static class CustomAttributeExtensions
 
     public static bool ContainsFilterAttributes(this IList<CustomAttribute> customAttributes, string[] filterAttributeFullNames)
     {
-        return customAttributes.Any(a =>
-        {
-            var v = filterAttributeFullNames.Any(f => f == a.AttributeType.FullName);
-            Console.WriteLine("{0} is filtered {1}", a.AttributeType.FullName, v);
-            return v;
-        });
+        return customAttributes.Any(a => filterAttributeFullNames.Any(f => f == a.AttributeType.FullName));
     }
 
     public static CustomAttribute[] GetAspectNetDerivedAttributes(this IList<CustomAttribute> customAttributes, TypeDefinition baseAspectNetAttribute)
     {
         return customAttributes
-            .Where(customAttribute =>
-            {
-                var v = customAttribute.AttributeType.Resolve();
-                var b = v?.InheritsFrom(baseAspectNetAttribute) ?? false;
-
-                Console.WriteLine("{0} inherits {1}", v.Name, b);
-                
-                return b;
-            })
+            .Where(customAttribute => customAttribute.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) ?? false)
             .ToArray();
     }
 }
