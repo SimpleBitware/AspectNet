@@ -25,7 +25,7 @@ public class TestClassX
     }
     
     [Log]
-    public static async Task LogMe(string message)
+    public async Task LogMe(string message)
     {
         Console.WriteLine($"LogMe: {message}");
         await Task.Delay(1);

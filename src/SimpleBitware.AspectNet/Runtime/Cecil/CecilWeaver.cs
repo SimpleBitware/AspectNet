@@ -21,15 +21,16 @@ public static class CecilWeaver
             references,
             assemblyPath,
             pdbFilePath,
-            (moduleTypes, baseAspectNetAttribute, aspectNetReferences, markerAttributeConstructor) =>
-                moduleTypes.GetModuleTypesWithAspectNetDerivedAttributes(
+            (moduleTypes, baseAspectNetAttribute, markerAttributeConstructor) =>
+                moduleTypes.GetMethodsDecoratedWithAspectNetDerivedAttributes(
                         baseAspectNetAttribute,
-                        [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute), typeof(CompilerGeneratedAttribute)]
+                        [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
                     )
                     .Each(x => x
                         .WeaveMethod()//aspectNetReferences)
                         .ApplyMarkerAttribute(markerAttributeConstructor)
-                    )
+                    ),
+            false
         );
     }
 
@@ -38,7 +39,8 @@ public static class CecilWeaver
         string[] references,
         string assemblyPath,
         string? pdbFilePath,
-        Action<IEnumerable<TypeDefinition>, TypeDefinition, AspectReferences, MethodReference?> weaveAction)
+        Action<IEnumerable<TypeDefinition>, TypeDefinition, MethodReference> weaveAction,
+        bool debug = false)
         where TAttribute : class
         where TMarker : class
     {
@@ -51,19 +53,19 @@ public static class CecilWeaver
             if (module == null)
                 throw new ApplicationException($"Module {assemblyPath} could not be loaded. Check the assembly path and ensure it is a valid .NET assembly.");
 
-            //File.WriteAllText("before.il", module.DumpModuleIL());
+            if(debug)
+                File.WriteAllText("before.il", module.DumpModuleIL());
             
             var baseAspectNetAttribute = module.ImportReference(typeof(TAttribute)).Resolve()
                 ?? throw new SymbolsNotFoundException($"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
-            var aspectNetReferences = new AspectReferences(module, baseAspectNetAttribute);
             var markerAttributeConstructor = module.ImportReference(typeof(TMarker).GetConstructor(Type.EmptyTypes))
                 ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {nameof(TMarker)} has a parameterless constructor.");
 
-            weaveAction(module.GetTypes(), baseAspectNetAttribute, aspectNetReferences, markerAttributeConstructor);
+            weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
 
-            //File.WriteAllText("after.il", module.DumpModuleIL());
+            if(debug)
+                File.WriteAllText("after.il", module.DumpModuleIL());
 
-            Console.WriteLine("Before module write");
             module.Write(assemblyStream, writerParameters);
         }
 

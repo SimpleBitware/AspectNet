@@ -15,22 +15,22 @@ Console.WriteLine("FROM CONSTRUCTOR");
 var testClassX1 = new TestClassX();
 testClassX1.LogMe("Constructor", 1);
 
-try
-{
-    TestClassX.LogMe("static async").Wait();
-}
-catch(Exception ex)
-{
-    
-}
+// try
+// {
+//     testClassX1.LogMe("static async").Wait();
+// }
+// catch(Exception ex)
+// {
+//     
+// }
 
-Console.WriteLine($"No={testClassX1.No}");
-
+//Console.WriteLine($"No={testClassX1.No}");
+//
 Console.WriteLine("------------------");
 
 Console.WriteLine("FROM DI");
 var testClassX2 = app.Services.GetRequiredService<TestClassX>();
 testClassX2.LogMe("DI", 2);
-Console.WriteLine($"No={testClassX2.No}");
+//Console.WriteLine($"No={testClassX2.No}");
 
 //app.Run();
