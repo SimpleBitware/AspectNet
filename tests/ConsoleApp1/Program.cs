@@ -1,7 +1,7 @@
 ﻿using ConsoleApp1;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using SimpleBitware.AspectNet.Extensions.DependencyInjection;
+using SimpleBitware.AspectNet.Abstractions.Extensions.DependencyInjection;
 
 
 var builder = Host.CreateApplicationBuilder(args);

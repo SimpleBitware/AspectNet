@@ -1,5 +1,6 @@
 <Project>
     <PropertyGroup>
         <SkipAspectNetWeaving Condition="'$(SkipAspectNetWeaving)'==''">false</SkipAspectNetWeaving>
+        <WeaverFramework>netstandard2.0</WeaverFramework>
     </PropertyGroup>
 </Project>

@@ -7,4 +7,35 @@
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <PackageId>SimpleBitware.AspectNet.Abstractions</PackageId>
+        <Authors>Lucian Bornaz</Authors>
+        <Company>Simple Bitware</Company>
+        <Description>Abstract classes and contracts for AspectNet</Description>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet/tree/main/src/SimpleBitware.AspectNet.Abstractions</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <MinVerTagPrefix>v</MinVerTagPrefix>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
+        <PackageReference Include="MinVer" Version="6.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Extensions\" />
+    </ItemGroup>
+
 </Project>

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SimpleBitware.AspectNet;
+namespace SimpleBitware.AspectNet.Abstractions;
 
 public static class AspectNetDependencyInjection
 {

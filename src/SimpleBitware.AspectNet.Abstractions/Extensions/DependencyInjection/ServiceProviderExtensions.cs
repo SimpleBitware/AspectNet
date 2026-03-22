@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Extensions.DependencyInjection;
+namespace SimpleBitware.AspectNet.Abstractions.Extensions.DependencyInjection;
 
 public static class ServiceProviderExtensions
 {

@@ -9,19 +9,20 @@
 
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+      <PackageReference Include="SimpleBitware.AspectNet" Version="0.0.0-alpha.0.43" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
-    </ItemGroup>
+<!--    <ItemGroup>-->
+<!--      <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />-->
+<!--    </ItemGroup>-->
 
-    <UsingTask
-            TaskName="AspectNetWeaverTask"
-            AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll" />
+<!--    <UsingTask-->
+<!--            TaskName="AspectNetWeaverTask"-->
+<!--            AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll" />-->
 
-    <Target Name="RunAspectNetWeaver" AfterTargets="Build">
-        <AspectNetWeaverTask AssemblyPath="$(TargetPath)" References="@(ReferencePath)" Debug="True" GenerateDebugFiles="False"/>
-    </Target>
+<!--    <Target Name="RunAspectNetWeaver" AfterTargets="Build">-->
+<!--        <AspectNetWeaverTask AssemblyPath="$(TargetPath)" References="@(ReferencePath)" Debug="True" GenerateDebugFiles="False"/>-->
+<!--    </Target>-->
 
 
 </Project>
