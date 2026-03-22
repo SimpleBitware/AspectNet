@@ -112,26 +112,12 @@ public static class TypeDefinitionExtensions
 
     public static bool DerivesFrom(this TypeDefinition? type, string targetBaseTypeName)
     {
-        while (type != null)
-        {
-            if (type.BaseType == null)
-                break;
+        if (type?.BaseType == null)
+            return false;
 
-            if (type.BaseType.Name == targetBaseTypeName || type.BaseType.FullName == targetBaseTypeName)
-                return true;
+        if (type.BaseType.Name == targetBaseTypeName || type.BaseType.FullName == targetBaseTypeName)
+            return true;
 
-            try
-            {
-                // Move up the inheritance chain
-                type = type.BaseType.Resolve();
-            }
-            catch
-            {
-                // Assembly resolution failed (e.g., missing a reference)
-                return false;
-            }
-        }
-
-        return false;
+        return type.BaseType.Resolve().DerivesFrom(targetBaseTypeName);
     }
 }

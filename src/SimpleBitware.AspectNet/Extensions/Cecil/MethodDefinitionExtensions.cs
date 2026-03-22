@@ -44,87 +44,92 @@ public static class MethodDefinitionExtensions
         return method;
     }
 
-// Helper to handle generic method creation in Cecil
-    public static MethodReference MakeGeneric(this MethodReference method, params TypeReference[] args)
+    /// <summary>
+    /// Weaves method's body into try-catch-finally block for each of the aspect net attributes.
+    /// </summary>
+    /// <param name="methodWithAspects"></param>
+    /// <typeparam name="TContext"></typeparam>
+    /// <returns>Weaved method definition.</returns>
+    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
+    {
+        var method = methodWithAspects.Key;
+        var aspectAttributes = methodWithAspects.Value;
+        var processor = method.Body.GetILProcessor();
+        var module = method.Module;
+        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TContext)));
+
+        var methodStartInstructions = method.GetMethodStartInstructions();
+        var methodInstructions = method.GetMethodInstructions();
+
+        method.ClearMethodBody();
+
+        processor.AppendInstructions(methodStartInstructions)
+            .CreateEntryContext<TContext>(module, entryContextVar, method);
+
+        aspectAttributes
+            .OrderBy(customAttribute => customAttribute.GetPriorityValue())
+            .Reverse()
+            .Each(attribute =>
+            {
+                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), entryContextVar);
+                method.RemoveAttribute(attribute);
+            });
+
+        processor.AppendInstructions(methodInstructions)
+            .AddMethodReturn(method);
+
+        return method;
+    }
+
+    private static void RemoveAttribute(this MethodDefinition method, CustomAttribute attribute)
+    {
+        method.CustomAttributes.Remove(attribute);
+
+        var property = method.DeclaringType.Properties
+            .FirstOrDefault(p => p.GetMethod == method || p.SetMethod == method);
+
+        property?.CustomAttributes.Remove(attribute);
+    }
+
+    private static MethodReference MakeGeneric(this MethodReference method, params TypeReference[] args)
     {
         var genericType = new GenericInstanceMethod(method);
         foreach (var arg in args) genericType.GenericArguments.Add(arg);
         return genericType;
     }
 
-    public static Instruction[] GetMethodInstructions(this MethodDefinition method)
+    private static Instruction[] GetMethodInstructions(this MethodDefinition method)
     {
         var originalInstructions = method.Body.Instructions.ToList();
-        if (!method.IsConstructor) 
+        if (!method.IsConstructor)
             return originalInstructions.ToArray();
-        
+
         var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
-        if (baseCall == null) 
+        if (baseCall == null)
             return originalInstructions.ToArray();
-            
+
         var index = originalInstructions.IndexOf(baseCall);
         return originalInstructions.Skip(index + 1).ToArray();
     }
-    
-    public static Instruction[] GetMethodProlog(this MethodDefinition method)
+
+    private static Instruction[] GetMethodStartInstructions(this MethodDefinition method)
     {
-        if (!method.IsConstructor) 
+        if (!method.IsConstructor)
             return [];
-        
+
         var originalInstructions = method.Body.Instructions.ToList();
         var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
-        if (baseCall == null) 
+        if (baseCall == null)
             return [];
-        
+
         var index = originalInstructions.IndexOf(baseCall);
         return originalInstructions.Take(index + 1).ToArray();
     }
 
-    public static void ClearMethodBody(this MethodDefinition method)
+    private static void ClearMethodBody(this MethodDefinition method)
     {
         method.Body.Instructions.Clear();
         method.Body.ExceptionHandlers.Clear();
-    }
-
-    /// --------------
-    ///
-    ///
-    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
-    {
-        var method = methodWithAspects.Key;
-        var aspectAttributes = methodWithAspects.Value;
-        var il = method.Body.GetILProcessor();
-        var module = method.Module;
-
-        // 2. Extract Original Instructions & Prologue
-        var prologue = method.GetMethodProlog();
-        var workingBody = method.GetMethodInstructions();
-
-        method.ClearMethodBody();
-
-        // --- A. EMIT PROLOGUE ---
-        prologue.Each(instruction => il.Append(instruction));
-
-        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TContext)));
-        il.CreateEntryContext<TContext>(module, entryContextVar, method);
-        method.Body.Variables.Add(entryContextVar);
-
-        // --- C. RECURSIVE WRAP ---
-        aspectAttributes
-            .OrderBy(customAttribute => customAttribute.GetPriorityValue())
-            .Reverse()
-            .Each(attribute =>
-            {
-                workingBody = WrapInAttributeLayer(method, attribute, workingBody.ToArray(), entryContextVar);
-                method.CustomAttributes.Remove(attribute);
-            });
-        
-        // --- D. FINAL ASSEMBLY ---
-        workingBody.Each(instruction => il.Append(instruction));
-
-        il.AddMethodReturn(method);
-
-        return method;
     }
 
     private static Instruction[] WrapInAttributeLayer(
@@ -135,7 +140,7 @@ public static class MethodDefinitionExtensions
     {
         var il = method.Body.GetILProcessor();
         var module = method.Module;
-        var isInterceptor = attr.AttributeType.Resolve().DerivesFrom("AbstractInterceptorAttribute");
+        var isInterceptor = attr.AttributeType.Resolve().DerivesFrom(typeof(AbstractInterceptorAttribute).FullName);
         var refs = new AspectReferences(module, attr.AttributeType.Resolve());
         var isVoid = method.ReturnType.MetadataType == MetadataType.Void || method.IsConstructor;
 
@@ -162,7 +167,7 @@ public static class MethodDefinitionExtensions
         List<Instruction> newLayer = new();
 
         // 1. Get Aspect Instance
-        var getService = module.ImportReference(typeof(AspectNetDependencyInjection).GetMethod("GetRequiredService"))
+        var getService = module.ImportReference(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)))
             .MakeGeneric(aspectVar.VariableType);
         newLayer.Add(il.Create(OpCodes.Call, getService));
         newLayer.Add(il.Create(OpCodes.Stloc, aspectVar));
@@ -236,7 +241,7 @@ public static class MethodDefinitionExtensions
         // Interceptor Sync
         if (isInterceptor && returnVar != null)
         {
-            var getRet = module.ImportReference(typeof(AspectNetExitContext).GetProperty("ReturnValue").GetMethod);
+            var getRet = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue)).GetMethod);
             newLayer.Add(il.Create(OpCodes.Ldloc, exitCtxLocal));
             newLayer.Add(il.Create(OpCodes.Callvirt, getRet));
             newLayer.Add(il.Create(OpCodes.Unbox_Any, method.ReturnType));

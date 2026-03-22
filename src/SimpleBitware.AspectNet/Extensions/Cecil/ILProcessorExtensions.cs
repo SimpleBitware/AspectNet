@@ -52,6 +52,8 @@ public static class ILProcessorExtensions
             module.GetPropertyGetMethodReference<T>(nameof(AbstractAspectNetContext.Parameters)),
             module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), new[] { typeof(string), typeof(object) }))
             );
+        
+        method.Body.Variables.Add(entryContextVar);
     }
 
     private static void SetStringProperty(
@@ -98,5 +100,11 @@ public static class ILProcessorExtensions
         }
 
         processor.Emit(OpCodes.Ret);
+    }
+
+    public static ILProcessor AppendInstructions(this ILProcessor processor, Instruction[] instructions)
+    {
+        instructions.Each(instruction => processor.Append(instruction));
+        return processor;
     }
 }
