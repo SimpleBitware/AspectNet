@@ -1,0 +1,5 @@
+<Project>
+    <PropertyGroup>
+        <SkipAspectNetWeaving Condition="'$(SkipAspectNetWeaving)'==''">false</SkipAspectNetWeaving>
+    </PropertyGroup>
+</Project>
