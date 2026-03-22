@@ -6,7 +6,8 @@
     <Target Name="AspectNetWeavingTarget" AfterTargets="CoreCompile" Condition="'$(SkipAspectNetWeaving)' != 'true'">
         <SimpleBitware.AspectNet.Build.AspectNetWeaverTask
                 AssemblyPath="@(IntermediateAssembly)"
-                References="@(ReferencePath)" />
+                References="@(ReferencePath)"
+                Debug="False" />
         <Touch Files="@(IntermediateAssembly)" />
     </Target>
 </Project>
