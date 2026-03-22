@@ -3,7 +3,6 @@ namespace ConsoleApp1;
 public class TestClassX
 {
     [Log]
-    [Log2]
     public TestClassX( int no = 2)
     {
         this.No = no;
@@ -25,6 +24,7 @@ public class TestClassX
     }
     
     [Log]
+    [Log2]
     public async Task LogMe(string message)
     {
         Console.WriteLine($"LogMe: {message}");

@@ -2,7 +2,8 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using MoreLinq;
-using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Runtime.Cecil;
 
 namespace SimpleBitware.AspectNet.Extensions.Cecil;
@@ -20,7 +21,7 @@ public static class MethodDefinitionExtensions
         TypeDefinition baseAspectNetAttribute)
     {
         return method.CustomAttributes
-            .Where(customAttribute => customAttribute.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) ?? false)
+            .Where(customAttribute => customAttribute.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
             .ToArray();
     }
 
@@ -135,18 +136,17 @@ public static class MethodDefinitionExtensions
 
     private static Instruction[] WrapInAttributeLayer(
         MethodDefinition method,
-        CustomAttribute attr,
+        CustomAttribute customAttribute,
         Instruction[] innerInstructions,
         VariableDefinition entryContext)
     {
         var il = method.Body.GetILProcessor();
         var module = method.Module;
-        var isInterceptor = attr.AttributeType.Resolve().DerivesFrom(typeof(AbstractInterceptorAttribute).FullName);
-        var refs = new AspectReferences(module, attr.AttributeType.Resolve());
+        var refs = new AspectReferences(module, customAttribute.AttributeType.Resolve());
         var isVoid = method.ReturnType.MetadataType == MetadataType.Void || method.IsConstructor;
 
         // Layer Locals
-        var aspectVar = new VariableDefinition(module.ImportReference(attr.AttributeType));
+        var aspectVar = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
         var exceptionVar = new VariableDefinition(module.ImportReference(typeof(Exception)));
         method.Body.Variables.Add(aspectVar);
         method.Body.Variables.Add(exceptionVar);
@@ -160,12 +160,10 @@ public static class MethodDefinitionExtensions
         }
 
         // Jump Targets
-        var nopTryStart = il.Create(OpCodes.Nop);
-        var handlerCatchStart = il.Create(OpCodes.Stloc, exceptionVar);
         var handlerFinallyStart = il.Create(OpCodes.Nop);
         var exitPoint = il.Create(OpCodes.Nop);
 
-        List<Instruction> newLayer = new();
+        List<Instruction> newLayer = [];
 
         // 1. Get Aspect Instance
         var getService = module.ImportReference(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)))
@@ -174,29 +172,31 @@ public static class MethodDefinitionExtensions
         newLayer.Add(il.Create(OpCodes.Stloc, aspectVar));
 
         // 2. Start Try Block & OnEntry
+        var nopTryStart = il.Create(OpCodes.Nop);
         newLayer.Add(nopTryStart);
         newLayer.Add(il.Create(OpCodes.Ldloc, aspectVar));
         newLayer.Add(il.Create(OpCodes.Ldloc, entryContext));
         newLayer.Add(il.Create(OpCodes.Callvirt, refs.OnEntry));
 
         // 3. Inner Instructions
-        foreach (var instr in innerInstructions)
+        innerInstructions.ForEach(instruction =>
         {
-            if (instr.OpCode == OpCodes.Ret)
+            if (instruction.OpCode != OpCodes.Ret)
             {
-                // Don't append the Ret!
-                if (returnVar != null) newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
-                newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
+                newLayer.Add(instruction);
+                return;
             }
-            else
-            {
-                newLayer.Add(instr);
-            }
-        }
+
+            if (returnVar != null)
+                newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
+
+            newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
+        });
 
         newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
 
         // 4. Catch Block
+        var handlerCatchStart = il.Create(OpCodes.Stloc, exceptionVar);
         newLayer.Add(handlerCatchStart);
 
         // Create ExceptionContext
@@ -240,7 +240,7 @@ public static class MethodDefinitionExtensions
         newLayer.Add(il.Create(OpCodes.Callvirt, refs.OnExit));
 
         // Interceptor Sync
-        if (isInterceptor && returnVar != null)
+        if (returnVar != null)
         {
             var getRet = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue)).GetMethod);
             newLayer.Add(il.Create(OpCodes.Ldloc, exitCtxLocal));

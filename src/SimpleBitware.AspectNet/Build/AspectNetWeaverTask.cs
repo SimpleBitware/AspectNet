@@ -43,7 +43,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
         }
         catch (Exception ex)
         {
-            Log.LogErrorFromException(ex);
+            Log.LogErrorFromException(ex, Debug);
             Log.LogError("[AspectNet] Error weaving assembly {0}", AssemblyPath);
             return false;
         }

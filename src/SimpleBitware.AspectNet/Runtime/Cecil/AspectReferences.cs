@@ -1,5 +1,5 @@
 using Mono.Cecil;
-using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Extensions.Cecil;
 
 namespace SimpleBitware.AspectNet.Runtime.Cecil;
@@ -12,9 +12,8 @@ public class AspectReferences
 
     public AspectReferences(ModuleDefinition targetModule, TypeDefinition baseAspectNetAttributeTypeDefinition)
     {
-        // We pass the targetModule down to the search helper
-        OnEntry = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnEntry), 1);
-        OnException = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnException), 1);
-        OnExit = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(AbstractObserverAttribute.OnExit), 1);
+        OnEntry = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnEntry), 1);
+        OnException = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnException), 1);
+        OnExit = targetModule.FindAndImport(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnExit), 1);
     }
 }

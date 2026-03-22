@@ -34,7 +34,7 @@ public static class TypeDefinitionExtensions
         string[] filterAttributeFullNames)
     {
         var classAspectNetAttributes = type.CustomAttributes
-            .Where(a => a.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) ?? false)
+            .Where(a => a.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
             .ToList();
 
         return type.Methods
@@ -64,7 +64,7 @@ public static class TypeDefinitionExtensions
         string[] filterAttributeFullNames)
     {
         var classAspectNetAttributes = type.CustomAttributes
-            .Where(a => a.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) ?? false)
+            .Where(a => a.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
             .ToList();
 
         return type.Properties
@@ -98,26 +98,16 @@ public static class TypeDefinitionExtensions
 
     public static bool InheritsFrom(this TypeDefinition? type, TypeDefinition baseType)
     {
-        var currentType = type;
-        while (currentType != null)
-        {
-            if (currentType.FullName == baseType.FullName)
-                return true;
-
-            currentType = currentType.BaseType?.Resolve();
-        }
-
-        return false;
-    }
-
-    public static bool DerivesFrom(this TypeDefinition? type, string targetBaseTypeName)
-    {
-        if (type?.BaseType == null)
+        if (type == null)
             return false;
 
-        if (type.BaseType.Name == targetBaseTypeName || type.BaseType.FullName == targetBaseTypeName)
+        if (type.FullName == baseType.FullName)
+            return true;
+        
+        if(type.Interfaces.Any(x=> x.InterfaceType.FullName == baseType.FullName
+                                   || x.InterfaceType.Resolve().InheritsFrom(baseType)))
             return true;
 
-        return type.BaseType.Resolve().DerivesFrom(targetBaseTypeName);
+        return type.BaseType?.Resolve().InheritsFrom(baseType) ?? false;
     }
 }

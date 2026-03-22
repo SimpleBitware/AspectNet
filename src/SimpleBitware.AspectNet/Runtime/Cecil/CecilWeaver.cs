@@ -1,7 +1,8 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
-using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Debug;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Extensions.Cecil;
@@ -17,7 +18,7 @@ public static class CecilWeaver
         string? pdbFilePath,
         bool generateDebugFiles)
     {
-        return ProcessAssembly<AbstractObserverAttribute, AspectNetWovenAttribute>(
+        return ProcessAssembly<IAspectNetAttribute, AspectNetWovenAttribute>(
             targetAssemblyDirectory,
             references,
             assemblyPath,

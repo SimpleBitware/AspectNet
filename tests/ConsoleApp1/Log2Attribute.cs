@@ -1,8 +1,9 @@
-using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Abstractions.Context;
 
 namespace ConsoleApp1;
 
-public class Log2Attribute : AbstractObserverAttribute
+public class Log2Attribute : AbstractAspectNetAttribute
 {
    public override void OnEntry(AspectNetEntryContext entryContext)
    {

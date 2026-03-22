@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Abstractions;
+namespace SimpleBitware.AspectNet.Abstractions.Context;
 
 public abstract class AbstractAspectNetContext
 {

@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Abstractions;
+namespace SimpleBitware.AspectNet.Abstractions.Context;
 
 public sealed class AspectNetExceptionContext : AbstractAspectNetContext
 {
@@ -12,5 +12,9 @@ public sealed class AspectNetExceptionContext : AbstractAspectNetContext
         Exception = exception;
     }
     
-    public required Exception Exception { get; init; }
+    /// <summary>
+    /// Gets or sets the exception.
+    /// Set exception to null to hide the original exception and prevent it to be thrown.
+    /// </summary>
+    public Exception? Exception { get; set; }
 }
