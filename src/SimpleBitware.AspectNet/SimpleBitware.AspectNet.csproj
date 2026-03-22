@@ -7,58 +7,34 @@
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <PackageId>SimpleBitware.AspectNet</PackageId>
+        <Description>IL Weaver for AspectNet AOP</Description>
+        <Version>1.0.0</Version>
+        <Authors>Lucian Bornaz</Authors>
+        <Company>Simple Bitware</Company>
+
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <NoPackageAnalysis>true</NoPackageAnalysis>
+        <DevelopmentDependency>true</DevelopmentDependency>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
     <ItemGroup>
-      <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />
-      <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
-      <PackageReference Include="Mono.Cecil" Version="0.11.6" />
-      <PackageReference Include="morelinq" Version="4.4.0" />
-      <PackageReference Include="System.Collections.Immutable" Version="10.0.4" />
+        <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />
+        <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.0.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Mono.Cecil" Version="0.11.6" PrivateAssets="all" />
+        <PackageReference Include="morelinq" Version="4.4.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Package\" />
+        <None Include="$(OutputPath)\*.dll" Pack="true" PackagePath="tasks/netstandard2.0" Visible="false" />
+        <None Include="Package\build\SimpleBitware.AspectNet.targets" Pack="true" PackagePath="build" />
     </ItemGroup>
 
 </Project>
-
-
-<!--<Project Sdk="Microsoft.NET.Sdk">-->
-
-<!--<PropertyGroup>-->
-<!--    <TargetFramework>netstandard2.0</TargetFramework>-->
-<!--    <PackageId>SimpleBitware.AspectNet</PackageId>-->
-<!--    <Version>1.0.0</Version>-->
-
-<!--    <IncludeBuildOutput>false</IncludeBuildOutput>-->
-<!--    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>-->
-<!--    <DevelopmentDependency>true</DevelopmentDependency>-->
-
-<!--    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>-->
-<!--</PropertyGroup>-->
-
-<!--<ItemGroup>-->
-<!--    <PackageReference Include="Mono.Cecil" Version="0.11.5" PrivateAssets="all" />-->
-<!--    <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />-->
-<!--</ItemGroup>-->
-
-<!--<ItemGroup>-->
-<!--    <None Include="Package\Build\SimpleBitware.AspectNet.targets"-->
-<!--          Pack="true"-->
-<!--          PackagePath="build\SimpleBitware.AspectNet.targets" />-->
-
-<!--    <None Include="$(OutputPath)\SimpleBitware.AspectNet.dll" Pack="true" PackagePath="tasks\" />-->
-<!--    <None Include="$(OutputPath)\Mono.Cecil.dll" Pack="true" PackagePath="tasks\" />-->
-<!--    <None Include="$(OutputPath)\Mono.Cecil.Pdb.dll" Pack="true" PackagePath="tasks\" />-->
-<!--    <None Include="$(OutputPath)\Mono.Cecil.Rocks.dll" Pack="true" PackagePath="tasks\" />-->
-
-<!--    <None Include="$(OutputPath)\SimpleBitware.AspectNet.Abstractions.dll"-->
-<!--          Pack="true"-->
-<!--          PackagePath="lib\netstandard2.0\" />-->
-<!--</ItemGroup>-->
-
-<!--</Project>-->
