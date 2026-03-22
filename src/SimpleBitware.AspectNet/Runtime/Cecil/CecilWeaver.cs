@@ -14,7 +14,7 @@ public static class CecilWeaver
         string[] references,
         string assemblyPath,
         string? pdbFilePath,
-        bool debug)
+        bool generateDebugFiles)
     {
         return ProcessAssembly<AbstractObserverAttribute, AspectNetWovenAttribute>(
             targetAssemblyDirectory,
@@ -31,7 +31,7 @@ public static class CecilWeaver
                         .OptimizeMacros()
                         .ApplyMarkerAttribute(markerAttributeConstructor)
                     ),
-            debug
+            generateDebugFiles
         );
     }
 
@@ -41,7 +41,7 @@ public static class CecilWeaver
         string assemblyPath,
         string? pdbFilePath,
         Action<IEnumerable<TypeDefinition>, TypeDefinition, MethodReference> weaveAction,
-        bool debug)
+        bool generateDebugFiles)
         where TAttribute : class
         where TMarker : class
     {
@@ -54,7 +54,7 @@ public static class CecilWeaver
             if (module == null)
                 throw new ApplicationException($"Module {assemblyPath} could not be loaded. Check the assembly path and ensure it is a valid .NET assembly.");
 
-            if(debug)
+            if(generateDebugFiles)
                 File.WriteAllText("before.il", module.DumpModule());
             
             var baseAspectNetAttribute = module.ImportReference(typeof(TAttribute)).Resolve()
@@ -64,7 +64,7 @@ public static class CecilWeaver
 
             weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
 
-            if(debug)
+            if(generateDebugFiles)
                 File.WriteAllText("after.il", module.DumpModule());
 
             module.Write(assemblyStream, writerParameters);

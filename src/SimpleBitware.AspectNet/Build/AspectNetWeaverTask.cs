@@ -15,6 +15,8 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     public required ITaskItem[] References { get; set; }
     
     public bool Debug { get; set; }
+    
+    public bool GenerateDebugFiles { get; set; }
 
     public override bool Execute()
     {
@@ -33,7 +35,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
                 .Distinct()
                 .ToArray();
 
-            var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, Debug);
+            var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
 
             LogUpdatedFiles(updatedFiles);
             Log.LogWhenDebug(Debug, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
