@@ -13,6 +13,7 @@ public class Log2Attribute : AbstractAspectNetAttribute
 
    public override void OnExit(AspectNetExitContext context)
    {
+      context.ReturnValue = 69;
       Console.WriteLine($"OnExit2: {context.ClassName}, {context.MemberName}, Parameters: {string.Join(", ", context.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}, ReturnValue: {context.ReturnValue}");
       base.OnExit(context);
    }

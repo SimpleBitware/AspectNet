@@ -29,7 +29,7 @@ public static class ILProcessorExtensions
         // Add more types (double, float, etc.) as needed
     }
 
-    public static void CreateEntryContext<T>(
+    public static ILProcessor CreateEntryContext<T>(
         this ILProcessor processor,
         ModuleDefinition module,
         VariableDefinition entryContextVar,
@@ -55,7 +55,35 @@ public static class ILProcessorExtensions
             module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), new[] { typeof(string), typeof(object) }))
             );
         
-        method.Body.Variables.Add(entryContextVar);
+        if (!method.Body.Variables.Contains(entryContextVar))
+            method.Body.Variables.Add(entryContextVar);
+
+        return processor;
+    }
+
+    public static ILProcessor CreateExitContext<T>(
+        this ILProcessor processor,
+        ModuleDefinition module,
+        VariableDefinition exitContextVar,
+        VariableDefinition entryContextVar,
+        MethodDefinition method)
+    {
+        // 1. Push arguments onto the stack FIRST
+        processor.Emit(OpCodes.Ldloc, entryContextVar);
+        processor.Emit(OpCodes.Ldnull);
+    
+        // 2. Now call Newobj
+        var ctor = typeof(T).GetConstructor([typeof(AspectNetEntryContext), typeof(object)]);
+        processor.Emit(OpCodes.Newobj, module.ImportReference(ctor));
+    
+        // 3. Store the result
+        processor.Emit(OpCodes.Stloc, exitContextVar);
+    
+        // Ensure the variable is registered if not already present
+        if (!method.Body.Variables.Contains(exitContextVar))
+            method.Body.Variables.Add(exitContextVar);
+        
+        return processor;
     }
 
     private static void SetStringProperty(
@@ -106,7 +134,7 @@ public static class ILProcessorExtensions
 
     public static ILProcessor AppendInstructions(this ILProcessor processor, Instruction[] instructions)
     {
-        instructions.ForEach(instruction => processor.Append(instruction));
+        instructions.ForEach(processor.Append);
         return processor;
     }
 }

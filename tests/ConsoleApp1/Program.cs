@@ -17,7 +17,7 @@ testClassX1.LogMe("Constructor", 1);
 
 try
 {
-    testClassX1.LogMe("static async").Wait();
+    testClassX1.LogMeAsync("static async").Wait();
 }
 catch(Exception ex)
 {

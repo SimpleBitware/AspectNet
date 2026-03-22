@@ -50,15 +50,16 @@ public static class MethodDefinitionExtensions
     /// Weaves method's body into try-catch-finally block for each of the aspect net attributes.
     /// </summary>
     /// <param name="methodWithAspects"></param>
-    /// <typeparam name="TContext"></typeparam>
+    /// <typeparam name="TEntryContext"></typeparam>
     /// <returns>Weaved method definition.</returns>
-    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
+    public static MethodDefinition WeaveMethod<TEntryContext, TExitContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
         var aspectAttributes = methodWithAspects.Value;
         var processor = method.Body.GetILProcessor();
         var module = method.Module;
-        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TContext)));
+        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TEntryContext)));
+        var exitContextVar = new VariableDefinition(module.ImportReference(typeof(TExitContext)));
 
         var methodStartInstructions = method.GetMethodStartInstructions();
         var methodInstructions = method.GetMethodInstructions();
@@ -66,14 +67,15 @@ public static class MethodDefinitionExtensions
         method.ClearMethodBody();
 
         processor.AppendInstructions(methodStartInstructions)
-            .CreateEntryContext<TContext>(module, entryContextVar, method);
+            .CreateEntryContext<TEntryContext>(module, entryContextVar, method)
+            .CreateExitContext<TExitContext>(module, exitContextVar, entryContextVar, method);
 
         aspectAttributes
             .OrderBy(customAttribute => customAttribute.GetPriorityValue())
             .Reverse()
             .ForEach(attribute =>
             {
-                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), entryContextVar);
+                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), entryContextVar, exitContextVar);
                 method.RemoveAttribute(attribute);
             });
 
@@ -138,7 +140,8 @@ public static class MethodDefinitionExtensions
         MethodDefinition method,
         CustomAttribute customAttribute,
         Instruction[] innerInstructions,
-        VariableDefinition entryContext)
+        VariableDefinition entryContext,
+        VariableDefinition exitContext)
     {
         var il = method.Body.GetILProcessor();
         var module = method.Module;
@@ -148,10 +151,12 @@ public static class MethodDefinitionExtensions
         // Layer Locals
         var aspectVar = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
         var exceptionVar = new VariableDefinition(module.ImportReference(typeof(Exception)));
+        var exCtxLocal = new VariableDefinition(module.ImportReference(typeof(AspectNetExceptionContext)));
         method.Body.Variables.Add(aspectVar);
         method.Body.Variables.Add(exceptionVar);
+        method.Body.Variables.Add(exCtxLocal);
 
-        // Find or Create Return Variable
+        // Find or Create Return Variable for this method
         VariableDefinition? returnVar = isVoid ? null : method.Body.Variables.FirstOrDefault(v => v.VariableType.FullName == method.ReturnType.FullName);
         if (!isVoid && returnVar == null)
         {
@@ -160,10 +165,11 @@ public static class MethodDefinitionExtensions
         }
 
         // Jump Targets
+        var handlerCatchStart = il.Create(OpCodes.Nop);
         var handlerFinallyStart = il.Create(OpCodes.Nop);
         var exitPoint = il.Create(OpCodes.Nop);
 
-        List<Instruction> newLayer = [];
+        List<Instruction> newLayer = new();
 
         // 1. Get Aspect Instance
         var getService = module.ImportReference(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)))
@@ -178,90 +184,93 @@ public static class MethodDefinitionExtensions
         newLayer.Add(il.Create(OpCodes.Ldloc, entryContext));
         newLayer.Add(il.Create(OpCodes.Callvirt, refs.OnEntry));
 
-        // 3. Inner Instructions
-        innerInstructions.ForEach(instruction =>
+        // 3. Inner Instructions Logic
+        foreach (var instruction in innerInstructions)
         {
-            if (instruction.OpCode != OpCodes.Ret)
+            if (instruction.OpCode == OpCodes.Ret)
+            {
+                if (returnVar != null)
+                    newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
+
+                newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
+            }
+            else
             {
                 newLayer.Add(instruction);
-                return;
             }
+        }
 
-            if (returnVar != null)
-                newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
-
-            newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
-        });
-
+        // Safety leave if the inner instructions don't end in a Ret
         newLayer.Add(il.Create(OpCodes.Leave, exitPoint));
 
         // 4. Catch Block
-        var handlerCatchStart = il.Create(OpCodes.Stloc, exceptionVar);
         newLayer.Add(handlerCatchStart);
+        newLayer.Add(il.Create(OpCodes.Stloc, exceptionVar));
 
-        // Create ExceptionContext
+        // Create ExceptionContext(entry, ex)
         newLayer.Add(il.Create(OpCodes.Ldloc, entryContext));
         newLayer.Add(il.Create(OpCodes.Ldloc, exceptionVar));
         var exCtor = module.ImportReference(typeof(AspectNetExceptionContext).GetConstructor(new[] { typeof(AspectNetEntryContext), typeof(Exception) }));
         newLayer.Add(il.Create(OpCodes.Newobj, exCtor));
-
-        var exCtxLocal = new VariableDefinition(module.ImportReference(typeof(AspectNetExceptionContext)));
-        method.Body.Variables.Add(exCtxLocal);
         newLayer.Add(il.Create(OpCodes.Stloc, exCtxLocal));
 
         // Call OnException
         newLayer.Add(il.Create(OpCodes.Ldloc, aspectVar));
         newLayer.Add(il.Create(OpCodes.Ldloc, exCtxLocal));
         newLayer.Add(il.Create(OpCodes.Callvirt, refs.OnException));
+
+        // Rethrow logic
         newLayer.Add(il.Create(OpCodes.Rethrow));
 
         // 5. Finally Block
         newLayer.Add(handlerFinallyStart);
 
-        // Create ExitContext
-        newLayer.Add(il.Create(OpCodes.Ldloc, entryContext));
+        // Update the SHARED ExitContext with current ReturnValue before calling OnExit
         if (returnVar != null)
         {
+            var setRet = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue)).SetMethod);
+            newLayer.Add(il.Create(OpCodes.Ldloc, exitContext));
             newLayer.Add(il.Create(OpCodes.Ldloc, returnVar));
-            if (method.ReturnType.IsValueType) newLayer.Add(il.Create(OpCodes.Box, method.ReturnType));
+            if (method.ReturnType.IsValueType) newLayer.Add(il.Create(OpCodes.Box, module.ImportReference(method.ReturnType)));
+            newLayer.Add(il.Create(OpCodes.Callvirt, setRet));
         }
-        else newLayer.Add(il.Create(OpCodes.Ldnull));
 
-        var exitCtor = module.ImportReference(typeof(AspectNetExitContext).GetConstructor(new[] { typeof(AspectNetEntryContext), typeof(object) }));
-        newLayer.Add(il.Create(OpCodes.Newobj, exitCtor));
-
-        var exitCtxLocal = new VariableDefinition(module.ImportReference(typeof(AspectNetExitContext)));
-        method.Body.Variables.Add(exitCtxLocal);
-        newLayer.Add(il.Create(OpCodes.Stloc, exitCtxLocal));
-
-        // Call OnExit
+        // Call OnExit using the SHARED exitContext
         newLayer.Add(il.Create(OpCodes.Ldloc, aspectVar));
-        newLayer.Add(il.Create(OpCodes.Ldloc, exitCtxLocal));
+        newLayer.Add(il.Create(OpCodes.Ldloc, exitContext));
         newLayer.Add(il.Create(OpCodes.Callvirt, refs.OnExit));
 
-        // Interceptor Sync
+        // Interceptor Sync: Read possibly modified ReturnValue back from SHARED context
         if (returnVar != null)
         {
             var getRet = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue)).GetMethod);
-            newLayer.Add(il.Create(OpCodes.Ldloc, exitCtxLocal));
+            newLayer.Add(il.Create(OpCodes.Ldloc, exitContext));
             newLayer.Add(il.Create(OpCodes.Callvirt, getRet));
-            newLayer.Add(il.Create(OpCodes.Unbox_Any, method.ReturnType));
+            newLayer.Add(il.Create(OpCodes.Unbox_Any, module.ImportReference(method.ReturnType)));
             newLayer.Add(il.Create(OpCodes.Stloc, returnVar));
         }
 
         newLayer.Add(il.Create(OpCodes.Endfinally));
 
-        // 6. Assembly
+        // 6. Assembly Exit Point
         newLayer.Add(exitPoint);
 
-        // Handlers
+        // Register Exception Handlers
         method.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Catch)
         {
-            TryStart = nopTryStart, TryEnd = handlerCatchStart, HandlerStart = handlerCatchStart, HandlerEnd = handlerFinallyStart, CatchType = module.ImportReference(typeof(Exception))
+            TryStart = nopTryStart,
+            TryEnd = handlerCatchStart,
+            HandlerStart = handlerCatchStart,
+            HandlerEnd = handlerFinallyStart,
+            CatchType = module.ImportReference(typeof(Exception))
         });
+
         method.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Finally)
         {
-            TryStart = nopTryStart, TryEnd = handlerFinallyStart, HandlerStart = handlerFinallyStart, HandlerEnd = exitPoint
+            TryStart = nopTryStart,
+            TryEnd = handlerFinallyStart,
+            HandlerStart = handlerFinallyStart,
+            HandlerEnd = exitPoint
         });
 
         return newLayer.ToArray();

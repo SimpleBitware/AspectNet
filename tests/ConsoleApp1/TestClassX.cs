@@ -2,7 +2,8 @@ namespace ConsoleApp1;
 
 public class TestClassX
 {
-    [Log]
+    [Log(Priority = 5)]
+    [Log2(Priority = 1)]
     public TestClassX( int no = 2)
     {
         this.No = no;
@@ -25,7 +26,7 @@ public class TestClassX
     
     [Log]
     [Log2]
-    public async Task LogMe(string message)
+    public async Task LogMeAsync(string message)
     {
         Console.WriteLine($"LogMe: {message}");
         await Task.Delay(1);
@@ -33,6 +34,7 @@ public class TestClassX
     }
     
     [Log]
+    [Log2(Priority = 1)]
     public int No { get; private set; }
     
     [Log]
