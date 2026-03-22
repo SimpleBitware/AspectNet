@@ -25,7 +25,7 @@ public class TestClassX
     }
     
     [Log]
-    [Log2]
+    [LogAsync(Priority = 1)]
     public async Task LogMeAsync(string message)
     {
         Console.WriteLine($"LogMe: {message}");

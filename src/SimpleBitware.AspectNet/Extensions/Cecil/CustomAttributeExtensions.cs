@@ -1,5 +1,4 @@
 using Mono.Cecil;
-using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 
 namespace SimpleBitware.AspectNet.Extensions.Cecil;

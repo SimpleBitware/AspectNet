@@ -10,11 +10,6 @@ public static class FileGuardExtensions
         {
             return !File.Exists(path) ? throw new FileNotFoundException($"File not found: {path}", path) : path;
         }
-
-        public string DirectoryDoesNotExists(string path)
-        {
-            return !Directory.Exists(path) ? throw new DirectoryNotFoundException($"Directory not found: {path}") : path;
-        }
     }
 }
 
