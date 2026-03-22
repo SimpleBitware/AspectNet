@@ -1,5 +1,6 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Debug;
 using SimpleBitware.AspectNet.Extensions;
@@ -26,7 +27,7 @@ public static class CecilWeaver
                         baseAspectNetAttribute,
                         [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
                     )
-                    .Each(x => x
+                    .ForEach(x => x
                         .WeaveMethod<AspectNetEntryContext>()
                         .OptimizeMacros()
                         .ApplyMarkerAttribute(markerAttributeConstructor)

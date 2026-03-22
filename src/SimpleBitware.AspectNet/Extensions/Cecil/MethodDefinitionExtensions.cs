@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Runtime.Cecil;
 
@@ -69,7 +70,7 @@ public static class MethodDefinitionExtensions
         aspectAttributes
             .OrderBy(customAttribute => customAttribute.GetPriorityValue())
             .Reverse()
-            .Each(attribute =>
+            .ForEach(attribute =>
             {
                 methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), entryContextVar);
                 method.RemoveAttribute(attribute);

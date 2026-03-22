@@ -60,6 +60,9 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 
     private void LogUpdatedFiles(string[] files)
     {
+        if (!Debug)
+            return;
+        
         foreach (var filePath in files)
             Log.LogWhenDebug(Debug, "[AspectNet] Updated file: {0}", filePath);
     }

@@ -1,6 +1,7 @@
 using System.Collections;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 
 namespace SimpleBitware.AspectNet.Extensions.Cecil;
@@ -104,7 +105,7 @@ public static class ILProcessorExtensions
 
     public static ILProcessor AppendInstructions(this ILProcessor processor, Instruction[] instructions)
     {
-        instructions.Each(instruction => processor.Append(instruction));
+        instructions.ForEach(instruction => processor.Append(instruction));
         return processor;
     }
 }
