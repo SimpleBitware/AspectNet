@@ -1,33 +1,59 @@
-# SimpleBitware.AspectNet
+# AspectNet
 
-Compile-time aspect oriented programming for .NET using Roslyn source generators and DI-based pipelines.
+Enables Aspect Oriented Programming into the target project
 
 ## Features
 
 - Attribute-driven aspects
-- Compile-time generated proxies (no runtime reflection or dynamic proxies)
+- Supports attribute usage on classes, constructors, methods and properties, irrespective of their visibility (private, protected, public), static or instance
+- Supports multiple attributes on the same class or class member and organizes execution based on their Priority (attribute property)
+- Provides access to member details (class name, member name, member parameters and their values) via a read-only context
+- Provides access to exception in case one is thrown and allows to inspect it, handle it or throw a new exception
+- Provides access to return value and allows to inspect it or change it
+- Honors debugging breakpoints in the original code and attributes
 - Async support (`Task`, `Task<T>`, `ValueTask`, `ValueTask<T>`)
-- DI-resolved aspects via `IServiceProvider`
-- Stable method IDs for pipelines and diagnostics
+
+## How it works
+
+The aspects are weaven into the target assembly immediately after it is built.
+Each project using AspectNet needs to import the nuget package separately to have attributes weaven into the decorated class member. This helps with incremental and paralel projects building.
+DI-resolved aspects via `IServiceProvider` requires usage of `UseAspectNet()` extension method on service provider. This gives weaven code access to the application IoC to resolve potential attributes/aspects dependencies. When no service provider registered or aspect/attribute not registered with service provider, the default aspect/attribute constructor is used.
 
 ## Basic usage
 
-1. Reference the `SimpleBitware.AspectNet` NuGet package.
-2. Add attributes to your methods:
+1. Import `SimpleBitware.AspectNet` NuGet package into the target project.
+2. Create a custom attribute implementing `IAspectNetAttribute` interface or extending `AbstractAspectNetAttribute` abstract class. Or just use the included AspectNet attributes.
+3. Decorate classes and/or class members with AspectNet attributes:
 
 ```csharp
-public interface IOrderService
+public class LogAttribute : AbstractAspectNetAttribute
 {
-    Task PlaceOrderAsync(string id);
-}
+   public override void OnEntry(AspectNetEntryContext entryContext)
+   {
+      base.OnEntry(entryContext);
+   }
 
-public partial class OrderService : IOrderService
+   public override void OnExit(AspectNetExitContext context)
+   {
+      base.OnExit(context);
+   }
+
+   public override void OnException(AspectNetExceptionContext context)
+   {
+      base.OnException(context);
+   }
+}  
+
+public partial class OrderService
 {
-    [Log("Orders")]
+    [Log(Priority = 1)]
     public async Task PlaceOrderAsync(string id) { ... }
 }
+```
 
+## Debugging weaving process
 
-Add the followings in the target project to save the geerated files on disk
-<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-<CompilerGeneratedFilesOutputPath>obj\Debug\.generated</CompilerGeneratedFilesOutputPath>
+One can control weaving process by changing configuration in `SimpleBitware.AspectNet.props` file. This file can be found in the local nuget repository folder, under `simplebitware.aspectnet\<version>\build` folder.
+Set `SkipAspectNetWeaving` to `true` to disable weaving
+Set `ShowDebugLogs` to `true` to show weaving logs in the build window.
+Exceptions thrown during weaving process are always logged in the build window.
