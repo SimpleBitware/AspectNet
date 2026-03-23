@@ -15,8 +15,8 @@ Enables Aspect Oriented Programming into the target project
 
 ## How it works
 
-The aspects are weaven into the target assembly immediately after it is built.
-Each project using AspectNet needs to import the nuget package separately to have attributes weaven into the decorated class member. This helps with incremental and paralel projects building.
+The aspects are weaven into the target assembly immediately after it is built.</br>
+Each project using AspectNet needs to import the nuget package separately to have attributes weaven into the decorated class member. This helps with incremental and paralel projects building.</br>
 DI-resolved aspects via `IServiceProvider` requires usage of `UseAspectNet()` extension method on service provider. This gives weaven code access to the application IoC to resolve potential attributes/aspects dependencies. When no service provider registered or aspect/attribute not registered with service provider, the default aspect/attribute constructor is used.
 
 ## Basic usage
