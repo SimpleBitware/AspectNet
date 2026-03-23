@@ -17,6 +17,7 @@
         <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet/tree/main/src/SimpleBitware.AspectNet</PackageProjectUrl>
         <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageIcon>logo.png</PackageIcon>
 
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -43,7 +44,12 @@
     <ItemGroup>
         <None Include="..\..\README.md"
               Pack="true"
-              PackagePath=""/>
+              PackagePath=""
+              Visible="false"/>
+        <None Include="..\..\logo.png"
+              Pack="true"
+              PackagePath=""
+              Visible="false"/>
         <None Include="$(OutputPath)\*.dll"
               Exclude="$(OutputPath)\System.*;
                        $(OutputPath)\Microsoft.Build.*;
