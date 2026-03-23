@@ -1,6 +1,6 @@
 using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
-using SimpleBitware.AspectNet.Debug;
+using SimpleBitware.AspectNet.Debugging;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Runtime.Cecil;
 

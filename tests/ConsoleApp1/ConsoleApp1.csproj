@@ -20,7 +20,11 @@
             AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll" />
 
     <Target Name="RunAspectNetWeaver" AfterTargets="Build">
-        <AspectNetWeaverTask AssemblyPath="$(TargetPath)" References="@(ReferencePath)" Debug="True" GenerateDebugFiles="False"/>
+        <AspectNetWeaverTask 
+                AssemblyPath="$(TargetPath)" 
+                References="@(ReferencePath)" 
+                Debug="True" 
+                GenerateDebugFiles="False"/>
     </Target>
 
 
