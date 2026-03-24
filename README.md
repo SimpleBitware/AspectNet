@@ -60,3 +60,7 @@ One can control weaving process by changing configuration in `SimpleBitware.Aspe
 Set `SkipAspectNetWeaving` to `true` to disable weaving. </br>
 Set `ShowDebugLogs` to `true` to show weaving logs in the build window. </br>
 Exceptions thrown during weaving process are always logged in the build window.
+
+## Would you like to contribute?
+
+Discover [here](CONTRIBUTING.md) how you can contribute to a better developer experience for all.
