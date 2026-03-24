@@ -1,3 +1,5 @@
+<img src="logo.png" width="110" align="right"></br></br>
+
 # AspectNet
 
 Enables Aspect Oriented Programming in the target project
