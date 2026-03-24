@@ -1,91 +1,112 @@
-name: Build
+name: Build & Publish
+
 on:
-  workflow_dispatch:       # Allow running the workflow manually from the GitHub UI
+  workflow_dispatch:
   push:
-    branches: [ 'main' ]   # Run the workflow when pushing to the main branch
+    branches: [ main ]
   pull_request:
-    branches: [ '*' ]      # Run the workflow for all pull requests
+    branches: [ '*' ]
   release:
-    types: [ published ]   # Run the workflow when a new GitHub release is published
+    types: [ published ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 env:
   DOTNET_NOLOGO: true
-  NuGetDirectory: ${{ github.workspace}}/nuget
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NuGetDirectory: ${{ github.workspace }}/nuget
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: read
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Required for MinVer
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 10.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
-    - name: Build
-      run: dotnet build --no-restore
+      - name: Restore
+        run: dotnet restore
 
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
-  create_nuget:
-    name: create nuget package
-    needs: [ build ]
+      - name: Test
+        run: dotnet test -c Release --no-build --verbosity normal
+
+  pack:
     runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # Get all history to allow automatic versioning using MinVer
-        filter: tree:0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Required for MinVer
 
-    # Install the .NET SDK indicated in the global.json file
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
 
-    # Create the NuGet package in the folder from the environment variable NuGetDirectory
-    - name: Create package
-      run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
+      - name: Restore
+        run: dotnet restore
 
-    # Publish the NuGet package as an artifact, so they can be used in the following jobs
-    - uses: actions/upload-artifact@v4
-      with:
-        name: nuget
-        if-no-files-found: error
-        retention-days: 7
-        path: ${{ env.NuGetDirectory }}/*.nupkg
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
-  deploy:
-    # Publish only when creating a GitHub Release
-    # You can update this logic if you want to manage releases differently
-    # github.ref == 'refs/heads/main'
+      - name: Pack
+        run: dotnet pack -c Release --no-build --output ${{ env.NuGetDirectory }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: ${{ env.NuGetDirectory }}/*.nupkg
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    needs: [ create_nuget ]
+    needs: pack
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      # Download the NuGet package created in the previous job
       - uses: actions/download-artifact@v4
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
 
-      # Install the .NET SDK indicated in the global.json file
-      - name: Setup .NET Core
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
 
-      # Publish all NuGet packages to NuGet.org
-      # Use --skip-duplicate to prevent errors if a package with the same version already exists.
-      # If you retry a failed workflow, already published packages will be skipped without error.
-      - name: Publish NuGet package
+      - name: Push to NuGet
         run: |
           cd ${{ env.NuGetDirectory }}
-          dotnet nuget push "*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source ${{ vars.NUGET_REPO_URL }} --skip-duplicate
+          dotnet nuget push "*.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source ${{ vars.NUGET_REPO_URL }} \
+            --skip-duplicate
