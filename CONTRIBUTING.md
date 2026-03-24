@@ -5,7 +5,10 @@ Your help shapes a cleaner, more powerful developer experience for everyone. </b
 
 ## How to contribute
 
-At SimpleBitware we belive in simplicity. </br>
-We are using standard GitHub tooling for colaboration. </br>
-No special set up is required to run and test the solution. Just clone the repository and run the solution. </br>
-If you need any help feel free to contact us.
+At [SimpleBitware](https://github.com/SimpleBitware) we belive in simplicity. </br>
+We use standard GitHub tooling for collaboration. </br>
+No special setup is required to run or test the solution — simply clone the repository and open it in your preferred IDE. </br>
+If you need any assistance, feel free to reach out to us.
+
+## Tools we use for testing
+https://ilspy.org/
