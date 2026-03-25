@@ -104,73 +104,59 @@ public static class ILProcessorExtensions
     public static Instruction[] CreateOnExceptionBlock(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
-        VariableDefinition exceptionVariableDefinition,
+        VariableDefinition exceptionVariableDefinition, // 'ex'
         MethodReference exceptionContextConstructor,
-        VariableDefinition exceptionContext,
-        VariableDefinition aspectVariableDefinition,
-        MethodReference onException,
-        MethodReference getExceptionMethod)
+        VariableDefinition exceptionContextVar,         // 'val2'
+        VariableDefinition aspectVariableDefinition,    // 'requiredService'
+        MethodReference onException)
     {
         return [
-            // context2 = new AspectNetExceptionContext(val, ex);
+            // val2 = new AspectNetExceptionContext(entryContext, ex);
             processor.Create(OpCodes.Stloc, exceptionVariableDefinition),
             processor.Create(OpCodes.Ldloc, entryContextVar),
             processor.Create(OpCodes.Ldloc, exceptionVariableDefinition),
             processor.Create(OpCodes.Newobj, exceptionContextConstructor),
-            processor.Create(OpCodes.Stloc, exceptionContext),
+            processor.Create(OpCodes.Stloc, exceptionContextVar),
 
-            // requiredService.OnException(context2);
+            // requiredService.OnException(val2);
             processor.Create(OpCodes.Ldloc, aspectVariableDefinition),
-            processor.Create(OpCodes.Ldloc, exceptionContext),
-            processor.Create(OpCodes.Callvirt, onException),
-
-            // Push ex and context2.Exception for comparison
-            processor.Create(OpCodes.Ldloc, exceptionVariableDefinition),
-            processor.Create(OpCodes.Ldloc, exceptionContext),
-            processor.Create(OpCodes.Callvirt, getExceptionMethod),
-        
-            // Compare: pops 2 refs, pushes 1 int32 (0 or 1)
-            processor.Create(OpCodes.Ceq) 
+            processor.Create(OpCodes.Ldloc, exceptionContextVar),
+            processor.Create(OpCodes.Callvirt, onException)
         ];
     }
     
     public static Instruction[] CloseCatchBlock(
         this ILProcessor processor,
-        VariableDefinition originalException,        // The 'ex' caught at the start of catch
-        VariableDefinition exceptionContext,        // The AspectNetExceptionContext
-        MethodReference getExceptionMethod,         // Context.get_Exception()
-        Instruction exitPoint)                      // The 'nop' after the finally block
+        VariableDefinition exceptionVar,        // 'ex'
+        VariableDefinition exceptionContextVar, // 'val2'
+        MethodReference getExceptionMethod,
+        Instruction exitPoint)
     {
-        var labelCheckNew = processor.Create(OpCodes.Ldloc, exceptionContext);
+        var labelCheckNew = processor.Create(OpCodes.Nop);
         var swallowAndLeave = processor.Create(OpCodes.Pop);
-    
+
         return [
-            // --- 1. RETHROW LOGIC ---
-            // Check if originalException == exceptionContext.Exception
-            processor.Create(OpCodes.Ldloc, originalException),
-            processor.Create(OpCodes.Ldloc, exceptionContext),
+            // if (ex == val2.Exception)
+            processor.Create(OpCodes.Ldloc, exceptionVar),
+            processor.Create(OpCodes.Ldloc, exceptionContextVar),
             processor.Create(OpCodes.Callvirt, getExceptionMethod),
-            processor.Create(OpCodes.Ceq), 
-        
-            // If they are equal (1), jump to the 'CheckNew' logic? 
-            // No, if equal, we rethrow the original state.
+            processor.Create(OpCodes.Ceq),
             processor.Create(OpCodes.Brfalse_S, labelCheckNew),
+
+            // throw;
             processor.Create(OpCodes.Rethrow),
 
-            // --- 2. NEW EXCEPTION LOGIC ---
-            // If we are here, the aspect modified the exception or we chose not to rethrow
+            // else if (val2.Exception != null) throw val2.Exception;
             labelCheckNew,
-            processor.Create(OpCodes.Ldloc, exceptionContext),
+            processor.Create(OpCodes.Ldloc, exceptionContextVar),
             processor.Create(OpCodes.Callvirt, getExceptionMethod),
-    
-            processor.Create(OpCodes.Dup), // Duplicate the exception reference
-            processor.Create(OpCodes.Brfalse_S, swallowAndLeave), // If null, go to Pop (swallow)
-    
-            processor.Create(OpCodes.Throw), // If not null, throw the new exception
+            processor.Create(OpCodes.Dup),
+            processor.Create(OpCodes.Brfalse_S, swallowAndLeave),
+            processor.Create(OpCodes.Throw),
 
-            // --- 3. SWALLOW & EXIT ---
-            swallowAndLeave,                            // Clean the 'dup' off the stack
-            processor.Create(OpCodes.Leave, exitPoint)  // Jump out (triggers finally automatically)
+            // else (swallow)
+            swallowAndLeave,
+            processor.Create(OpCodes.Leave, exitPoint)
         ];
     }
 

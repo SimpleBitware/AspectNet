@@ -219,8 +219,7 @@ public static class MethodDefinitionExtensions
                 exceptionContextConstructor, 
                 exceptionContextVariableDefinition,
                 aspectVariableDefinition, 
-                aspectReferences.OnException, 
-                aspectNetExceptionContextExceptionGetMethod))
+                aspectReferences.OnException))
             .Concat(processor.CloseCatchBlock(
                 exceptionVariableDefinition, 
                 exceptionContextVariableDefinition, 
