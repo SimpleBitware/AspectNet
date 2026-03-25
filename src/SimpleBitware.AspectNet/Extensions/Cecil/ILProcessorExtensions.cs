@@ -101,27 +101,6 @@ public static class ILProcessorExtensions
         ];
     }
 
-    public static Instruction[] StartCatchBlock(
-        this ILProcessor processor,
-        Instruction handlerCatchStart,
-        VariableDefinition exceptionVariableDefinition)
-    {
-        return
-        [
-            handlerCatchStart,
-            processor.Create(OpCodes.Stloc, exceptionVariableDefinition)
-        ];
-    }
-
-    public static Instruction[] CloseCatchBlock(
-        this ILProcessor processor)
-    {
-        return
-        [
-            processor.Create(OpCodes.Rethrow)
-        ];
-    }
-
     public static Instruction[] CreateOnExceptionBlock(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
@@ -129,17 +108,69 @@ public static class ILProcessorExtensions
         MethodReference exceptionContextConstructor,
         VariableDefinition exceptionContext,
         VariableDefinition aspectVariableDefinition,
-        MethodReference onException)
+        MethodReference onException,
+        MethodReference getExceptionMethod)
     {
-        return
-        [
+        return [
+            // context2 = new AspectNetExceptionContext(val, ex);
+            processor.Create(OpCodes.Stloc, exceptionVariableDefinition),
             processor.Create(OpCodes.Ldloc, entryContextVar),
             processor.Create(OpCodes.Ldloc, exceptionVariableDefinition),
             processor.Create(OpCodes.Newobj, exceptionContextConstructor),
             processor.Create(OpCodes.Stloc, exceptionContext),
+
+            // requiredService.OnException(context2);
             processor.Create(OpCodes.Ldloc, aspectVariableDefinition),
             processor.Create(OpCodes.Ldloc, exceptionContext),
-            processor.Create(OpCodes.Callvirt, onException)
+            processor.Create(OpCodes.Callvirt, onException),
+
+            // Push ex and context2.Exception for comparison
+            processor.Create(OpCodes.Ldloc, exceptionVariableDefinition),
+            processor.Create(OpCodes.Ldloc, exceptionContext),
+            processor.Create(OpCodes.Callvirt, getExceptionMethod),
+        
+            // Compare: pops 2 refs, pushes 1 int32 (0 or 1)
+            processor.Create(OpCodes.Ceq) 
+        ];
+    }
+    
+    public static Instruction[] CloseCatchBlock(
+        this ILProcessor processor,
+        VariableDefinition originalException,        // The 'ex' caught at the start of catch
+        VariableDefinition exceptionContext,        // The AspectNetExceptionContext
+        MethodReference getExceptionMethod,         // Context.get_Exception()
+        Instruction exitPoint)                      // The 'nop' after the finally block
+    {
+        var labelCheckNew = processor.Create(OpCodes.Ldloc, exceptionContext);
+        var swallowAndLeave = processor.Create(OpCodes.Pop);
+    
+        return [
+            // --- 1. RETHROW LOGIC ---
+            // Check if originalException == exceptionContext.Exception
+            processor.Create(OpCodes.Ldloc, originalException),
+            processor.Create(OpCodes.Ldloc, exceptionContext),
+            processor.Create(OpCodes.Callvirt, getExceptionMethod),
+            processor.Create(OpCodes.Ceq), 
+        
+            // If they are equal (1), jump to the 'CheckNew' logic? 
+            // No, if equal, we rethrow the original state.
+            processor.Create(OpCodes.Brfalse_S, labelCheckNew),
+            processor.Create(OpCodes.Rethrow),
+
+            // --- 2. NEW EXCEPTION LOGIC ---
+            // If we are here, the aspect modified the exception or we chose not to rethrow
+            labelCheckNew,
+            processor.Create(OpCodes.Ldloc, exceptionContext),
+            processor.Create(OpCodes.Callvirt, getExceptionMethod),
+    
+            processor.Create(OpCodes.Dup), // Duplicate the exception reference
+            processor.Create(OpCodes.Brfalse_S, swallowAndLeave), // If null, go to Pop (swallow)
+    
+            processor.Create(OpCodes.Throw), // If not null, throw the new exception
+
+            // --- 3. SWALLOW & EXIT ---
+            swallowAndLeave,                            // Clean the 'dup' off the stack
+            processor.Create(OpCodes.Leave, exitPoint)  // Jump out (triggers finally automatically)
         ];
     }
 
@@ -200,17 +231,6 @@ public static class ILProcessorExtensions
                 yield return instruction;
             }
         }
-    }
-
-    public static Instruction[] CloseTryBlock(
-        this ILProcessor processor,
-        Instruction exitPoint)
-    {
-        return
-        [
-            // Safety leave if the inner instructions don't end in a Ret
-            processor.Create(OpCodes.Leave, exitPoint)
-        ];
     }
 
     public static Instruction[] CreateOnEntryBlock(

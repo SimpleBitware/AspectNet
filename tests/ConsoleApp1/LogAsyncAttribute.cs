@@ -20,7 +20,7 @@ public class LogAsyncAttribute : AbstractAspectNetAttribute
          context.ReturnValue = originalTask.ContinueWith(t => 
          {
             Console.WriteLine("Original task done. Now running aspect exit logic.");
-            // Your custom logic here...
+            throw new Exception("Exception from Continuation");
          });
       }
       

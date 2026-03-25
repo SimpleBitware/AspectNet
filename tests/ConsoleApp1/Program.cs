@@ -24,6 +24,15 @@ catch(Exception ex)
     Console.WriteLine($"Error: {ex.Message}");
 }
 
+try
+{
+    testClassX1.LogMeWithException("static with exception");
+}
+catch(Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+
 //Console.WriteLine($"No={testClassX1.No}");
 //
 Console.WriteLine("------------------");

@@ -25,7 +25,7 @@
                 AssemblyPath="$(TargetPath)"
                 References="@(ReferencePath)"
                 Debug="True"
-                GenerateDebugFiles="False"/>
+                GenerateDebugFiles="true"/>
     </Target>
 
 

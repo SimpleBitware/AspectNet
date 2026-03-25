@@ -39,4 +39,11 @@ public class TestClassX
     
     [Log]
     protected int NoProt { get; private set; }
+
+    [LogMeWithException]
+    public void LogMeWithException(string staticWithException)
+    {
+        Console.WriteLine($"LogMe: {staticWithException}");
+        throw new InvalidOperationException("Test LogMeWithException");
+    }
 }
