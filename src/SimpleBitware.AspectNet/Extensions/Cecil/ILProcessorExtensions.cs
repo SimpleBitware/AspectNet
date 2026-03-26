@@ -29,7 +29,7 @@ public static class ILProcessorExtensions
         return processor;
     }
 
-    public static ILProcessor CreateEntryContext<T>(
+    public static ILProcessor CreateAspectContext<T>(
         this ILProcessor processor,
         ModuleDefinition module,
         VariableDefinition entryContextVar,
@@ -38,50 +38,33 @@ public static class ILProcessorExtensions
         processor.Emit(OpCodes.Newobj, module.ImportReference(typeof(T).GetConstructor(Type.EmptyTypes)));
         processor.Emit(OpCodes.Stloc, entryContextVar);
 
-        processor.SetStringProperty(
+        processor.SetObjectProperty(
             entryContextVar,
-            method.DeclaringType.FullName,
-            module.GetPropertySetMethodReference<T>(nameof(AbstractAspectNetContext.ClassName)));
+            method.HasThis ? method.Body.ThisParameter : null,
+            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.Instance)));
 
+        var getTypeFromHandleMethod = module.ImportReference(
+            typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle), [typeof(RuntimeTypeHandle)])); //TODO: move out to run it only once
+        processor.SetTypeProperty(
+            entryContextVar,
+            method.DeclaringType,
+            getTypeFromHandleMethod,
+            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.ClassType)));
+        
         processor.SetStringProperty(
             entryContextVar,
             method.Name,
-            module.GetPropertySetMethodReference<T>(nameof(AbstractAspectNetContext.MemberName)));
+            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.MemberName)));
 
         processor.SetDictionaryProperty(
             entryContextVar,
             method.Parameters,
-            module.GetPropertyGetMethodReference<T>(nameof(AbstractAspectNetContext.Parameters)),
-            module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), new[] { typeof(string), typeof(object) }))
+            module.GetPropertyGetMethodReference<T>(nameof(AspectNetAttributeContext.Parameters)),
+            module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), [typeof(string), typeof(object)]))
         );
 
         if (!method.Body.Variables.Contains(entryContextVar))
             method.Body.Variables.Add(entryContextVar);
-
-        return processor;
-    }
-
-    public static ILProcessor CreateExitContext<T>(
-        this ILProcessor processor,
-        ModuleDefinition module,
-        VariableDefinition exitContextVar,
-        VariableDefinition entryContextVar,
-        MethodDefinition method)
-    {
-        // 1. Push arguments onto the stack FIRST
-        processor.Emit(OpCodes.Ldloc, entryContextVar);
-        processor.Emit(OpCodes.Ldnull);
-
-        // 2. Now call Newobj
-        var ctor = typeof(T).GetConstructor([typeof(AspectNetEntryContext), typeof(object)]);
-        processor.Emit(OpCodes.Newobj, module.ImportReference(ctor));
-
-        // 3. Store the result
-        processor.Emit(OpCodes.Stloc, exitContextVar);
-
-        // Ensure the variable is registered if not already present
-        if (!method.Body.Variables.Contains(exitContextVar))
-            method.Body.Variables.Add(exitContextVar);
 
         return processor;
     }
@@ -103,78 +86,70 @@ public static class ILProcessorExtensions
 
     public static Instruction[] CreateOnExceptionBlock(
         this ILProcessor processor,
-        VariableDefinition entryContextVar,
-        VariableDefinition exceptionVariableDefinition, // 'ex'
-        MethodReference exceptionContextConstructor,
-        VariableDefinition exceptionContextVar,         // 'val2'
-        VariableDefinition aspectVariableDefinition,    // 'requiredService'
-        MethodReference onException)
+        VariableDefinition entryContextVar, // 'val'
+        VariableDefinition exceptionVar, // 'ex'
+        MethodReference setExceptionMethod, // Context.set_ReturnValue
+        MethodReference getExceptionMethod, // Context.get_Exception
+        VariableDefinition aspectVar, // 'requiredService'
+        MethodReference onException) // Aspect.OnException
     {
-        return [
-            // val2 = new AspectNetExceptionContext(entryContext, ex);
-            processor.Create(OpCodes.Stloc, exceptionVariableDefinition),
-            processor.Create(OpCodes.Ldloc, entryContextVar),
-            processor.Create(OpCodes.Ldloc, exceptionVariableDefinition),
-            processor.Create(OpCodes.Newobj, exceptionContextConstructor),
-            processor.Create(OpCodes.Stloc, exceptionContextVar),
+        List<Instruction> instructions = [];
 
-            // requiredService.OnException(val2);
-            processor.Create(OpCodes.Ldloc, aspectVariableDefinition),
-            processor.Create(OpCodes.Ldloc, exceptionContextVar),
-            processor.Create(OpCodes.Callvirt, onException)
-        ];
-    }
+        // 1. catch (Exception ex) { stloc.3 }
+        instructions.Add(processor.Create(OpCodes.Stloc, exceptionVar));
+
+        // 2. val.Exception = ex; 
+        // Load 'val', then 'ex', then call setter. 
+        // After Callvirt, the stack is EMPTY.
+        instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
+        instructions.Add(processor.Create(OpCodes.Ldloc, exceptionVar));
+        instructions.Add(processor.Create(OpCodes.Callvirt, setExceptionMethod));
+
+        // 3. requiredService.OnException(val);
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));
+        instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
+        instructions.Add(processor.Create(OpCodes.Callvirt, onException));
+
+        // 4. if (ex == val.Exception) { throw; }
+        var skipRethrow = processor.Create(OpCodes.Nop);
+        instructions.Add(processor.Create(OpCodes.Ldloc, exceptionVar)); // Load ORIGINAL 'ex'
+        instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
     
-    public static Instruction[] CloseCatchBlock(
-        this ILProcessor processor,
-        VariableDefinition exceptionVar,        // 'ex'
-        VariableDefinition exceptionContextVar, // 'val2'
-        MethodReference getExceptionMethod,
-        Instruction exitPoint)
-    {
-        var labelCheckNew = processor.Create(OpCodes.Nop);
-        var swallowAndLeave = processor.Create(OpCodes.Pop);
+        // Compare the two objects on the stack
+        instructions.Add(processor.Create(OpCodes.Bne_Un_S, skipRethrow));
+        instructions.Add(processor.Create(OpCodes.Rethrow)); // bare 'throw;'
+        instructions.Add(skipRethrow);
 
-        return [
-            // if (ex == val2.Exception)
-            processor.Create(OpCodes.Ldloc, exceptionVar),
-            processor.Create(OpCodes.Ldloc, exceptionContextVar),
-            processor.Create(OpCodes.Callvirt, getExceptionMethod),
-            processor.Create(OpCodes.Ceq),
-            processor.Create(OpCodes.Brfalse_S, labelCheckNew),
+        // 5. if (val.Exception != null) { throw val.Exception; }
+        var endOfBlock = processor.Create(OpCodes.Nop);
+        instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
+        instructions.Add(processor.Create(OpCodes.Brfalse_S, endOfBlock));
+    
+        instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
+        instructions.Add(processor.Create(OpCodes.Throw)); // 'throw val.Exception;'
+        instructions.Add(endOfBlock);
 
-            // throw;
-            processor.Create(OpCodes.Rethrow),
-
-            // else if (val2.Exception != null) throw val2.Exception;
-            labelCheckNew,
-            processor.Create(OpCodes.Ldloc, exceptionContextVar),
-            processor.Create(OpCodes.Callvirt, getExceptionMethod),
-            processor.Create(OpCodes.Dup),
-            processor.Create(OpCodes.Brfalse_S, swallowAndLeave),
-            processor.Create(OpCodes.Throw),
-
-            // else (swallow)
-            swallowAndLeave,
-            processor.Create(OpCodes.Leave, exitPoint)
-        ];
+        return instructions.ToArray();
     }
 
     public static IEnumerable<Instruction> CreateOnExitBlock(
         this ILProcessor processor,
-        VariableDefinition? returnVar,
+        VariableDefinition? returnValueVariableDefinition,
         bool returnTypeIsValueType,
-        VariableDefinition exitContext,
+        VariableDefinition contextVariableDefinition,
         VariableDefinition aspectVariableDefinition,
         MethodReference exitContextReturnValueGetMethod,
         MethodReference exitContextReturnValueSetMethod,
         TypeReference returnTypeReference,
         MethodReference onExit)
     {
-        if (returnVar != null)
+        if (returnValueVariableDefinition != null)
         {
-            yield return processor.Create(OpCodes.Ldloc, exitContext);
-            yield return processor.Create(OpCodes.Ldloc, returnVar);
+            yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
+            yield return processor.Create(OpCodes.Ldloc, returnValueVariableDefinition);
 
             if (returnTypeIsValueType)
                 yield return processor.Create(OpCodes.Box, returnTypeReference);
@@ -184,17 +159,17 @@ public static class ILProcessorExtensions
 
         // Call OnExit using the SHARED exitContext
         yield return processor.Create(OpCodes.Ldloc, aspectVariableDefinition);
-        yield return processor.Create(OpCodes.Ldloc, exitContext);
+        yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, onExit);
 
         // Interceptor Sync: Read possibly modified ReturnValue back from SHARED context
-        if (returnVar == null) 
+        if (returnValueVariableDefinition == null)
             yield break;
-        
-        yield return processor.Create(OpCodes.Ldloc, exitContext);
+
+        yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, exitContextReturnValueGetMethod);
         yield return processor.Create(OpCodes.Unbox_Any, returnTypeReference);
-        yield return processor.Create(OpCodes.Stloc, returnVar);
+        yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
     }
 
     public static IEnumerable<Instruction> CreateMethodInnerInstructionsBlock(
@@ -219,7 +194,7 @@ public static class ILProcessorExtensions
         }
     }
 
-    public static Instruction[] CreateOnEntryBlock(
+    public static Instruction[] CreateOnAspectMethodBlock(
         this ILProcessor processor,
         VariableDefinition aspectVar,
         VariableDefinition entryContext,
@@ -241,6 +216,46 @@ public static class ILProcessorExtensions
     {
         processor.Emit(OpCodes.Ldloc, entryContextVar);
         processor.Emit(OpCodes.Ldstr, propertyValue);
+        processor.Emit(OpCodes.Callvirt, methodReference);
+    }
+    
+    private static void SetTypeProperty(
+        this ILProcessor processor,
+        VariableDefinition entryContextVar,
+        TypeReference declaringType,
+        MethodReference getTypeFromHandle,
+        MethodReference setClassTypeMethod)
+    {
+        // 1. Load the context variable (the 'val' local)
+        processor.Emit(OpCodes.Ldloc, entryContextVar);
+
+        // 2. typeof(DeclaringClass)
+        processor.Emit(OpCodes.Ldtoken, declaringType);
+        processor.Emit(OpCodes.Call, getTypeFromHandle);
+
+        // 3. val.ClassType = [result of GetTypeFromHandle]
+        processor.Emit(OpCodes.Callvirt, setClassTypeMethod);
+    }
+
+    private static void SetObjectProperty(
+        this ILProcessor processor,
+        VariableDefinition entryContextVar,
+        ParameterDefinition? propertyValue,
+        MethodReference methodReference)
+    {
+        processor.Emit(OpCodes.Ldloc, entryContextVar);
+        
+        if (propertyValue != null)
+        {
+            // It's an instance method: Load 'this'
+            processor.Emit(OpCodes.Ldarg, propertyValue);
+        }
+        else
+        {
+            // It's a static method: Load 'null'
+            processor.Emit(OpCodes.Ldnull);
+        }
+        
         processor.Emit(OpCodes.Callvirt, methodReference);
     }
 

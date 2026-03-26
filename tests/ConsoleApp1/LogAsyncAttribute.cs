@@ -5,13 +5,13 @@ namespace ConsoleApp1;
 
 public class LogAsyncAttribute : AbstractAspectNetAttribute
 {
-   public override void OnEntry(AspectNetEntryContext entryContext)
+   public override void OnEntry(AspectNetAttributeContext entryContext)
    {
-      Console.WriteLine($"OnEntry Async: {entryContext.ClassName}, {entryContext.MemberName}, Parameters: {string.Join(", ", entryContext.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}");
+      Console.WriteLine($"OnEntry Async: {entryContext.ClassType.FullName}, {entryContext.MemberName}, Parameters: {string.Join(", ", entryContext.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}");
       base.OnEntry(entryContext);
    }
 
-   public override void OnExit(AspectNetExitContext context)
+   public override void OnExit(AspectNetAttributeContext context)
    {
       if (context.ReturnValue is Task originalTask)
       {
@@ -24,13 +24,13 @@ public class LogAsyncAttribute : AbstractAspectNetAttribute
          });
       }
       
-      Console.WriteLine($"OnExit Async: {context.ClassName}, {context.MemberName}, Parameters: {string.Join(", ", context.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}, ReturnValue: {context.ReturnValue}");
+      Console.WriteLine($"OnExit Async: {context.ClassType.FullName}, {context.MemberName}, Parameters: {string.Join(", ", context.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}, ReturnValue: {context.ReturnValue}");
       base.OnExit(context);
    }
 
-   public override void OnException(AspectNetExceptionContext context)
+   public override void OnException(AspectNetAttributeContext context)
    {
-      Console.WriteLine($"OnException Async: {context.ClassName}, {context.MemberName}, Parameters: {string.Join(", ", context.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}, Exception: {context.Exception}");
+      Console.WriteLine($"OnException Async: {context.ClassType.FullName}, {context.MemberName}, Parameters: {string.Join(", ", context.Parameters.Select(kv => $"{kv.Key}={kv.Value}"))}, Exception: {context.Exception}");
       base.OnException(context);
    }
 }  

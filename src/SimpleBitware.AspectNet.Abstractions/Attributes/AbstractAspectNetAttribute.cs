@@ -7,15 +7,19 @@ public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribut
 {
     public int Priority { get; set; } = int.MaxValue;
 
-    public virtual void OnEntry(AspectNetEntryContext entryContext)
+    public virtual void OnEntry(AspectNetAttributeContext entryContext)
+    {
+    }
+    
+    public virtual void OnSuccess(AspectNetAttributeContext entryContext)
     {
     }
 
-    public virtual void OnExit(AspectNetExitContext context)
+    public virtual void OnExit(AspectNetAttributeContext context)
     {
     }
 
-    public virtual void OnException(AspectNetExceptionContext context)
+    public virtual void OnException(AspectNetAttributeContext context)
     {
     }
 }

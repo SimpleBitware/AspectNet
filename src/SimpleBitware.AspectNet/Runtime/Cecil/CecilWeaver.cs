@@ -29,7 +29,7 @@ public static class CecilWeaver
                         [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
                     )
                     .ForEach(x => x
-                        .WeaveMethod<AspectNetEntryContext, AspectNetExitContext>()
+                        .WeaveMethod<AspectNetAttributeContext>()
                         .OptimizeMacros()
                         .ApplyMarkerAttribute(markerAttributeConstructor)
                     ),

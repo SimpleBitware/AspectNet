@@ -8,7 +8,7 @@ Enables Aspect Oriented Programming in the target project
 
 - Attribute-driven aspects
 - Supports attribute usage on classes, constructors, methods and properties, irrespective of their visibility (private, protected, public), static or instance
-- Supports multiple attributes on the same class or class member and organizes execution based on their Priority (attribute property)
+- Supports multiple attributes on the same class or class member and organizes execution based on their Priority (attribute property) and their position. The attributes are executed in order, lower Priority value first and, for the same Priority, first (top) applied attributes first.
 - Provides access to member details (class name, member name, member parameters and their values) via a read-only context
 - Provides access to exception in case one is thrown and allows to inspect it, handle it or throw a new exception
 - Provides access to return value and allows to inspect it or change it

@@ -49,16 +49,15 @@ public static class MethodDefinitionExtensions
     /// Weaves method's body into try-catch-finally block for each of the aspect net attributes.
     /// </summary>
     /// <param name="methodWithAspects"></param>
-    /// <typeparam name="TEntryContext"></typeparam>
+    /// <typeparam name="TContext"></typeparam>
     /// <returns>Weaved method definition.</returns>
-    public static MethodDefinition WeaveMethod<TEntryContext, TExitContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
+    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
         var aspectAttributes = methodWithAspects.Value;
         var processor = method.Body.GetILProcessor();
         var module = method.Module;
-        var entryContextVar = new VariableDefinition(module.ImportReference(typeof(TEntryContext)));
-        var exitContextVar = new VariableDefinition(module.ImportReference(typeof(TExitContext)));
+        var contextVariableDefinition = new VariableDefinition(module.ImportReference(typeof(TContext)));
 
         var methodStartInstructions = method.GetMethodStartInstructions();
         var methodInstructions = method.GetMethodInstructions();
@@ -66,15 +65,17 @@ public static class MethodDefinitionExtensions
         method.ClearMethodBody();
 
         processor.AppendInstructions(methodStartInstructions)
-            .CreateEntryContext<TEntryContext>(module, entryContextVar, method)
-            .CreateExitContext<TExitContext>(module, exitContextVar, entryContextVar, method);
+            .CreateAspectContext<TContext>(module, contextVariableDefinition, method);
 
         aspectAttributes
-            .OrderBy(customAttribute => customAttribute.GetPriorityValue())
+            .Select((attribute, index) => new { attribute, index })
+            .OrderByDescending(x => x.attribute.GetPriorityValue())
+            .ThenBy(x => x.index)
+            .Select(x => x.attribute)
             .Reverse()
             .ForEach(attribute =>
             {
-                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), entryContextVar, exitContextVar);
+                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition);
                 method.RemoveAttribute(attribute);
             });
 
@@ -152,29 +153,26 @@ public static class MethodDefinitionExtensions
         MethodDefinition method,
         CustomAttribute customAttribute,
         Instruction[] innerInstructions,
-        VariableDefinition entryContext,
-        VariableDefinition exitContext)
+        VariableDefinition contextVariableDefinition)
     {
         var processor = method.Body.GetILProcessor();
         var module = method.Module;
         var aspectReferences = new AspectReferences(module, customAttribute.AttributeType.Resolve());
-        var exceptionContextConstructor = module.ImportReference(typeof(AspectNetExceptionContext).GetConstructor([typeof(AspectNetEntryContext), typeof(Exception)]));
-        var aspectNetExceptionContextExceptionGetMethod = module.ImportReference(typeof(AspectNetExceptionContext).GetProperty(nameof(AspectNetExceptionContext.Exception))!.GetMethod);
-        var exitContextReturnValueGetMethod = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue))!.GetMethod);
-        var exitContextReturnValueSetMethod = module.ImportReference(typeof(AspectNetExitContext).GetProperty(nameof(AspectNetExitContext.ReturnValue))!.SetMethod);
+        var contextExceptionGetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception))!.GetMethod);
+        var contextExceptionSetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception))!.SetMethod);
+        var contextReturnValueGetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue))!.GetMethod);
+        var contextReturnValueSetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue))!.SetMethod);
         var returnTypeReference = module.ImportReference(method.ReturnType);
 
         // Layer Locals
         var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
         var exceptionVariableDefinition = new VariableDefinition(module.ImportReference(typeof(Exception)));
-        var exceptionContextVariableDefinition = new VariableDefinition(module.ImportReference(typeof(AspectNetExceptionContext)));
 
         method.Body.Variables.Add(aspectVariableDefinition);
         method.Body.Variables.Add(exceptionVariableDefinition);
-        method.Body.Variables.Add(exceptionContextVariableDefinition);
 
         // Find or Create Return Variable for this method
-        var returnVar = method.FindOrCreateReturnVariable();
+        var returnValueVariableDefinition = method.FindOrCreateReturnVariable();
 
         // Jump Targets
         var handlerTryStart = processor.Create(OpCodes.Nop);
@@ -182,7 +180,7 @@ public static class MethodDefinitionExtensions
         var handlerFinallyStart = processor.Create(OpCodes.Nop);
         var exitPoint = processor.Create(OpCodes.Nop); // The landing pad after everything
 
-// 1. Catch Handler: Protects the "Try" code
+        // 1. Catch Handler: Protects the "Try" code
         var catchHandler = new ExceptionHandler(ExceptionHandlerType.Catch)
         {
             TryStart = handlerTryStart,
@@ -192,7 +190,7 @@ public static class MethodDefinitionExtensions
             CatchType = module.ImportReference(typeof(Exception))
         };
 
-// 2. Finally Handler: Protects BOTH the Try and the Catch
+        // 2. Finally Handler: Protects BOTH the Try and the Catch
         var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
         {
             TryStart = handlerTryStart,
@@ -207,29 +205,34 @@ public static class MethodDefinitionExtensions
         return processor.CreateGetAspectInstanceBlock(module, aspectVariableDefinition)
             // --- START TRY ---
             .Append(handlerTryStart)
-            .Concat(processor.CreateOnEntryBlock(aspectVariableDefinition, entryContext, aspectReferences.OnEntry))
-            .Concat(processor.CreateMethodInnerInstructionsBlock(innerInstructions, returnVar, exitPoint))
+            .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry))
+            .Concat(innerInstructions.Where(x => x.OpCode != OpCodes.Ret))
+            .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnSuccess))
+            .Concat(processor.CreateMethodInnerInstructionsBlock(innerInstructions.Where(x => x.OpCode == OpCodes.Ret).ToArray(), returnValueVariableDefinition, exitPoint))
             .Append(processor.Create(OpCodes.Leave, exitPoint)) // This will trigger Finally then jump to exitPoint
 
             // --- START CATCH ---
             .Append(handlerCatchStart)
             .Concat(processor.CreateOnExceptionBlock(
-                entryContext, 
-                exceptionVariableDefinition, 
-                exceptionContextConstructor, 
-                exceptionContextVariableDefinition,
-                aspectVariableDefinition, 
+                contextVariableDefinition,
+                exceptionVariableDefinition,
+                contextExceptionSetMethod,
+                contextExceptionGetMethod,
+                aspectVariableDefinition,
                 aspectReferences.OnException))
-            .Concat(processor.CloseCatchBlock(
-                exceptionVariableDefinition, 
-                exceptionContextVariableDefinition, 
-                aspectNetExceptionContextExceptionGetMethod, 
-                exitPoint))
+            .Append(processor.Create(OpCodes.Leave, exitPoint))
 
             // --- START FINALLY ---
             .Append(handlerFinallyStart)
-            .Concat(processor.CreateOnExitBlock(returnVar, method.ReturnType.IsValueType, exitContext, aspectVariableDefinition, exitContextReturnValueGetMethod,
-                exitContextReturnValueSetMethod, returnTypeReference, aspectReferences.OnExit))
+            .Concat(processor.CreateOnExitBlock(
+                returnValueVariableDefinition, 
+                method.ReturnType.IsValueType, 
+                contextVariableDefinition, 
+                aspectVariableDefinition, 
+                contextReturnValueGetMethod,
+                contextReturnValueSetMethod, 
+                returnTypeReference, 
+                aspectReferences.OnExit))
             .Append(processor.Create(OpCodes.Endfinally))
 
             // --- EXIT ---

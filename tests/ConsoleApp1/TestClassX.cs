@@ -25,6 +25,12 @@ public class TestClassX
     }
     
     [Log]
+    public static void LogMeStatic(string message, int no)
+    {
+        Console.WriteLine($"LogMe Static: {message} {no}");
+    }
+    
+    [Log]
     [LogAsync(Priority = 1)]
     public async Task LogMeAsync(string message)
     {

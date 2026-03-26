@@ -11,6 +11,9 @@ builder.Services
 var app = builder.Build();
 app.Services.UseAspectNet();   // <-- captures the real provider and initializes AspectDI
 
+Console.WriteLine("STATIC");
+TestClassX.LogMeStatic("xxx", 2);
+
 Console.WriteLine("FROM CONSTRUCTOR");
 var testClassX1 = new TestClassX();
 testClassX1.LogMe("Constructor", 1);
