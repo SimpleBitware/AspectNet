@@ -14,7 +14,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     [Required]
     public required ITaskItem[] References { get; set; }
     
-    public bool Debug { get; set; }
+    public bool ShowWeavingLogs { get; set; }
     
     public bool GenerateDebugFiles { get; set; }
 
@@ -22,7 +22,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     {
         try
         {
-            Log.LogWhenDebug(Debug, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
+            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
 
             Guard.Against.NullOrEmpty(AssemblyPath);
             Guard.Against.FileDoesNotExists(AssemblyPath);
@@ -38,12 +38,12 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
 
             LogUpdatedFiles(updatedFiles);
-            Log.LogWhenDebug(Debug, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
+            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
             return true;
         }
         catch (Exception ex)
         {
-            Log.LogErrorFromException(ex, Debug);
+            Log.LogErrorFromException(ex, ShowWeavingLogs);
             Log.LogError("[AspectNet] Error weaving assembly {0}", AssemblyPath);
             return false;
         }
@@ -60,10 +60,10 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 
     private void LogUpdatedFiles(string[] files)
     {
-        if (!Debug)
+        if (!ShowWeavingLogs)
             return;
         
         foreach (var filePath in files)
-            Log.LogWhenDebug(Debug, "[AspectNet] Updated file: {0}", filePath);
+            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Updated file: {0}", filePath);
     }
 }

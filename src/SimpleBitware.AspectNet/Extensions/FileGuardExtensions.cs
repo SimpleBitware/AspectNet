@@ -4,12 +4,9 @@ namespace SimpleBitware.AspectNet.Extensions;
 
 public static class FileGuardExtensions
 {
-    extension(IGuardClause guard)
+    public static string FileDoesNotExists(this IGuardClause guard, string path)
     {
-        public string FileDoesNotExists(string path)
-        {
-            return !File.Exists(path) ? throw new FileNotFoundException($"File not found: {path}", path) : path;
-        }
+        return !File.Exists(path) ? throw new FileNotFoundException($"File not found: {path}", path) : path;
     }
 }
 

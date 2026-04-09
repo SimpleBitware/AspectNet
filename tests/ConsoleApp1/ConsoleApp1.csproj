@@ -24,7 +24,7 @@
         <AspectNetWeaverTask
                 AssemblyPath="$(TargetPath)"
                 References="@(ReferencePath)"
-                Debug="True"
+                ShowWeavingLogs="True"
                 GenerateDebugFiles="true"/>
     </Target>
 

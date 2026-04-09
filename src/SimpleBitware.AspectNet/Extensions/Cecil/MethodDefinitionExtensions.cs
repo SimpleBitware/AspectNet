@@ -2,6 +2,8 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using MoreLinq;
+using SimpleBitware.AspectNet.Abstractions;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Runtime.Cecil;
 
@@ -75,7 +77,9 @@ public static class MethodDefinitionExtensions
             .Reverse()
             .ForEach(attribute =>
             {
-                methodInstructions = WrapInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition);
+                methodInstructions = method.ReturnType.IsTaskType()
+                    ? WrapAsyncMethodInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition)
+                    : WrapSyncMethodInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition);
                 method.RemoveAttribute(attribute);
             });
 
@@ -149,7 +153,7 @@ public static class MethodDefinitionExtensions
         return returnVar;
     }
 
-    private static Instruction[] WrapInAttributeLayer(
+    private static Instruction[] WrapSyncMethodInAttributeLayer(
         MethodDefinition method,
         CustomAttribute customAttribute,
         Instruction[] innerInstructions,
@@ -225,18 +229,159 @@ public static class MethodDefinitionExtensions
             // --- START FINALLY ---
             .Append(handlerFinallyStart)
             .Concat(processor.CreateOnExitBlock(
-                returnValueVariableDefinition, 
-                method.ReturnType.IsValueType, 
-                contextVariableDefinition, 
-                aspectVariableDefinition, 
+                returnValueVariableDefinition,
+                method.ReturnType.IsValueType,
+                contextVariableDefinition,
+                aspectVariableDefinition,
                 contextReturnValueGetMethod,
-                contextReturnValueSetMethod, 
-                returnTypeReference, 
+                contextReturnValueSetMethod,
+                returnTypeReference,
                 aspectReferences.OnExit))
             .Append(processor.Create(OpCodes.Endfinally))
 
             // --- EXIT ---
             .Append(exitPoint)
             .ToArray();
+    }
+
+    private static Instruction[] WrapAsyncMethodInAttributeLayer(
+        MethodDefinition method,
+        CustomAttribute customAttribute,
+        Instruction[] innerInstructions,
+        VariableDefinition contextVariableDefinition)
+    {
+        var module = method.Module;
+        var processor = method.Body.GetILProcessor();
+        var returnType = method.ReturnType;
+        var instructions = new List<Instruction>();
+
+        // 1. Setup Aspect Variable
+        // This stores the instance of your attribute (e.g., LogAsyncAttribute)
+        var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
+        method.Body.Variables.Add(aspectVariableDefinition);
+
+        // 2. Aspect Instantiation & OnEntry
+        // Get the aspect from DI: AspectNetDependencyInjection.GetRequiredService<T>()
+        instructions.Add(processor.Create(OpCodes.Call, ImportGetRequiredService(module, customAttribute.AttributeType)));
+        instructions.Add(processor.Create(OpCodes.Stloc, aspectVariableDefinition));
+
+        // Call aspect.OnEntry(context)
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Callvirt, ImportAspectMethod(module, "OnEntry")));
+
+        // 3. Process Inner Instructions (The original method work)
+        // IMPORTANT: We remove the original 'ret' so the Task/ValueTask remains on the stack.
+        var sanitizedInner = innerInstructions.ToList();
+        if (sanitizedInner.LastOrDefault()?.OpCode == OpCodes.Ret)
+        {
+            sanitizedInner.RemoveAt(sanitizedInner.Count - 1);
+        }
+
+        instructions.AddRange(sanitizedInner);
+
+        // 4. Wrap the Resulting Task
+        bool isValueTask = returnType.FullName.Contains("ValueTask");
+        bool isGeneric = returnType.IsGenericInstance;
+
+        // If the method returns ValueTask, convert it to Task for the runner
+        if (isValueTask)
+        {
+            var asTask = returnType.Resolve().Methods.First(m => m.Name == "AsTask");
+            instructions.Add(processor.Create(OpCodes.Call, module.ImportReference(asTask)));
+        }
+
+        // Resolve the appropriate WrapAsync runner method
+        MethodReference wrapMethod;
+        if (isGeneric)
+        {
+            var genericType = (GenericInstanceType)returnType;
+            var typeT = genericType.GenericArguments[0];
+            var openMethod = ImportRunnerMethod(module, "WrapAsync", true);
+            var closedMethod = new GenericInstanceMethod(openMethod);
+            closedMethod.GenericArguments.Add(typeT);
+            wrapMethod = closedMethod;
+        }
+        else
+        {
+            wrapMethod = ImportRunnerMethod(module, "WrapAsync", false);
+        }
+
+        // Stack is currently: [Task]
+        // Load arguments for: WrapAsync(task, context, aspect)
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Call, wrapMethod));
+
+        // 5. Convert back to ValueTask if necessary
+        if (isValueTask)
+        {
+            var vtType = returnType.Resolve();
+            var ctor = vtType.Methods.First(m => m.IsConstructor && m.Parameters.Count == 1);
+
+            if (isGeneric)
+            {
+                var genericVT = (GenericInstanceType)returnType;
+                var ctorRef = new MethodReference(".ctor", module.TypeSystem.Void, genericVT) { HasThis = true };
+                ctorRef.Parameters.Add(new ParameterDefinition(module.ImportReference(wrapMethod.ReturnType)));
+                instructions.Add(processor.Create(OpCodes.Newobj, module.ImportReference(ctorRef)));
+            }
+            else
+            {
+                instructions.Add(processor.Create(OpCodes.Newobj, module.ImportReference(ctor)));
+            }
+        }
+
+        // 6. Final Return
+        instructions.Add(processor.Create(OpCodes.Ret));
+
+        return instructions.ToArray();
+    }
+
+    //------
+
+    private static MethodReference ImportRunnerMethod(ModuleDefinition module, string name, bool isGeneric)
+    {
+        // Replace 'AsyncAspectRunner' with the actual class name in your library
+        var runnerTypeDef = module.ImportReference(typeof(AsyncAspectRunner)).Resolve();
+
+        // We filter by name, parameter count (Task, Args, Aspect = 3), and generic status
+        var method = runnerTypeDef.Methods.FirstOrDefault(m =>
+            m.Name == name &&
+            m.Parameters.Count == 3 &&
+            m.HasGenericParameters == isGeneric);
+
+        if (method == null)
+            throw new Exception($"Could not find {name} in AsyncAspectRunner");
+
+        return module.ImportReference(method);
+    }
+
+    private static MethodReference ImportAspectMethod(ModuleDefinition module, string methodName)
+    {
+        // Replace 'AbstractAspectNetAttribute' with your actual base class/interface
+        var aspectBaseType = module.ImportReference(typeof(AbstractAspectNetAttribute)).Resolve();
+
+        // Most aspect methods take exactly 1 parameter: the AspectEventArgs (context)
+        return module.FindAndImport(aspectBaseType, methodName, 1);
+    }
+
+    private static MethodReference ImportGetRequiredService(ModuleDefinition module, TypeReference attributeType)
+    {
+        var diType = module.ImportReference(typeof(AspectNetDependencyInjection)).Resolve();
+
+        // Find the generic method: GetRequiredService<T>()
+        var method = diType.Methods.FirstOrDefault(m =>
+            m.Name == "GetRequiredService" &&
+            m.HasGenericParameters &&
+            m.Parameters.Count == 0);
+
+        var methodRef = module.ImportReference(method);
+
+        // Create the closed generic version: GetRequiredService<LogAttribute>()
+        var genericMethod = new GenericInstanceMethod(methodRef);
+        genericMethod.GenericArguments.Add(attributeType);
+
+        return genericMethod;
     }
 }

@@ -7,7 +7,7 @@
         <SimpleBitware.AspectNet.Build.AspectNetWeaverTask
                 AssemblyPath="@(IntermediateAssembly->'%(FullPath)')"
                 References="@(ReferencePath)"
-                Debug="$(ShowDebugLogs)" />
+                ShowWeavingLogs="$(ShowWeavingLogs)" />
         <Touch Files="@(IntermediateAssembly)" />
     </Target>
 </Project>
