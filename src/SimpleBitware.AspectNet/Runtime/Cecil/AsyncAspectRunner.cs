@@ -33,7 +33,7 @@ public static class AsyncAspectRunner
     }
 
     // For Task<T> and ValueTask<T>
-    public static async Task<T> WrapAsync<T>(Task<T>? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    public static async Task<T?> WrapAsync<T>(Task<T>? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
     {
         if (task == null) 
         {
@@ -44,10 +44,10 @@ public static class AsyncAspectRunner
         
         try
         {
-            T result = await task;
+            var result = await task;
             context.ReturnValue = result;
             aspect.OnSuccess(context);
-            return (T)context.ReturnValue;
+            return (T?)context.ReturnValue;
         }
         catch (Exception ex)
         {
