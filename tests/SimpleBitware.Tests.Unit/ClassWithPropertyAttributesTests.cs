@@ -21,11 +21,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.EqualTo(value));
             Assert.That(context.Exception, Is.Null);
@@ -46,11 +47,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
@@ -84,11 +86,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
@@ -108,11 +111,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.EqualTo(value));
             Assert.That(context.Exception, Is.Null);
@@ -146,11 +150,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.EqualTo(value));
             Assert.That(context.Exception, Is.Null);
@@ -171,11 +176,12 @@ public class ClassWithPropertyAttributesTests
 
         //then
         Assert.That(activity, Has.Count.EqualTo(2));
-        
-        var context = activity[1] as AspectNetAttributeContext;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
             Assert.That(context, Is.Not.Null);
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
