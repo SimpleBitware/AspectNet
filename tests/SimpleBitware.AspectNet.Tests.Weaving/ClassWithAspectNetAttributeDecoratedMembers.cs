@@ -2,7 +2,7 @@
 
 namespace SimpleBitware.AspectNet.Tests.Weaving;
 
-public class ClassWithMemberAttributes
+public class ClassWithAspectNetAttributeDecoratedMembers
 {
     [RecordActivity]
     public long PublicValueWithPropertyAttribute { get; set; }

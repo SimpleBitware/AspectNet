@@ -4,18 +4,18 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.Unit;
 
-public class ClassWithMemberAttributesTests
+public class ClassWithAspectNetAttributeDecoratedMethodsTests
 {
-    private readonly ClassWithMemberAttributes classWithMemberAttributes = new();
+    private readonly ClassWithAspectNetAttributeDecoratedMembers classWithAspectNetAttributeDecoratedMembers = new();
     
     [Test]
     public void Should_Record_Activity_For_Public_Method()
     {
         //given
-        var activityKey = new ActivityKey(typeof(ClassWithMemberAttributes), nameof(ClassWithMemberAttributes.PublicMethod));
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicMethod));
         
         //when
-        classWithMemberAttributes.PublicMethod();
+        classWithAspectNetAttributeDecoratedMembers.PublicMethod();
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -30,6 +30,7 @@ public class ClassWithMemberAttributesTests
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
             Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
     
@@ -37,10 +38,10 @@ public class ClassWithMemberAttributesTests
     public void Should_Record_Activity_For_Public_Static_Method()
     {
         //given
-        var activityKey = new ActivityKey(typeof(ClassWithMemberAttributes), nameof(ClassWithMemberAttributes.PublicStaticMethod));
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicStaticMethod));
         
         //when
-        ClassWithMemberAttributes.PublicStaticMethod();
+        ClassWithAspectNetAttributeDecoratedMembers.PublicStaticMethod();
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -55,6 +56,7 @@ public class ClassWithMemberAttributesTests
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
             Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.Null);
         }
     }
     
@@ -62,10 +64,10 @@ public class ClassWithMemberAttributesTests
     public void Should_Record_Activity_For_Private_Method()
     {
         //given
-        var activityKey = new ActivityKey(typeof(ClassWithMemberAttributes), "PrivateMethod");
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), "PrivateMethod");
         
         //when
-        classWithMemberAttributes.WrapperForPrivateMethod();
+        classWithAspectNetAttributeDecoratedMembers.WrapperForPrivateMethod();
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -80,6 +82,7 @@ public class ClassWithMemberAttributesTests
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
             Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
 }
