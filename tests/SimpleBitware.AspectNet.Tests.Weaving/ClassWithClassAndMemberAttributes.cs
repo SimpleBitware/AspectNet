@@ -1,4 +1,4 @@
-namespace SimpleBitware.Tests.Weaving;
+namespace SimpleBitware.AspectNet.Tests.Weaving;
 
 public class ClassWithClassAndMemberAttributes
 {

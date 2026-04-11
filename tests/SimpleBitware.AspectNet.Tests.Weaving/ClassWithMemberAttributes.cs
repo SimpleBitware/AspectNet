@@ -1,6 +1,6 @@
-﻿using SimpleBitware.Tests.Weaving.Attributes;
+﻿using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-namespace SimpleBitware.Tests.Weaving;
+namespace SimpleBitware.AspectNet.Tests.Weaving;
 
 public class ClassWithMemberAttributes
 {

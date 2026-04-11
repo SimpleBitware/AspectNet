@@ -1,4 +1,4 @@
-namespace SimpleBitware.Tests.Unit;
+namespace SimpleBitware.AspectNet.Tests.Unit;
 
 internal static class Constants
 {
