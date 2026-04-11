@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Tests.Unit.Helpers;
+namespace SimpleBitware.AspectNet.Tests.E2e.Helpers;
 
 public static class MemberNameHelper
 {

@@ -1,13 +1,13 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.Unit.Helpers;
+using SimpleBitware.AspectNet.Tests.E2e.Helpers;
 using SimpleBitware.AspectNet.Tests.Weaving;
 using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Unit;
+namespace SimpleBitware.AspectNet.Tests.E2e;
 
 public class ClassWithAspectNetAttributeDecoratedPropertiesTests
 {
-    private readonly ClassWithAspectNetAttributeDecoratedMembers classWithAspectNetAttributeDecoratedMembers = new();
+    private readonly ClassWithAspectNetAttributeDecoratedMembers sut = new();
     
     [Test]
     public void Should_Record_Activity_For_Get_Public_Property()
@@ -16,7 +16,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute)));
         
         //when
-        var value = classWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute;
+        var value = sut.PublicValueWithPropertyAttribute;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -43,7 +43,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute)), 1);
         
         //when
-        classWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute = propertyValue;
+        sut.PublicValueWithPropertyAttribute = propertyValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -69,7 +69,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute)));
         
         //when
-        var value = classWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute;
+        var value = sut.PublicValueWithSetterPropertyAttribute;
 
         //then
         Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
@@ -83,7 +83,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute)), 1);
         
         //when
-        classWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute = propertyValue;
+        sut.PublicValueWithSetterPropertyAttribute = propertyValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -109,7 +109,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute)));
         
         //when
-        var value = classWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute;
+        var value = sut.PublicValueWithGetterPropertyAttribute;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -136,7 +136,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute)));
         
         //when
-        classWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute = propertyValue;
+        sut.PublicValueWithGetterPropertyAttribute = propertyValue;
 
         //then
         Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
