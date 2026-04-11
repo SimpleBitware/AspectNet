@@ -1,7 +1,7 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Abstractions.Context;
 
-namespace SimpleBitware.AspectNet.Runtime.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Runtime;
 
 public static class AsyncAspectRunner
 {

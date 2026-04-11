@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using Mono.Cecil;
-using SimpleBitware.AspectNet.Runtime.Cecil;
+using SimpleBitware.AspectNet.Cecil.Runtime;
 
-namespace SimpleBitware.AspectNet.Extensions.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 public static class TypeDefinitionExtensions
 {

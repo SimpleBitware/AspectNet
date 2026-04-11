@@ -2,7 +2,7 @@ using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
 using SimpleBitware.AspectNet.Debugging;
 using SimpleBitware.AspectNet.Extensions;
-using SimpleBitware.AspectNet.Runtime.Cecil;
+using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Build;
 

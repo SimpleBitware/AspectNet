@@ -1,6 +1,4 @@
-using SimpleBitware.AspectNet.Build;
-
-namespace SimpleBitware.AspectNet.Extensions;
+namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 internal static class StreamExtensions
 {

@@ -1,6 +1,6 @@
 using Mono.Cecil;
 
-namespace SimpleBitware.AspectNet.Extensions.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 internal static class ModuleExtensions
 {

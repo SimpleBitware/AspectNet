@@ -5,7 +5,7 @@ using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Context;
 
-namespace SimpleBitware.AspectNet.Extensions.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 public static class ILProcessorExtensions
 {

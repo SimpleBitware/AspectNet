@@ -4,10 +4,9 @@ using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Debugging;
-using SimpleBitware.AspectNet.Extensions;
-using SimpleBitware.AspectNet.Extensions.Cecil;
+using SimpleBitware.AspectNet.Cecil.Extensions;
 
-namespace SimpleBitware.AspectNet.Runtime.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Runtime;
 
 public static class CecilWeaver
 {

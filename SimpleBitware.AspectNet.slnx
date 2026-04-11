@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+    <Project Path="src\SimpleBitware.AspectNet.Cecil\SimpleBitware.AspectNet.Cecil.csproj" />
     <Project Path="src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
   </Folder>
   <Folder Name="/tests/">

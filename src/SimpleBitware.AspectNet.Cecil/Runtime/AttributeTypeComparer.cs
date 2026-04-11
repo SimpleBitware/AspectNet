@@ -1,6 +1,6 @@
 using Mono.Cecil;
 
-namespace SimpleBitware.AspectNet.Runtime.Cecil;
+namespace SimpleBitware.AspectNet.Cecil.Runtime;
 
 /// <summary>
 /// Prevents duplicate attribute types from different levels
