@@ -15,7 +15,7 @@ public sealed class AspectNetAttributeContext
     public object? ReturnValue { get; set; }
     
     /// <summary>
-    /// Used to pass in any data between the methods calls.
+    /// Used to pass in any data between the same aspect methods calls.
     /// </summary>
     public object? Data { get; set; }
 }
