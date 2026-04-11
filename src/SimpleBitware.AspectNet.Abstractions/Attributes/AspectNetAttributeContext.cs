@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Abstractions.Context;
+namespace SimpleBitware.AspectNet.Abstractions.Attributes;
 
 public sealed class AspectNetAttributeContext
 {

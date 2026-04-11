@@ -1,5 +1,7 @@
+using System.Reflection;
 using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
+using MoreLinq;
 using SimpleBitware.AspectNet.Debugging;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
@@ -29,12 +31,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 
             var targetAssemblyDirectory = GetTargetAssemblyDirectory(AssemblyPath);
             var pdbFilePath = GetPdbFilePath(AssemblyPath);
-            var references = References
-                .Select(x => x.ItemSpec)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct()
-                .ToArray();
-
+            var references = GetReferences();
             var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
 
             LogUpdatedFiles(updatedFiles);
@@ -65,5 +62,19 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
         
         foreach (var filePath in files)
             Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Updated file: {0}", filePath);
+    }
+
+    private string[] GetReferences()
+    {
+        var references = References
+            .Select(x => x.ItemSpec)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToArray();
+
+        references
+            .ForEach(x => Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Reference: {0}", x));
+        
+        return references;
     }
 }

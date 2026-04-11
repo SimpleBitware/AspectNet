@@ -31,17 +31,17 @@ When no service provider registered or aspect/attribute not registered with serv
 ```csharp
 public class LogAttribute : AbstractAspectNetAttribute
 {
-   public override void OnEntry(AspectNetEntryContext entryContext)
+   public override void OnEntry(AspectNetAttributeContext context)
    {
-      base.OnEntry(entryContext);
+      base.OnEntry(context);
    }
 
-   public override void OnExit(AspectNetExitContext context)
+   public override void OnExit(AspectNetAttributeContext context)
    {
       base.OnExit(context);
    }
 
-   public override void OnException(AspectNetExceptionContext context)
+   public override void OnException(AspectNetAttributeContext context)
    {
       base.OnException(context);
    }

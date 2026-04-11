@@ -12,102 +12,109 @@ public static class TypeDefinitionExtensions
         Type[] filterAttributes)
     {
         var filterAttributeFullNames = filterAttributes.Select(t => t.FullName).ToArray();
+        
         return moduleTypes
-            .SelectMany(x =>
-                x.GetMethodsDecoratedWithAspectNetDerivedAttributes(baseAspectNetAttribute, filterAttributeFullNames)
-                    .Concat(x.GetPropertiesDecoratedWithAspectNetDerivedAttributes(baseAspectNetAttribute, filterAttributeFullNames))
+            .SelectMany(type =>
+                // Flatten all sources of attributes for this type into one stream
+                type.GetMethodLevelAttributes(baseAspectNetAttribute, filterAttributeFullNames)
+                    .Concat(type.GetPropertyLevelAttributes(baseAspectNetAttribute, filterAttributeFullNames))
             )
-            .ToImmutableDictionary();
+            // Group by the actual MethodDefinition to handle overlaps (e.g. attribute on Property and its Setter)
+            .GroupBy(kvp => kvp.Key)
+            .Select(group => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
+                group.Key,
+                group.SelectMany(x => x.Value)
+                     .Distinct(new AttributeTypeComparer())
+                     .ToArray()
+            ))
+            .Where(kvp => kvp.Value.Length > 0)
+            .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
     /// <summary>
-    /// Gets type's methods/constructors decorated with aspect derived attributes.
-    /// Attributes hierarchy resolution (Method > Class)
+    /// Collects attributes applied directly to methods or inherited from the class.
     /// </summary>
-    /// <param name="type"></param>
-    /// <param name="baseAspectNetAttribute"></param>
-    /// <param name="filterAttributeFullNames"></param>
-    /// <returns></returns>
-    private static IReadOnlyDictionary<MethodDefinition, CustomAttribute[]> GetMethodsDecoratedWithAspectNetDerivedAttributes(
+    private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetMethodLevelAttributes(
         this TypeDefinition type,
         TypeDefinition baseAspectNetAttribute,
         string[] filterAttributeFullNames)
     {
-        var classAspectNetAttributes = type.CustomAttributes
-            .Where(a => a.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
+        var classAspects = type.CustomAttributes
+            .Where(a => a.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) == true)
             .ToList();
 
         return type.Methods
-            .Where(x => x.HasBody && !x.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
-            .Select(x => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
-                x,
-                x.GetMethodAspectNetDerivedAttributes(baseAspectNetAttribute)
-                    // Merge class aspects into method aspects (Method wins on duplicates)
-                    .Union(classAspectNetAttributes, new AttributeTypeComparer())
-                    .ToArray())
-            )
-            .Where(x => x.Value.Any())
-            .ToImmutableDictionary();
+            .Where(m => m.HasBody && !m.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .Select(m => 
+            {
+                var methodAspects = m.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+                var merged = methodAspects
+                    .Union(classAspects, new AttributeTypeComparer())
+                    .ToArray();
+                    
+                return new KeyValuePair<MethodDefinition, CustomAttribute[]>(m, merged);
+            })
+            .Where(kvp => kvp.Value.Length > 0);
     }
 
     /// <summary>
-    /// Gets type's properties decorated with aspect derived attributes.
-    /// Attributes hierarchy resolution (Property > Class)
+    /// Collects attributes applied to properties (and inherited class aspects) and maps them to accessors.
     /// </summary>
-    /// <param name="type"></param>
-    /// <param name="baseAspectNetAttribute"></param>
-    /// <param name="filterAttributeFullNames"></param>
-    /// <returns></returns>
-    private static IReadOnlyDictionary<MethodDefinition, CustomAttribute[]> GetPropertiesDecoratedWithAspectNetDerivedAttributes(
+    private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetPropertyLevelAttributes(
         this TypeDefinition type,
         TypeDefinition baseAspectNetAttribute,
         string[] filterAttributeFullNames)
     {
-        var classAspectNetAttributes = type.CustomAttributes
-            .Where(a => a.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
+        var classAspects = type.CustomAttributes
+            .Where(a => a.AttributeType.Resolve()?.InheritsFrom(baseAspectNetAttribute) == true)
             .ToList();
 
         return type.Properties
-            .Where(x => !x.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
-            .Select(x =>
+            .Where(p => !p.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .SelectMany(p =>
             {
-                var propertyAspectNetDerivedAttributes = x.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
-                return new Dictionary<MethodDefinition, CustomAttribute[]>()
-                    {
-                        [x.GetMethod] = x.GetMethod.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames)
-                            ? []
-                            : x.GetMethod.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute)
-                                .Union(propertyAspectNetDerivedAttributes, new AttributeTypeComparer())
-                                // Merge class aspects into property aspects (Property wins on duplicates)
-                                .Union(classAspectNetAttributes, new AttributeTypeComparer())
-                                .ToArray(),
-                        [x.SetMethod] = x.GetMethod.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames)
-                            ? []
-                            : x.SetMethod.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute)
-                                .Union(propertyAspectNetDerivedAttributes, new AttributeTypeComparer())
-                                // Merge class aspects into property aspects (Property wins on duplicates)
-                                .Union(classAspectNetAttributes, new AttributeTypeComparer())
-                                .ToArray()
-                    }
-                    .Select(p => p);
+                var propertyAspects = p.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+                
+                var accessors = new List<MethodDefinition>();
+                if (p.GetMethod != null) accessors.Add(p.GetMethod);
+                if (p.SetMethod != null) accessors.Add(p.SetMethod);
+
+                return accessors.Select(method =>
+                {
+                    if (method.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+                        return new KeyValuePair<MethodDefinition, CustomAttribute[]>(method, []);
+
+                    var methodAspects = method.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+                
+                    var merged = methodAspects
+                        .Union(propertyAspects, new AttributeTypeComparer())
+                        .Union(classAspects, new AttributeTypeComparer())
+                        .ToArray();
+
+                    return new KeyValuePair<MethodDefinition, CustomAttribute[]>(method, merged);
+                });
             })
-            .SelectMany(x => x)
-            .Where(x => x.Value.Any())
-            .ToImmutableDictionary();
+            .Where(kvp => kvp.Value.Length > 0);
     }
 
     public static bool InheritsFrom(this TypeDefinition? type, TypeDefinition baseType)
     {
-        if (type == null)
-            return false;
-
-        if (type.FullName == baseType.FullName)
-            return true;
+        if (type == null) return false;
+        if (type.FullName == baseType.FullName) return true;
         
-        if(type.Interfaces.Any(x=> x.InterfaceType.FullName == baseType.FullName
-                                   || x.InterfaceType.Resolve().InheritsFrom(baseType)))
+        // Check Interfaces
+        if (type.Interfaces.Any(i => i.InterfaceType.FullName == baseType.FullName || 
+                                     i.InterfaceType.Resolve()?.InheritsFrom(baseType) == true))
             return true;
 
-        return type.BaseType?.Resolve().InheritsFrom(baseType) ?? false;
+        // Check Base Class
+        try 
+        {
+            return type.BaseType?.Resolve()?.InheritsFrom(baseType) ?? false;
+        }
+        catch 
+        {
+            return false; // Handle cases where base type cannot be resolved
+        }
     }
 }

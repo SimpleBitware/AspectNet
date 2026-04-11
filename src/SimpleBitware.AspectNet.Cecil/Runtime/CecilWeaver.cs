@@ -2,7 +2,6 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Debugging;
 using SimpleBitware.AspectNet.Cecil.Extensions;
 

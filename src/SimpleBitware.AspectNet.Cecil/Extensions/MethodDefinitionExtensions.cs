@@ -4,7 +4,6 @@ using Mono.Cecil.Rocks;
 using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Abstractions.Context;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;

@@ -3,7 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
-using SimpleBitware.AspectNet.Abstractions.Context;
+using SimpleBitware.AspectNet.Abstractions.Attributes;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
