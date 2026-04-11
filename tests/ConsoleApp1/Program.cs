@@ -20,11 +20,30 @@ testClassX1.LogMe("Constructor", 1);
 
 try
 {
-    testClassX1.LogMeAsync("static async").Wait();
+    testClassX1.LogMeAsync("async").Wait();
 }
 catch(Exception ex)
 {
     Console.WriteLine($"Error: {ex.Message}");
+}
+
+try
+{
+    var v = testClassX1.LogMeIntWAsync("int async").Result;
+    Console.WriteLine($"Message 2: {v}");
+}
+catch(Exception ex)
+{
+    Console.WriteLine($"Error 2: {ex.Message}");
+}
+
+try
+{
+    testClassX1.LogMeWAsync("valuetask async").AsTask().Wait();
+}
+catch(Exception ex)
+{
+    Console.WriteLine($"Error 3: {ex.Message}");
 }
 
 try

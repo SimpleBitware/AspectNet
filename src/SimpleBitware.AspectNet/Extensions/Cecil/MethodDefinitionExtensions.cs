@@ -256,22 +256,18 @@ public static class MethodDefinitionExtensions
         var instructions = new List<Instruction>();
 
         // 1. Setup Aspect Variable
-        // This stores the instance of your attribute (e.g., LogAsyncAttribute)
-        var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
+        var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType, method));
         method.Body.Variables.Add(aspectVariableDefinition);
 
         // 2. Aspect Instantiation & OnEntry
-        // Get the aspect from DI: AspectNetDependencyInjection.GetRequiredService<T>()
         instructions.Add(processor.Create(OpCodes.Call, ImportGetRequiredService(module, customAttribute.AttributeType)));
         instructions.Add(processor.Create(OpCodes.Stloc, aspectVariableDefinition));
 
-        // Call aspect.OnEntry(context)
         instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
         instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
         instructions.Add(processor.Create(OpCodes.Callvirt, ImportAspectMethod(module, "OnEntry")));
 
-        // 3. Process Inner Instructions (The original method work)
-        // IMPORTANT: We remove the original 'ret' so the Task/ValueTask remains on the stack.
+        // 3. Process Inner Instructions (Remove original 'ret')
         var sanitizedInner = innerInstructions.ToList();
         if (sanitizedInner.LastOrDefault()?.OpCode == OpCodes.Ret)
         {
@@ -280,18 +276,42 @@ public static class MethodDefinitionExtensions
 
         instructions.AddRange(sanitizedInner);
 
-        // 4. Wrap the Resulting Task
+        // 4. Handle Task/ValueTask Wrapping logic
         bool isValueTask = returnType.FullName.Contains("ValueTask");
         bool isGeneric = returnType.IsGenericInstance;
 
-        // If the method returns ValueTask, convert it to Task for the runner
         if (isValueTask)
         {
-            var asTask = returnType.Resolve().Methods.First(m => m.Name == "AsTask");
-            instructions.Add(processor.Create(OpCodes.Call, module.ImportReference(asTask)));
+            // Must use local + Ldloca for struct methods
+            var vtTempVar = new VariableDefinition(module.ImportReference(returnType, method));
+            method.Body.Variables.Add(vtTempVar);
+            instructions.Add(processor.Create(OpCodes.Stloc, vtTempVar));
+            instructions.Add(processor.Create(OpCodes.Ldloca, vtTempVar));
+
+            MethodReference asTaskMethod;
+            var vtTypeDef = returnType.Resolve();
+            var openAsTask = vtTypeDef.Methods.First(m => m.Name == "AsTask");
+
+            if (isGeneric)
+            {
+                var genericVT = (GenericInstanceType)returnType;
+                // Explicitly tie AsTask to the generic instance (ValueTask<T>)
+                asTaskMethod = new MethodReference(openAsTask.Name, module.ImportReference(openAsTask.ReturnType, genericVT), genericVT)
+                {
+                    HasThis = openAsTask.HasThis,
+                    ExplicitThis = openAsTask.ExplicitThis,
+                    CallingConvention = openAsTask.CallingConvention
+                };
+            }
+            else
+            {
+                asTaskMethod = module.ImportReference(openAsTask);
+            }
+
+            instructions.Add(processor.Create(OpCodes.Call, asTaskMethod));
         }
 
-        // Resolve the appropriate WrapAsync runner method
+        // Resolve WrapAsync runner
         MethodReference wrapMethod;
         if (isGeneric)
         {
@@ -299,42 +319,52 @@ public static class MethodDefinitionExtensions
             var typeT = genericType.GenericArguments[0];
             var openMethod = ImportRunnerMethod(module, "WrapAsync", true);
             var closedMethod = new GenericInstanceMethod(openMethod);
-            closedMethod.GenericArguments.Add(typeT);
-            wrapMethod = closedMethod;
+            closedMethod.GenericArguments.Add(module.ImportReference(typeT, method));
+            wrapMethod = module.ImportReference(closedMethod, method);
         }
         else
         {
             wrapMethod = ImportRunnerMethod(module, "WrapAsync", false);
         }
 
-        // Stack is currently: [Task]
-        // Load arguments for: WrapAsync(task, context, aspect)
+        // Call WrapAsync(task, context, aspect)
         instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
         instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
         instructions.Add(processor.Create(OpCodes.Call, wrapMethod));
 
-        // 5. Convert back to ValueTask if necessary
+        // 5. Convert back to ValueTask
         if (isValueTask)
         {
-            var vtType = returnType.Resolve();
-            var ctor = vtType.Methods.First(m => m.IsConstructor && m.Parameters.Count == 1);
+            MethodReference ctorRef;
+            var vtTypeDef = returnType.Resolve();
+            var openCtor = vtTypeDef.Methods.First(m => m.IsConstructor && m.Parameters.Count == 1);
 
             if (isGeneric)
             {
                 var genericVT = (GenericInstanceType)returnType;
-                var ctorRef = new MethodReference(".ctor", module.TypeSystem.Void, genericVT) { HasThis = true };
-                ctorRef.Parameters.Add(new ParameterDefinition(module.ImportReference(wrapMethod.ReturnType)));
-                instructions.Add(processor.Create(OpCodes.Newobj, module.ImportReference(ctorRef)));
+
+                // Create the constructor reference tied to the GenericInstance
+                ctorRef = new MethodReference(".ctor", module.TypeSystem.Void, genericVT)
+                {
+                    HasThis = openCtor.HasThis,
+                    ExplicitThis = openCtor.ExplicitThis,
+                    CallingConvention = openCtor.CallingConvention,
+                };
+
+                // THE CRITICAL PART: 
+                // The parameter must be Task<T> where T is the argument of the ValueTask<T>
+                var taskType = module.ImportReference(openCtor.Parameters[0].ParameterType, genericVT);
+                ctorRef.Parameters.Add(new ParameterDefinition(taskType));
             }
             else
             {
-                instructions.Add(processor.Create(OpCodes.Newobj, module.ImportReference(ctor)));
+                ctorRef = module.ImportReference(openCtor);
             }
+
+            instructions.Add(processor.Create(OpCodes.Newobj, ctorRef));
         }
 
-        // 6. Final Return
         instructions.Add(processor.Create(OpCodes.Ret));
-
         return instructions.ToArray();
     }
 

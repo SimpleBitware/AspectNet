@@ -40,6 +40,29 @@ public class TestClassX
     }
     
     [Log]
+    public async Task<int> LogMeIntAsync(string message)
+    {
+        Console.WriteLine($"LogMe: {message}");
+        await Task.Delay(1);
+        return 99;
+    }
+    
+    [Log]
+    public async ValueTask<int> LogMeIntWAsync(string message)
+    {
+        Console.WriteLine($"LogMe: {message}");
+        await Task.Delay(1);
+        return 99;
+    }
+    
+    [Log]
+    public async ValueTask LogMeWAsync(string message)
+    {
+        Console.WriteLine($"LogMe: {message}");
+        await Task.Delay(1);
+    }
+    
+    [Log]
     [Log2(Priority = 1)]
     public int No { get; private set; }
     
