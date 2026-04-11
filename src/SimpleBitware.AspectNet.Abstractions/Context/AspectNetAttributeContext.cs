@@ -5,7 +5,7 @@ public sealed class AspectNetAttributeContext
     public object? Instance { get; init; }
     public required Type ClassType { get; init; }
     public required string MemberName { get; init; }
-    public Dictionary<string, object> Parameters { get; init; } = [];
+    public required Dictionary<string, object> Parameters { get; init; } = [];
     
     /// <summary>
     /// Gets or sets the exception.
