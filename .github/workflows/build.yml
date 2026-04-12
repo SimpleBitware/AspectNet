@@ -68,7 +68,7 @@ jobs:
         run: dotnet test -c Release --logger "trx;LogFileName=test_results.trx"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results
@@ -107,7 +107,7 @@ jobs:
       - name: Pack
         run: dotnet pack -c Release --no-build --output ${{ env.NuGetDirectory }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}/*.nupkg
