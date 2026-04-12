@@ -41,15 +41,7 @@ public class ClassDecoratedWithAspectNetAttributeMethodsTests
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods), nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicMethodException));
         
         //when
-        try
-        {
-            sut.PublicMethodException();
-        }
-        catch
-        {
-            // ignored
-        }
-
+        Assert.Throws<Exception>(() => sut.PublicMethodException());
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then

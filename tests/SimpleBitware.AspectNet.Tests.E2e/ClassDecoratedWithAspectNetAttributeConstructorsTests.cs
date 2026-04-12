@@ -14,15 +14,7 @@ public class ClassDecoratedWithAspectNetAttributeConstructorsTests
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods), Constants.InstanceConstructorMethodName, 1);
         
         //when
-        try
-        {
-            var instance = new ClassDecoratedWithAspectNetAttributeMethods(no);
-        }
-        catch
-        {
-            // ignored
-        }
-        
+        Assert.Throws<Exception>(() => new ClassDecoratedWithAspectNetAttributeMethods(no));
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then

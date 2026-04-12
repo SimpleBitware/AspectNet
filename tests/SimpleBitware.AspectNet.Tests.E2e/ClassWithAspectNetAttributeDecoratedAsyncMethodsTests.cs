@@ -37,22 +37,14 @@ public class ClassWithAspectNetAttributeDecoratedAsyncMethodsTests
     }
     
     [Test]
-    public async Task Should_Record_Activity_For_Public_Async_Method_Exception()
+    public void Should_Record_Activity_For_Public_Async_Method_Exception()
     {
         //given
         var value = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicMethodExceptionAsync), 1);
         
         //when
-        try
-        {
-            await sut.PublicMethodExceptionAsync(value);
-        }
-        catch
-        {
-            // ignored
-        }
-
+        Assert.ThrowsAsync<Exception>(() => sut.PublicMethodExceptionAsync(value));
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then

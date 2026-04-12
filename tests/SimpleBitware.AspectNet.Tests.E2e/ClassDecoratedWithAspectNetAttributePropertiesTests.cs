@@ -73,15 +73,7 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
         var value = 0;
         
         //when
-        try
-        {
-            value = sut.PublicValueException;
-        }
-        catch
-        {
-            // ignored
-        }
-
+        Assert.Throws<Exception>(() => value = sut.PublicValueException);
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
