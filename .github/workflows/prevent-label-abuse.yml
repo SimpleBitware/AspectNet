@@ -1,0 +1,18 @@
+name: Prevent forbidden labels
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  block:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.label.name == 'automerge' ||
+      github.event.label.name == 'dependencies'
+    steps:
+      - name: Fail if PR is not from Dependabot
+        if: github.actor != 'dependabot[bot]'
+        run: |
+          echo "Restruicted label identified. Only Dependabot is allowed to use this label."
+          exit 1
