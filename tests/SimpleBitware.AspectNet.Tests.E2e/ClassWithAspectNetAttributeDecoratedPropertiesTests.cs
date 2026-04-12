@@ -39,7 +39,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
     public void Should_Record_Activity_For_Set_Public_Property()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute)), 1);
         
         //when
@@ -79,7 +79,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
     public void Should_Record_Activity_For_Set_Public_Property_With_Setter_Only_Attribute()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute)), 1);
         
         //when
@@ -132,7 +132,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
     public void Should_NOT_Record_Activity_For_Set_Public_Property_With_Getter_Only_Attribute()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute)));
         
         //when
@@ -172,7 +172,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
     public void Should_Record_Activity_For_Set_Public_Static_Property()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicStaticValueWithPropertyAttribute)), 1);
         
         //when

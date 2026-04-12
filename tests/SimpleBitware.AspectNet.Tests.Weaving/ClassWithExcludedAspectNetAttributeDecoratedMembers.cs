@@ -25,5 +25,5 @@ public class ClassWithExcludedAspectNetAttributeDecoratedMembers
     
     [RecordActivity]
     [AspectNetExclude]
-    public long PublicValue { get; set; }
+    public int PublicValue { get; set; }
 }

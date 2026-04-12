@@ -40,7 +40,7 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
     public void Should_Record_Activity_For_Set_Public_Property()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
             MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValue)), 1);
 
@@ -132,7 +132,7 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
     public void Should_Record_Activity_For_Set_Public_Static_Property()
     {
         //given
-        var propertyValue = DateTime.Now.Ticks;
+        var propertyValue = Random.Shared.Next();
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
             MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue)), 1);
 

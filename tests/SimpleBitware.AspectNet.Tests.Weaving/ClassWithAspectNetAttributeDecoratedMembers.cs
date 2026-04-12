@@ -5,12 +5,12 @@ namespace SimpleBitware.AspectNet.Tests.Weaving;
 public class ClassWithAspectNetAttributeDecoratedMembers
 {
     [RecordActivity]
-    public long PublicValueWithPropertyAttribute { get; set; }
+    public int PublicValueWithPropertyAttribute { get; set; }
     
     [RecordActivity]
-    public static long PublicStaticValueWithPropertyAttribute { get; set; }
+    public static int PublicStaticValueWithPropertyAttribute { get; set; }
 
-    public long PublicValueWithSetterPropertyAttribute
+    public int PublicValueWithSetterPropertyAttribute
     {
         get;
         
@@ -18,7 +18,7 @@ public class ClassWithAspectNetAttributeDecoratedMembers
         set;
     }
     
-    public long PublicValueWithGetterPropertyAttribute
+    public int PublicValueWithGetterPropertyAttribute
     {
         [RecordActivity]
         get;
@@ -28,6 +28,25 @@ public class ClassWithAspectNetAttributeDecoratedMembers
     [RecordActivity]
     public void PublicMethod()
     {
+    }
+    
+    [RecordActivity]
+    public async Task<int> PublicMethodAsync(int value)
+    {
+        await Task.Delay(100);
+        return value;
+    }
+    
+    [RecordActivity]
+    public Task<int> PublicMethodExceptionAsync(int value)
+    {
+        return Task.FromException<int>(new Exception($"{value}"));
+    }
+    
+    [RecordActivity]
+    public ValueTask<int> PublicValueTaskMethod(int value)
+    {
+        return ValueTask.FromResult(value);
     }
     
     [RecordActivity]

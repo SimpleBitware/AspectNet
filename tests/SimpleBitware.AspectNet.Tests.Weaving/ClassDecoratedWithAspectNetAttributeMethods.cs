@@ -5,9 +5,9 @@ namespace SimpleBitware.AspectNet.Tests.Weaving;
 [RecordActivity]
 public class ClassDecoratedWithAspectNetAttributeMethods
 {
-    public long PublicValue { get; set; }
+    public int PublicValue { get; set; }
     
-    public static long PublicStaticValue { get; set; }
+    public static int PublicStaticValue { get; set; }
 
     public int PublicValueException => throw new Exception(nameof(PublicValueException));
 
