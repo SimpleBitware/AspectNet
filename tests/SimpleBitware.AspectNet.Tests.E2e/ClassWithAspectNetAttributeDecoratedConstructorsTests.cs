@@ -4,16 +4,16 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.E2e;
 
-public class ClassWithAspectNetAttributeDecoratedConstructorTests
+public class ClassWithAspectNetAttributeDecoratedConstructorsTests
 {
     [Test]
     public void Should_Record_Activity_For_Public_Constructor()
     {
         //given
-        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedConstructor), Constants.InstanceConstructorMethodName);
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedConstructors), Constants.InstanceConstructorMethodName);
         
         //when
-        var instance = new ClassWithAspectNetAttributeDecoratedConstructor();
+        var instance = new ClassWithAspectNetAttributeDecoratedConstructors();
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -28,7 +28,7 @@ public class ClassWithAspectNetAttributeDecoratedConstructorTests
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
             Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructor>());
+            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
         }
     }
     
@@ -38,10 +38,10 @@ public class ClassWithAspectNetAttributeDecoratedConstructorTests
         //given
         const int no = 2;
         const int numberOfParameters = 1;
-        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedConstructor), Constants.InstanceConstructorMethodName, numberOfParameters);
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedConstructors), Constants.InstanceConstructorMethodName, numberOfParameters);
         
         //when
-        var instance = new ClassWithAspectNetAttributeDecoratedConstructor(no);
+        var instance = new ClassWithAspectNetAttributeDecoratedConstructors(no);
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -56,7 +56,7 @@ public class ClassWithAspectNetAttributeDecoratedConstructorTests
             Assert.That(context.ReturnValue, Is.Null);
             Assert.That(context.Exception, Is.Null);
             Assert.That(context.Parameters.Count, Is.EqualTo(numberOfParameters));
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructor>());
+            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
         }
     }
     

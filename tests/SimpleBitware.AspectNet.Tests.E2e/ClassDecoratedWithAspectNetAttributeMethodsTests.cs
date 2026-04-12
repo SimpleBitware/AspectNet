@@ -35,6 +35,41 @@ public class ClassDecoratedWithAspectNetAttributeMethodsTests
     }
     
     [Test]
+    public void Should_Record_Activity_For_Public_Method_When_Throws_Exception()
+    {
+        //given
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods), nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicMethodException));
+        
+        //when
+        try
+        {
+            sut.PublicMethodException();
+        }
+        catch
+        {
+            // ignored
+        }
+
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[2], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.Null);
+            Assert.That(context.Exception, Is.Not.Null);
+            Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
+        }
+    }
+    
+    [Test]
     public void Should_Record_Activity_For_Public_Static_Method()
     {
         //given

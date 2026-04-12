@@ -14,10 +14,10 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
     {
         //given
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
-            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueWithPropertyAttribute)));
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValue)));
 
         //when
-        var value = sut.PublicValueWithPropertyAttribute;
+        var value = sut.PublicValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -42,10 +42,10 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
         //given
         var propertyValue = DateTime.Now.Ticks;
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
-            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueWithPropertyAttribute)), 1);
+            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValue)), 1);
 
         //when
-        sut.PublicValueWithPropertyAttribute = propertyValue;
+        sut.PublicValue = propertyValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -63,16 +63,53 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
             Assert.That(context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
         }
     }
+    
+    [Test]
+    public void Should_Record_Activity_For_Get_Public_Property_When_Throws_Exception()
+    {
+        //given
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueException)));
+        var value = 0;
+        
+        //when
+        try
+        {
+            value = sut.PublicValueException;
+        }
+        catch
+        {
+            // ignored
+        }
+
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[2], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.EqualTo(value));
+            Assert.That(context.Exception, Is.Not.Null);
+            Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
+        }
+    }
 
     [Test]
     public void Should_Record_Activity_For_Get_Public_Static_Property()
     {
         //given
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
-            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute)));
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue)));
 
         //when
-        var value = ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute;
+        var value = ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
@@ -97,10 +134,10 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
         //given
         var propertyValue = DateTime.Now.Ticks;
         var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
-            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute)), 1);
+            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue)), 1);
 
         //when
-        ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute = propertyValue;
+        ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue = propertyValue;
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then
