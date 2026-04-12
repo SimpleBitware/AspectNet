@@ -1,0 +1,121 @@
+using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Tests.E2e.Helpers;
+using SimpleBitware.AspectNet.Tests.Weaving;
+using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+
+namespace SimpleBitware.AspectNet.Tests.E2e;
+
+public class ClassDecoratedWithAspectNetAttributePropertiesTests
+{
+    private readonly ClassDecoratedWithAspectNetAttributeMethods sut = new();
+
+    [Test]
+    public void Should_Record_Activity_For_Get_Public_Property()
+    {
+        //given
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueWithPropertyAttribute)));
+
+        //when
+        var value = sut.PublicValueWithPropertyAttribute;
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.EqualTo(value));
+            Assert.That(context.Exception, Is.Null);
+            Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
+        }
+    }
+
+    [Test]
+    public void Should_Record_Activity_For_Set_Public_Property()
+    {
+        //given
+        var propertyValue = DateTime.Now.Ticks;
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueWithPropertyAttribute)), 1);
+
+        //when
+        sut.PublicValueWithPropertyAttribute = propertyValue;
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.Null);
+            Assert.That(context.Exception, Is.Null);
+            Assert.That(context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
+        }
+    }
+
+    [Test]
+    public void Should_Record_Activity_For_Get_Public_Static_Property()
+    {
+        //given
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute)));
+
+        //when
+        var value = ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute;
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.EqualTo(value));
+            Assert.That(context.Exception, Is.Null);
+            Assert.That(context.Parameters, Is.Empty);
+            Assert.That(context.Instance, Is.Null);
+        }
+    }
+
+    [Test]
+    public void Should_Record_Activity_For_Set_Public_Static_Property()
+    {
+        //given
+        var propertyValue = DateTime.Now.Ticks;
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertySetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute)), 1);
+
+        //when
+        ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValueWithPropertyAttribute = propertyValue;
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.Null);
+            Assert.That(context.Exception, Is.Null);
+            Assert.That(context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(context.Instance, Is.Null);
+        }
+    }
+}
