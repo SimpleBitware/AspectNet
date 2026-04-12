@@ -26,7 +26,7 @@
     <ItemGroup>
         <PackageReference Include="Mono.Cecil" Version="0.11.6"/>
         <PackageReference Include="morelinq" Version="4.4.0"/>
-        <PackageReference Include="MinVer" Version="6.0.0">
+        <PackageReference Include="MinVer" Version="7.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
