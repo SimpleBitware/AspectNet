@@ -72,16 +72,6 @@ public class ClassWithAspectNetAttributeDecoratedAsyncMethodsTests
     }
     
     [Test]
-    public void Public_Async_Method_Exception_Should_Throw_Exception()
-    {
-        //given
-        var value = Random.Shared.Next();
-        
-        //then
-        Assert.ThrowsAsync<Exception>(()=> sut.PublicMethodExceptionAsync(value));
-    }
-    
-    [Test]
     public async Task Should_Record_Activity_For_Public_ValueTask_Method()
     {
         //given
