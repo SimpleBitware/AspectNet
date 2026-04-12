@@ -81,6 +81,7 @@ jobs:
           name: Tests Results
           path: '**/TestResults/*.trx'
           reporter: dotnet-trx
+          create-check: true
 
   pack:
     runs-on: ubuntu-latest
