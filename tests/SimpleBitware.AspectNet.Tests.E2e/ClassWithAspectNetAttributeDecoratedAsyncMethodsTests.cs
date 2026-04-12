@@ -37,14 +37,41 @@ public class ClassWithAspectNetAttributeDecoratedAsyncMethodsTests
     }
     
     [Test]
-    public void Should_Record_Activity_For_Public_Async_Method_Exception()
+    public void Should_Record_Activity_For_Public_Async_Method_With_Async_Exception()
     {
         //given
         var value = Random.Shared.Next();
-        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicMethodExceptionAsync), 1);
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicAsyncMethodWithAsyncException), 1);
         
         //when
-        Assert.ThrowsAsync<Exception>(() => sut.PublicMethodExceptionAsync(value));
+        Assert.ThrowsAsync<Exception>(() => sut.PublicAsyncMethodWithAsyncException(value));
+        var activity = RecordActivityAttribute.Activities[activityKey];
+
+        //then
+        Assert.That(activity, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
+            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
+            
+            var context = (AspectNetAttributeContext)activity[1];
+            Assert.That(context, Is.Not.Null);
+            Assert.That(context.ReturnValue, Is.Null);
+            Assert.That(context.Exception, Is.Not.Null);
+            Assert.That(context.Parameters.Count, Is.EqualTo(1));
+            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+        }
+    }
+    
+    [Test]
+    public void Should_Record_Activity_For_Public_Async_Method_With_Sync_Exception()
+    {
+        //given
+        var value = Random.Shared.Next();
+        var activityKey = new ActivityKey(typeof(ClassWithAspectNetAttributeDecoratedMembers), nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicAsyncMethodWithSyncException), 1);
+        
+        //when
+        Assert.ThrowsAsync<Exception>(() => sut.PublicAsyncMethodWithSyncException(value));
         var activity = RecordActivityAttribute.Activities[activityKey];
 
         //then

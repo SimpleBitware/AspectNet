@@ -254,119 +254,234 @@ public static class MethodDefinitionExtensions
         var returnType = method.ReturnType;
         var instructions = new List<Instruction>();
 
-        // 1. Setup Aspect Variable
-        var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType, method));
-        method.Body.Variables.Add(aspectVariableDefinition);
+        // 1. Setup Variables
+        var aspectType = module.ImportReference(customAttribute.AttributeType);
+        var aspectVar = new VariableDefinition(aspectType);
+        method.Body.Variables.Add(aspectVar);
 
-        // 2. Aspect Instantiation & OnEntry
+        var successVar = new VariableDefinition(module.TypeSystem.Boolean);
+        method.Body.Variables.Add(successVar);
+
+        // This will hold the original task, and later the wrapped task
+        var taskResultVar = new VariableDefinition(returnType);
+        method.Body.Variables.Add(taskResultVar);
+
+        var exceptionType = module.ImportReference(typeof(Exception));
+        var exVar = new VariableDefinition(exceptionType); // 'ex'
+        method.Body.Variables.Add(exVar);
+
+        var ex2Var = new VariableDefinition(exceptionType); // 'ex2'
+        method.Body.Variables.Add(ex2Var);
+
+        // Resolve Context Exception Property Methods
+        MethodReference getExceptionMethod = null;
+        MethodReference setExceptionMethod = null;
+        var contextTypeResolve = contextVariableDefinition.VariableType.Resolve();
+        while (contextTypeResolve != null)
+        {
+            var getter = contextTypeResolve.Methods.FirstOrDefault(m => m.Name == "get_Exception");
+            var setter = contextTypeResolve.Methods.FirstOrDefault(m => m.Name == "set_Exception");
+            if (getter != null && setter != null)
+            {
+                getExceptionMethod = module.ImportReference(getter);
+                setExceptionMethod = module.ImportReference(setter);
+                break;
+            }
+
+            contextTypeResolve = contextTypeResolve.BaseType?.Resolve();
+        }
+
+        // --- PRE-TRY INITIALIZATION ---
+        if (returnType.IsValueType || returnType.IsGenericParameter)
+        {
+            instructions.Add(processor.Create(OpCodes.Ldloca, taskResultVar));
+            instructions.Add(processor.Create(OpCodes.Initobj, returnType));
+        }
+        else
+        {
+            instructions.Add(processor.Create(OpCodes.Ldnull));
+            instructions.Add(processor.Create(OpCodes.Stloc, taskResultVar));
+        }
+
         instructions.Add(processor.Create(OpCodes.Call, ImportGetRequiredService(module, customAttribute.AttributeType)));
-        instructions.Add(processor.Create(OpCodes.Stloc, aspectVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Stloc, aspectVar));
+        instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
+        instructions.Add(processor.Create(OpCodes.Stloc, successVar));
 
-        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
+        // 2. Try Block Start
+        var tryStart = processor.Create(OpCodes.Ldloc, aspectVar);
+        instructions.Add(tryStart);
+
         instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
         instructions.Add(processor.Create(OpCodes.Callvirt, ImportAspectMethod(module, "OnEntry")));
 
-        // 3. Process Inner Instructions (Remove original 'ret')
         var sanitizedInner = innerInstructions.ToList();
-        if (sanitizedInner.LastOrDefault()?.OpCode == OpCodes.Ret)
-        {
+        if (sanitizedInner.Count > 0 && sanitizedInner[sanitizedInner.Count - 1].OpCode == OpCodes.Ret)
             sanitizedInner.RemoveAt(sanitizedInner.Count - 1);
+
+        // Peephole Optimizer for .NET Standard 2.0
+        if (sanitizedInner.Count >= 3)
+        {
+            var last = sanitizedInner[sanitizedInner.Count - 1];
+            var prev1 = sanitizedInner[sanitizedInner.Count - 2];
+            var prev2 = sanitizedInner[sanitizedInner.Count - 3];
+            if (GetVariableIndex(last) != -1 && GetVariableIndex(last) == GetVariableIndex(prev2) &&
+                (prev1.OpCode.Code == Code.Br || prev1.OpCode.Code == Code.Br_S))
+            {
+                sanitizedInner.RemoveAt(sanitizedInner.Count - 1);
+                sanitizedInner.RemoveAt(sanitizedInner.Count - 1);
+                sanitizedInner.RemoveAt(sanitizedInner.Count - 1);
+            }
         }
 
         instructions.AddRange(sanitizedInner);
 
-        // 4. Handle Task/ValueTask Wrapping logic
+        // --- WRAPPING INSIDE TRY ---
+        // taskResultVar = originalTask;
+        instructions.Add(processor.Create(OpCodes.Stloc, taskResultVar));
+
+        // AsyncAspectRunner.WrapAsync(...)
         bool isValueTask = returnType.FullName.Contains("ValueTask");
         bool isGeneric = returnType.IsGenericInstance;
 
+        // Load arguments for WrapAsync
+        instructions.Add(processor.Create(OpCodes.Ldloc, taskResultVar));
+
         if (isValueTask)
         {
-            // Must use local + Ldloca for struct methods
-            var vtTempVar = new VariableDefinition(module.ImportReference(returnType, method));
+            // Convert ValueTask to Task if necessary
+            var vtTempVar = new VariableDefinition(returnType);
             method.Body.Variables.Add(vtTempVar);
             instructions.Add(processor.Create(OpCodes.Stloc, vtTempVar));
             instructions.Add(processor.Create(OpCodes.Ldloca, vtTempVar));
-
-            MethodReference asTaskMethod;
             var vtTypeDef = returnType.Resolve();
             var openAsTask = vtTypeDef.Methods.First(m => m.Name == "AsTask");
-
-            if (isGeneric)
-            {
-                var genericVT = (GenericInstanceType)returnType;
-                // Explicitly tie AsTask to the generic instance (ValueTask<T>)
-                asTaskMethod = new MethodReference(openAsTask.Name, module.ImportReference(openAsTask.ReturnType, genericVT), genericVT)
-                {
-                    HasThis = openAsTask.HasThis,
-                    ExplicitThis = openAsTask.ExplicitThis,
-                    CallingConvention = openAsTask.CallingConvention
-                };
-            }
-            else
-            {
-                asTaskMethod = module.ImportReference(openAsTask);
-            }
-
+            MethodReference asTaskMethod = isGeneric
+                ? new MethodReference(openAsTask.Name, module.ImportReference(openAsTask.ReturnType, (GenericInstanceType)returnType), (GenericInstanceType)returnType) { HasThis = true }
+                : module.ImportReference(openAsTask);
             instructions.Add(processor.Create(OpCodes.Call, asTaskMethod));
         }
 
-        // Resolve WrapAsync runner
-        MethodReference wrapMethod;
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));
+
+        MethodReference wrapRunner;
         if (isGeneric)
         {
-            var genericType = (GenericInstanceType)returnType;
-            var typeT = genericType.GenericArguments[0];
+            var genericInstance = (GenericInstanceType)returnType;
             var openMethod = ImportRunnerMethod(module, "WrapAsync", true);
             var closedMethod = new GenericInstanceMethod(openMethod);
-            closedMethod.GenericArguments.Add(module.ImportReference(typeT, method));
-            wrapMethod = module.ImportReference(closedMethod, method);
+            closedMethod.GenericArguments.Add(module.ImportReference(genericInstance.GenericArguments[0], genericInstance));
+            wrapRunner = module.ImportReference(closedMethod);
         }
-        else
-        {
-            wrapMethod = ImportRunnerMethod(module, "WrapAsync", false);
-        }
+        else wrapRunner = ImportRunnerMethod(module, "WrapAsync", false);
 
-        // Call WrapAsync(task, context, aspect)
-        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
-        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVariableDefinition));
-        instructions.Add(processor.Create(OpCodes.Call, wrapMethod));
+        instructions.Add(processor.Create(OpCodes.Call, wrapRunner));
 
-        // 5. Convert back to ValueTask
         if (isValueTask)
         {
-            MethodReference ctorRef;
+            // Convert Task back to ValueTask if necessary
             var vtTypeDef = returnType.Resolve();
             var openCtor = vtTypeDef.Methods.First(m => m.IsConstructor && m.Parameters.Count == 1);
-
             if (isGeneric)
             {
                 var genericVT = (GenericInstanceType)returnType;
-
-                // Create the constructor reference tied to the GenericInstance
-                ctorRef = new MethodReference(".ctor", module.TypeSystem.Void, genericVT)
-                {
-                    HasThis = openCtor.HasThis,
-                    ExplicitThis = openCtor.ExplicitThis,
-                    CallingConvention = openCtor.CallingConvention,
-                };
-
-                // THE CRITICAL PART: 
-                // The parameter must be Task<T> where T is the argument of the ValueTask<T>
-                var taskType = module.ImportReference(openCtor.Parameters[0].ParameterType, genericVT);
-                ctorRef.Parameters.Add(new ParameterDefinition(taskType));
+                var ctorRef = new MethodReference(".ctor", module.TypeSystem.Void, genericVT) { HasThis = true, CallingConvention = MethodCallingConvention.Default };
+                ctorRef.Parameters.Add(new ParameterDefinition(module.ImportReference(openCtor.Parameters[0].ParameterType, genericVT)));
+                instructions.Add(processor.Create(OpCodes.Newobj, ctorRef));
             }
-            else
-            {
-                ctorRef = module.ImportReference(openCtor);
-            }
-
-            instructions.Add(processor.Create(OpCodes.Newobj, ctorRef));
+            else instructions.Add(processor.Create(OpCodes.Newobj, module.ImportReference(openCtor)));
         }
 
+        // Store the wrapped task and mark success
+        instructions.Add(processor.Create(OpCodes.Stloc, taskResultVar));
+        instructions.Add(processor.Create(OpCodes.Ldc_I4_1));
+        instructions.Add(processor.Create(OpCodes.Stloc, successVar));
+
+        var methodEnd = processor.Create(OpCodes.Ldloc, taskResultVar);
+        instructions.Add(processor.Create(OpCodes.Leave, methodEnd));
+
+        // 3. Catch Block
+        var catchStart = processor.Create(OpCodes.Stloc, exVar);
+        instructions.Add(catchStart);
+
+        // Exception ex2 = (val.Exception = ex);
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Ldloc, exVar));
+        instructions.Add(processor.Create(OpCodes.Dup)); // For assignment result
+        instructions.Add(processor.Create(OpCodes.Stloc, ex2Var));
+        instructions.Add(processor.Create(OpCodes.Callvirt, setExceptionMethod));
+
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Callvirt, ImportAspectMethod(module, "OnException")));
+
+        var checkNull = processor.Create(OpCodes.Ldloc, contextVariableDefinition);
+        instructions.Add(processor.Create(OpCodes.Ldloc, ex2Var));
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
+        instructions.Add(processor.Create(OpCodes.Bne_Un_S, checkNull));
+        instructions.Add(processor.Create(OpCodes.Rethrow));
+
+        instructions.Add(checkNull);
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
+        var leaveCatch = processor.Create(OpCodes.Leave, methodEnd);
+        instructions.Add(processor.Create(OpCodes.Brfalse_S, leaveCatch));
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
+        instructions.Add(processor.Create(OpCodes.Throw));
+        instructions.Add(leaveCatch);
+
+        // 4. Finally Block
+        var finallyStart = processor.Create(OpCodes.Ldloc, successVar);
+        instructions.Add(finallyStart);
+        var endFinally = processor.Create(OpCodes.Endfinally);
+        instructions.Add(processor.Create(OpCodes.Brtrue_S, endFinally));
+
+        instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));
+        instructions.Add(processor.Create(OpCodes.Ldloc, contextVariableDefinition));
+        instructions.Add(processor.Create(OpCodes.Callvirt, ImportAspectMethod(module, "OnExit")));
+        instructions.Add(endFinally);
+
+        // 5. Method Exit
+        instructions.Add(methodEnd);
         instructions.Add(processor.Create(OpCodes.Ret));
+
+        // Register Exception Handlers
+        method.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Catch)
+        {
+            TryStart = tryStart, TryEnd = catchStart, HandlerStart = catchStart, HandlerEnd = finallyStart,
+            CatchType = module.ImportReference(typeof(Exception))
+        });
+
+        method.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Finally)
+        {
+            TryStart = tryStart, TryEnd = finallyStart, HandlerStart = finallyStart, HandlerEnd = methodEnd
+        });
+
         return instructions.ToArray();
     }
 
+    private static int GetVariableIndex(Instruction instruction)
+    {
+        switch (instruction.OpCode.Code)
+        {
+            case Code.Ldloc_0:
+            case Code.Stloc_0: return 0;
+            case Code.Ldloc_1:
+            case Code.Stloc_1: return 1;
+            case Code.Ldloc_2:
+            case Code.Stloc_2: return 2;
+            case Code.Ldloc_3:
+            case Code.Stloc_3: return 3;
+            case Code.Ldloc_S:
+            case Code.Stloc_S:
+            case Code.Ldloc:
+            case Code.Stloc:
+                return (instruction.Operand as VariableDefinition)?.Index ?? -1;
+            default: return -1;
+        }
+    }
     //------
 
     private static MethodReference ImportRunnerMethod(ModuleDefinition module, string name, bool isGeneric)

@@ -23,7 +23,11 @@ public static class AsyncAspectRunner
         {
             context.Exception = ex;
             aspect.OnException(context);
-            if (context.Exception != null) throw;
+            if (context.Exception == ex)
+                throw;
+
+            if (context.Exception != null)
+                throw context.Exception;
         }
         finally
         {
@@ -52,8 +56,10 @@ public static class AsyncAspectRunner
         {
             context.Exception = ex;
             aspect.OnException(context);
-            if (context.Exception != null) throw;
-            return default;
+            if (context.Exception == ex)
+                throw;
+            
+            return context.Exception != null ? throw context.Exception : default;
         }
         finally
         {

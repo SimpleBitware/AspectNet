@@ -38,9 +38,15 @@ public class ClassWithAspectNetAttributeDecoratedMembers
     }
     
     [RecordActivity]
-    public Task<int> PublicMethodExceptionAsync(int value)
+    public Task<int> PublicAsyncMethodWithAsyncException(int value)
     {
         return Task.FromException<int>(new Exception($"{value}"));
+    }
+    
+    [RecordActivity]
+    public Task<int> PublicAsyncMethodWithSyncException(int value)
+    {
+        throw new Exception($"{value}");
     }
     
     [RecordActivity]

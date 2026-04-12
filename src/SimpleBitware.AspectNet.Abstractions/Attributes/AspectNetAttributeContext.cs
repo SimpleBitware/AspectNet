@@ -9,7 +9,8 @@ public sealed class AspectNetAttributeContext
     
     /// <summary>
     /// Gets or sets the exception.
-    /// Set then exception to null to hide the original exception and prevent it to be thrown.
+    /// Set the exception to throw a different exception than the original one.
+    /// Set the exception to null to hide the original exception and prevent it to be thrown.
     /// </summary>
     public Exception? Exception { get; set; }
     public object? ReturnValue { get; set; }
