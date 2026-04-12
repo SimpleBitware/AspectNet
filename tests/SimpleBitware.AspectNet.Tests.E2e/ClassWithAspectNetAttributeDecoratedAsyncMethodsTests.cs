@@ -48,7 +48,7 @@ public class ClassWithAspectNetAttributeDecoratedAsyncMethodsTests
         {
             await sut.PublicMethodExceptionAsync(value);
         }
-        catch(Exception ex)
+        catch
         {
             // ignored
         }
