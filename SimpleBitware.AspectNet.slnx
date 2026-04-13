@@ -5,7 +5,7 @@
     <Project Path="src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests\SimpleBitware.AspectNet.Tests.E2e\SimpleBitware.AspectNet.Tests.E2e.csproj" />
+    <Project Path="tests\SimpleBitware.AspectNet.Tests.End2End\SimpleBitware.AspectNet.Tests.End2End.csproj" />
     <Project Path="tests\SimpleBitware.AspectNet.Tests.Weaving\SimpleBitware.AspectNet.Tests.Weaving.csproj" />
   </Folder>
 </Solution>

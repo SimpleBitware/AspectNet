@@ -404,6 +404,3 @@ FodyWeavers.xsd
 
 # IL generated files
 **/*.il
-
-# Tests projects
-!tests/SimpleBitware.AspectNet.Tests.*

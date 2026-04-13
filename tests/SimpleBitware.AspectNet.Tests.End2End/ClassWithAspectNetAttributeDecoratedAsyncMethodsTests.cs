@@ -2,7 +2,7 @@
 using SimpleBitware.AspectNet.Tests.Weaving;
 using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.E2e;
+namespace SimpleBitware.AspectNet.Tests.End2End;
 
 public class ClassWithAspectNetAttributeDecoratedAsyncMethodsTests
 {

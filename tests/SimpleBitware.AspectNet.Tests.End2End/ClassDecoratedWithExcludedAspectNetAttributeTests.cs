@@ -1,14 +1,14 @@
 using SimpleBitware.AspectNet.Tests.Weaving;
 using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.E2e;
+namespace SimpleBitware.AspectNet.Tests.End2End;
 
-public class ClassWithExcludedAspectNetAttributeDecoratedMembersTests
+public class ClassDecoratedWithExcludedAspectNetAttributeTests
 {
-    private readonly ClassWithExcludedAspectNetAttributeDecoratedMembers sut = new();
+    private readonly ClassDecoratedWithExcludedAspectNetAttribute sut = new();
     
     [Test]
-    public void Should_NOT_Record_Activity_For_Constructor_When_Excluded()
+    public void Should_NOT_Record_Activity_For_Constructor()
     {
         //given
         var activityKey = new ActivityKey(typeof(ClassWithExcludedAspectNetAttributeDecoratedMembers), Constants.InstanceConstructorMethodName);
@@ -18,7 +18,7 @@ public class ClassWithExcludedAspectNetAttributeDecoratedMembersTests
     }
     
     [Test]
-    public void Should_NOT_Record_Activity_For_Public_Method_When_Excluded()
+    public void Should_NOT_Record_Activity_For_Public_Method()
     {
         //given
         var activityKey = new ActivityKey(typeof(ClassWithExcludedAspectNetAttributeDecoratedMembers), nameof(ClassWithExcludedAspectNetAttributeDecoratedMembers.PublicMethod));
@@ -31,7 +31,7 @@ public class ClassWithExcludedAspectNetAttributeDecoratedMembersTests
     }
     
     [Test]
-    public void Should_NOT_Record_Activity_For_Public_Property_When_Excluded()
+    public void Should_NOT_Record_Activity_For_Public_Property()
     {
         //given
         var activityKey = new ActivityKey(typeof(ClassWithExcludedAspectNetAttributeDecoratedMembers), nameof(ClassWithExcludedAspectNetAttributeDecoratedMembers.PublicValue));

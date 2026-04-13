@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Tests.E2e;
+namespace SimpleBitware.AspectNet.Tests.End2End;
 
 internal static class Constants
 {

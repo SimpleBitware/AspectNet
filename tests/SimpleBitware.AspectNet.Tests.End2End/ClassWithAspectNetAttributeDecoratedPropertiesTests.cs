@@ -1,9 +1,9 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.E2e.Helpers;
+using SimpleBitware.AspectNet.Tests.End2End.Helpers;
 using SimpleBitware.AspectNet.Tests.Weaving;
 using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.E2e;
+namespace SimpleBitware.AspectNet.Tests.End2End;
 
 public class ClassWithAspectNetAttributeDecoratedPropertiesTests
 {
