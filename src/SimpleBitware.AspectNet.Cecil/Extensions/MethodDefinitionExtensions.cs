@@ -305,6 +305,31 @@ public static class MethodDefinitionExtensions
 
         instructions.Add(processor.Create(OpCodes.Call, ImportGetRequiredService(module, customAttribute.AttributeType)));
         instructions.Add(processor.Create(OpCodes.Stloc, aspectVar));
+        
+// ----------------------------------
+        // --- NEW: Set Priority Property ---
+// Get the priority from the CustomAttribute metadata we're currently weaving
+        int priorityValue = customAttribute.GetAttributePriority(); 
+
+// Find the set_Priority method in the hierarchy
+        var aspectTypeDefinition = customAttribute.AttributeType.Resolve();
+        var setPriorityMethod = aspectTypeDefinition.Methods.FirstOrDefault(m => m.Name == "set_Priority");
+
+// If not in the derived class, check the base class (AbstractAspectNetAttribute)
+        if (setPriorityMethod == null && aspectTypeDefinition.BaseType != null)
+        {
+            var baseType = aspectTypeDefinition.BaseType.Resolve();
+            setPriorityMethod = baseType.Methods.FirstOrDefault(m => m.Name == "set_Priority");
+        }
+
+        if (setPriorityMethod != null)
+        {
+            instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));         // Load aspect instance
+            instructions.Add(processor.Create(OpCodes.Ldc_I4, priorityValue));   // Load the priority value (e.g., 3)
+            instructions.Add(processor.Create(OpCodes.Callvirt, module.ImportReference(setPriorityMethod)));
+        }
+// ----------------------------------
+        
         instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
         instructions.Add(processor.Create(OpCodes.Stloc, successVar));
 
