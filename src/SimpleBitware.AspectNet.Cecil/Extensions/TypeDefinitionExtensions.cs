@@ -25,26 +25,10 @@ public static class TypeDefinitionExtensions
                     // 1. Remove ONLY identical instances if necessary, 
                     // but keep different instances of the same type.
                     .Distinct() 
-                    // 2. EXPLICIT SORT BY PRIORITY
-                    .OrderByDescending(GetAttributePriority) 
                     .ToArray()
             ))
             .Where(kvp => kvp.Value.Length > 0)
             .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
-    }
-
-    public static int GetAttributePriority(this CustomAttribute attribute)
-    {
-        // 1. Check Properties (e.g., [Attr(Priority = 3)])
-        var priorityProp = attribute.Properties.FirstOrDefault(p => p.Name == "Priority");
-        if (priorityProp is { Name: not null, Argument.Value: not null })
-            return Convert.ToInt32(priorityProp.Argument.Value);
-
-        // 2. Check Fields (e.g., if Priority was a public field)
-        var priorityField = attribute.Fields.FirstOrDefault(f => f.Name == "Priority");
-        return priorityField is { Name: not null, Argument.Value: not null } 
-            ? Convert.ToInt32(priorityField.Argument.Value) 
-            : int.MaxValue; //Since you defined it as int.MaxValue in C#, use that here.
     }
 
     /// <summary>

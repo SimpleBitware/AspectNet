@@ -70,7 +70,7 @@ public static class MethodDefinitionExtensions
 
         aspectAttributes
             .Select((attribute, index) => new { attribute, index })
-            .OrderByDescending(x => x.attribute.GetPriorityValue())
+            .OrderBy(x => x.attribute.GetPriorityValue())
             .ThenBy(x => x.index)
             .Select(x => x.attribute)
             .Reverse()
@@ -309,7 +309,7 @@ public static class MethodDefinitionExtensions
 // ----------------------------------
         // --- NEW: Set Priority Property ---
 // Get the priority from the CustomAttribute metadata we're currently weaving
-        int priorityValue = customAttribute.GetAttributePriority(); 
+        int priorityValue = customAttribute.GetPriorityValue(); 
 
 // Find the set_Priority method in the hierarchy
         var aspectTypeDefinition = customAttribute.AttributeType.Resolve();
