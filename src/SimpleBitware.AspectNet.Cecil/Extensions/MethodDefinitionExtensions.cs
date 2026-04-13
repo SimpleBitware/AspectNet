@@ -274,8 +274,8 @@ public static class MethodDefinitionExtensions
         method.Body.Variables.Add(ex2Var);
 
         // Resolve Context Exception Property Methods
-        MethodReference getExceptionMethod = null;
-        MethodReference setExceptionMethod = null;
+        MethodReference? getExceptionMethod = null;
+        MethodReference? setExceptionMethod = null;
         var contextTypeResolve = contextVariableDefinition.VariableType.Resolve();
         while (contextTypeResolve != null)
         {
