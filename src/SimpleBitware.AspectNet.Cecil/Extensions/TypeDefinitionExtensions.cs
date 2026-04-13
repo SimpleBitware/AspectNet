@@ -12,23 +12,39 @@ public static class TypeDefinitionExtensions
         Type[] filterAttributes)
     {
         var filterAttributeFullNames = filterAttributes.Select(t => t.FullName).ToArray();
-        
+    
         return moduleTypes
             .SelectMany(type =>
-                // Flatten all sources of attributes for this type into one stream
                 type.GetMethodLevelAttributes(baseAspectNetAttribute, filterAttributeFullNames)
                     .Concat(type.GetPropertyLevelAttributes(baseAspectNetAttribute, filterAttributeFullNames))
             )
-            // Group by the actual MethodDefinition to handle overlaps (e.g. attribute on Property and its Setter)
             .GroupBy(kvp => kvp.Key)
             .Select(group => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
                 group.Key,
                 group.SelectMany(x => x.Value)
-                     .Distinct(new AttributeTypeComparer())
-                     .ToArray()
+                    // 1. Remove ONLY identical instances if necessary, 
+                    // but keep different instances of the same type.
+                    .Distinct() 
+                    // 2. EXPLICIT SORT BY PRIORITY
+                    .OrderByDescending(GetAttributePriority) 
+                    .ToArray()
             ))
             .Where(kvp => kvp.Value.Length > 0)
             .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    public static int GetAttributePriority(this CustomAttribute attribute)
+    {
+        // 1. Check Properties (e.g., [Attr(Priority = 3)])
+        var priorityProp = attribute.Properties.FirstOrDefault(p => p.Name == "Priority");
+        if (priorityProp is { Name: not null, Argument.Value: not null })
+            return Convert.ToInt32(priorityProp.Argument.Value);
+
+        // 2. Check Fields (e.g., if Priority was a public field)
+        var priorityField = attribute.Fields.FirstOrDefault(f => f.Name == "Priority");
+        return priorityField is { Name: not null, Argument.Value: not null } 
+            ? Convert.ToInt32(priorityField.Argument.Value) 
+            : int.MaxValue; //Since you defined it as int.MaxValue in C#, use that here.
     }
 
     /// <summary>
@@ -49,7 +65,7 @@ public static class TypeDefinitionExtensions
             {
                 var methodAspects = m.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
                 var merged = methodAspects
-                    .Union(classAspects, new AttributeTypeComparer())
+                    .Concat(classAspects)
                     .ToArray();
                     
                 return new KeyValuePair<MethodDefinition, CustomAttribute[]>(m, merged);
@@ -88,7 +104,7 @@ public static class TypeDefinitionExtensions
                 
                     var merged = methodAspects
                         .Union(propertyAspects, new AttributeTypeComparer())
-                        .Union(classAspects, new AttributeTypeComparer())
+                        .Concat(classAspects)
                         .ToArray();
 
                     return new KeyValuePair<MethodDefinition, CustomAttribute[]>(method, merged);
@@ -118,3 +134,4 @@ public static class TypeDefinitionExtensions
         }
     }
 }
+

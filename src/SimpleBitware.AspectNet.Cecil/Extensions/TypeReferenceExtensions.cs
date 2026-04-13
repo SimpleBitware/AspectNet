@@ -6,26 +6,17 @@ public static class TypeReferenceExtensions
 {
     public static bool IsTaskType(this TypeReference type)
     {
-        string fullName = type.FullName;
-    
-        // 1. Direct match for non-generic Task and ValueTask
-        if (fullName == "System.Threading.Tasks.Task" || 
-            fullName == "System.Threading.Tasks.ValueTask")
-        {
-            return true;
-        }
+        return type.IsTask() || type.IsGenericTask();
+    }
 
-        // 2. Check for generic Task<T> or ValueTask<T>
-        if (type.IsGenericInstance && type is GenericInstanceType genericType)
-        {
-            string baseName = genericType.ElementType.FullName;
-            if (baseName == "System.Threading.Tasks.Task`1" || 
-                baseName == "System.Threading.Tasks.ValueTask`1")
-            {
-                return true;
-            }
-        }
+    private static bool IsTask(this TypeReference type) => (type.FullName == typeof(Task).FullName || type.FullName == typeof(ValueTask).FullName);
 
-        return false;
+    private static bool IsGenericTask(this TypeReference type)
+    {
+        if (!type.IsGenericInstance || type is not GenericInstanceType genericType) 
+            return false;
+        
+        return genericType.ElementType.FullName == typeof(Task<>).FullName || 
+               genericType.ElementType.FullName == typeof(ValueTask<>).FullName;
     }
 }

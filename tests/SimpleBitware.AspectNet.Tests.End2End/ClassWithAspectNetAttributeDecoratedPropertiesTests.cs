@@ -17,21 +17,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         var value = sut.PublicValueWithPropertyAttribute;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.EqualTo(value));
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters, Is.Empty);
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
     
@@ -44,21 +41,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         sut.PublicValueWithPropertyAttribute = propertyValue;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
     
@@ -72,7 +66,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var value = sut.PublicValueWithSetterPropertyAttribute;
 
         //then
-        Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
+        Assert.That(ActivitiesStorage.Activities.ContainsKey(activityKey), Is.False);
     }
     
     [Test]
@@ -84,21 +78,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         sut.PublicValueWithSetterPropertyAttribute = propertyValue;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
     
@@ -110,21 +101,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         var value = sut.PublicValueWithGetterPropertyAttribute;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.EqualTo(value));
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters, Is.Empty);
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
     
@@ -139,7 +127,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         sut.PublicValueWithGetterPropertyAttribute = propertyValue;
 
         //then
-        Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
+        Assert.That(ActivitiesStorage.Activities.ContainsKey(activityKey), Is.False);
     }
     
     [Test]
@@ -150,21 +138,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         var value = ClassWithAspectNetAttributeDecoratedMembers.PublicStaticValueWithPropertyAttribute;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.EqualTo(value));
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.Null);
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters, Is.Empty);
+            Assert.That(activity.Context.Instance, Is.Null);
         }
     }
     
@@ -177,21 +162,18 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         
         //when
         ClassWithAspectNetAttributeDecoratedMembers.PublicStaticValueWithPropertyAttribute = propertyValue;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(context.Instance, Is.Null);
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Instance, Is.Null);
         }
     }
 }

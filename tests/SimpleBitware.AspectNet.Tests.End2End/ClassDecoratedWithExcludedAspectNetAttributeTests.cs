@@ -14,7 +14,7 @@ public class ClassDecoratedWithExcludedAspectNetAttributeTests
         var activityKey = new ActivityKey(typeof(ClassWithExcludedAspectNetAttributeDecoratedMembers), Constants.InstanceConstructorMethodName);
 
         //then
-        Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
+        Assert.That(ActivitiesStorage.Activities.ContainsKey(activityKey), Is.False);
     }
     
     [Test]
@@ -27,7 +27,7 @@ public class ClassDecoratedWithExcludedAspectNetAttributeTests
         sut.PublicMethod();
 
         //then
-        Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
+        Assert.That(ActivitiesStorage.Activities.ContainsKey(activityKey), Is.False);
     }
     
     [Test]
@@ -40,6 +40,6 @@ public class ClassDecoratedWithExcludedAspectNetAttributeTests
         var value = sut.PublicValue;
 
         //then
-        Assert.That(RecordActivityAttribute.Activities.ContainsKey(activityKey), Is.False);
+        Assert.That(ActivitiesStorage.Activities.ContainsKey(activityKey), Is.False);
     }
 }

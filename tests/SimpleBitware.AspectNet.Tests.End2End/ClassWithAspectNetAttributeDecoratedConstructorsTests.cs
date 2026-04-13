@@ -14,21 +14,18 @@ public class ClassWithAspectNetAttributeDecoratedConstructorsTests
         
         //when
         var instance = new ClassWithAspectNetAttributeDecoratedConstructors();
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters, Is.Empty);
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
         }
     }
     
@@ -42,21 +39,18 @@ public class ClassWithAspectNetAttributeDecoratedConstructorsTests
         
         //when
         var instance = new ClassWithAspectNetAttributeDecoratedConstructors(no);
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters.Count, Is.EqualTo(numberOfParameters));
-            Assert.That(context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters.Count, Is.EqualTo(numberOfParameters));
+            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedConstructors>());
         }
     }
     
@@ -68,21 +62,18 @@ public class ClassWithAspectNetAttributeDecoratedConstructorsTests
         
         //when
         var value = ClassWithAspectNetAttributeDecoratedStaticConstructor.Value;
-        var activity = RecordActivityAttribute.Activities[activityKey];
+        var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activity, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(activity[0], Is.InstanceOf<AspectNetAttributeContext>());
-            Assert.That(activity[1], Is.InstanceOf<AspectNetAttributeContext>());
-            
-            var context = (AspectNetAttributeContext)activity[1];
-            Assert.That(context, Is.Not.Null);
-            Assert.That(context.ReturnValue, Is.Null);
-            Assert.That(context.Exception, Is.Null);
-            Assert.That(context.Parameters, Is.Empty);
-            Assert.That(context.Instance, Is.Null);
+            var activity = activities.Last();
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity.Context.ReturnValue, Is.Null);
+            Assert.That(activity.Context.Exception, Is.Null);
+            Assert.That(activity.Context.Parameters, Is.Empty);
+            Assert.That(activity.Context.Instance, Is.Null);
         }
     }
 }
