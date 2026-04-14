@@ -51,7 +51,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
             Assert.That(activity, Is.Not.Null);
             Assert.That(activity.Context.ReturnValue, Is.Null);
             Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
             Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
@@ -88,7 +88,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
             Assert.That(activity, Is.Not.Null);
             Assert.That(activity.Context.ReturnValue, Is.Null);
             Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
             Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
         }
     }
@@ -172,7 +172,7 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
             Assert.That(activity, Is.Not.Null);
             Assert.That(activity.Context.ReturnValue, Is.Null);
             Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.SetterParameterName], Is.EqualTo(propertyValue));
+            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
             Assert.That(activity.Context.Instance, Is.Null);
         }
     }

@@ -4,6 +4,7 @@ using Mono.Cecil.Cil;
 using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Cecil.Helpers;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
@@ -82,6 +83,24 @@ public static class ILProcessorExtensions
             processor.Create(OpCodes.Call, getService),
             processor.Create(OpCodes.Stloc, aspectVar)
         ];
+    }
+
+    public static Instruction[] SetAspectInstancePriority(
+        this ILProcessor processor,
+        ModuleDefinition module,
+        CustomAttribute customAttribute,
+        VariableDefinition aspectVar)
+    {
+        var priorityValue = customAttribute.GetPriorityValue(); 
+        var setPriorityMethod = customAttribute.AttributeType.Resolve().GetMethod(MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)));
+        return (setPriorityMethod == null)
+            ? []
+            :
+            [
+                processor.Create(OpCodes.Ldloc, aspectVar),
+                processor.Create(OpCodes.Ldc_I4, priorityValue),
+                processor.Create(OpCodes.Callvirt, module.ImportReference(setPriorityMethod))
+            ];
     }
 
     public static Instruction[] CreateOnExceptionBlock(

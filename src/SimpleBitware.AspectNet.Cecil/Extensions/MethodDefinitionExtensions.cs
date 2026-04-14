@@ -11,21 +11,6 @@ namespace SimpleBitware.AspectNet.Cecil.Extensions;
 public static class MethodDefinitionExtensions
 {
     /// <summary>
-    /// Gets Method/Constructor-level aspect derived attributes
-    /// </summary>
-    /// <param name="method"></param>
-    /// <param name="baseAspectNetAttribute"></param>
-    /// <returns></returns>
-    public static CustomAttribute[] GetMethodAspectNetDerivedAttributes(
-        this MethodDefinition method,
-        TypeDefinition baseAspectNetAttribute)
-    {
-        return method.CustomAttributes
-            .Where(customAttribute => customAttribute.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
-            .ToArray();
-    }
-
-    /// <summary>
     /// Applies Marker Attribute to weaved method.
     /// </summary>
     /// <param name="method"></param>
@@ -111,7 +96,7 @@ public static class MethodDefinitionExtensions
         if (!method.IsConstructor)
             return originalInstructions.ToArray();
 
-        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
+        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: Constants.InstanceConstructorMethodName });
         if (baseCall == null)
             return originalInstructions.ToArray();
 
@@ -125,7 +110,7 @@ public static class MethodDefinitionExtensions
             return [];
 
         var originalInstructions = method.Body.Instructions.ToList();
-        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: ".ctor" });
+        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: Constants.InstanceConstructorMethodName });
         if (baseCall == null)
             return [];
 
@@ -142,7 +127,10 @@ public static class MethodDefinitionExtensions
     private static VariableDefinition? FindOrCreateReturnVariable(this MethodDefinition method)
     {
         var isVoid = method.ReturnType.MetadataType == MetadataType.Void || method.IsConstructor;
-        var returnVar = isVoid ? null : method.Body.Variables.FirstOrDefault(v => v.VariableType.FullName == method.ReturnType.FullName);
+        var returnVar = isVoid 
+            ? null 
+            : method.Body.Variables.FirstOrDefault(v => v.VariableType.FullName == method.ReturnType.FullName);
+        
         if (!isVoid && returnVar == null)
         {
             returnVar = new VariableDefinition(method.ReturnType);
@@ -206,6 +194,7 @@ public static class MethodDefinitionExtensions
         method.Body.ExceptionHandlers.Add(finallyHandler);
 
         return processor.CreateGetAspectInstanceBlock(module, aspectVariableDefinition)
+            .Concat(processor.SetAspectInstancePriority(module, customAttribute, aspectVariableDefinition))
             // --- START TRY ---
             .Append(handlerTryStart)
             .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry))

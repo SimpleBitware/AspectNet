@@ -1,4 +1,4 @@
-namespace SimpleBitware.AspectNet.Tests.End2End;
+namespace SimpleBitware.AspectNet.Cecil;
 
 internal static class Constants
 {

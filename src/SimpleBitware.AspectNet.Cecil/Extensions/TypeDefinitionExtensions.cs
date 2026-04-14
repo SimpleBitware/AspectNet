@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mono.Cecil;
+using Mono.Cecil.Rocks;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
@@ -11,7 +12,9 @@ public static class TypeDefinitionExtensions
         TypeDefinition baseAspectNetAttribute,
         Type[] filterAttributes)
     {
-        var filterAttributeFullNames = filterAttributes.Select(t => t.FullName).ToArray();
+        var filterAttributeFullNames = filterAttributes
+            .Select(t => t.FullName)
+            .ToArray();
     
         return moduleTypes
             .SelectMany(type =>
@@ -22,8 +25,6 @@ public static class TypeDefinitionExtensions
             .Select(group => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
                 group.Key,
                 group.SelectMany(x => x.Value)
-                    // 1. Remove ONLY identical instances if necessary, 
-                    // but keep different instances of the same type.
                     .Distinct() 
                     .ToArray()
             ))
@@ -116,6 +117,15 @@ public static class TypeDefinitionExtensions
         {
             return false; // Handle cases where base type cannot be resolved
         }
+    }
+
+    public static MethodDefinition? GetMethod(this TypeDefinition? type, string methodName)
+    {
+        if (type == null)
+            return null;
+        
+        var method = type.Methods.FirstOrDefault(m => m.Name == methodName);
+        return method ?? type.BaseType?.Resolve().GetMethod(methodName);
     }
 }
 
