@@ -4,6 +4,7 @@ using Mono.Cecil.Rocks;
 using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Cecil.Helpers;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
@@ -50,9 +51,6 @@ public static class MethodDefinitionExtensions
 
         method.ClearMethodBody();
 
-        processor.AppendInstructions(methodStartInstructions)
-            .CreateAspectContext<TContext>(module, contextVariableDefinition, method);
-
         aspectAttributes
             .Select((attribute, index) => new { attribute, index })
             .OrderBy(x => x.attribute.GetPriorityValue())
@@ -67,9 +65,15 @@ public static class MethodDefinitionExtensions
                 method.RemoveAttribute(attribute);
             });
 
-        processor.AppendInstructions(methodInstructions)
-            .AddMethodReturn(method);
-
+        methodStartInstructions
+            .Concat(processor.CreateAspectContext<TContext>(module, contextVariableDefinition, method))
+            .Concat(methodInstructions)
+            .Concat(processor.AddMethodReturn(method))
+            .ForEach(processor.Append);
+        
+        if (!method.Body.Variables.Contains(contextVariableDefinition))
+            method.Body.Variables.Add(contextVariableDefinition);
+        
         return method;
     }
 
@@ -127,10 +131,10 @@ public static class MethodDefinitionExtensions
     private static VariableDefinition? FindOrCreateReturnVariable(this MethodDefinition method)
     {
         var isVoid = method.ReturnType.MetadataType == MetadataType.Void || method.IsConstructor;
-        var returnVar = isVoid 
-            ? null 
+        var returnVar = isVoid
+            ? null
             : method.Body.Variables.FirstOrDefault(v => v.VariableType.FullName == method.ReturnType.FullName);
-        
+
         if (!isVoid && returnVar == null)
         {
             returnVar = new VariableDefinition(method.ReturnType);
@@ -194,7 +198,12 @@ public static class MethodDefinitionExtensions
         method.Body.ExceptionHandlers.Add(finallyHandler);
 
         return processor.CreateGetAspectInstanceBlock(module, aspectVariableDefinition)
-            .Concat(processor.SetAspectInstancePriority(module, customAttribute, aspectVariableDefinition))
+            .Concat(processor.SetIntegerProperty(
+                module,
+                aspectVariableDefinition,
+                customAttribute.AttributeType.Resolve().GetMethod(MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority))),
+                customAttribute.GetPriorityValue()
+            ))
             // --- START TRY ---
             .Append(handlerTryStart)
             .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry))
@@ -294,11 +303,11 @@ public static class MethodDefinitionExtensions
 
         instructions.Add(processor.Create(OpCodes.Call, ImportGetRequiredService(module, customAttribute.AttributeType)));
         instructions.Add(processor.Create(OpCodes.Stloc, aspectVar));
-        
+
 // ----------------------------------
         // --- NEW: Set Priority Property ---
 // Get the priority from the CustomAttribute metadata we're currently weaving
-        int priorityValue = customAttribute.GetPriorityValue(); 
+        int priorityValue = customAttribute.GetPriorityValue();
 
 // Find the set_Priority method in the hierarchy
         var aspectTypeDefinition = customAttribute.AttributeType.Resolve();
@@ -313,12 +322,12 @@ public static class MethodDefinitionExtensions
 
         if (setPriorityMethod != null)
         {
-            instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar));         // Load aspect instance
-            instructions.Add(processor.Create(OpCodes.Ldc_I4, priorityValue));   // Load the priority value (e.g., 3)
+            instructions.Add(processor.Create(OpCodes.Ldloc, aspectVar)); // Load aspect instance
+            instructions.Add(processor.Create(OpCodes.Ldc_I4, priorityValue)); // Load the priority value (e.g., 3)
             instructions.Add(processor.Create(OpCodes.Callvirt, module.ImportReference(setPriorityMethod)));
         }
 // ----------------------------------
-        
+
         instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
         instructions.Add(processor.Create(OpCodes.Stloc, successVar));
 

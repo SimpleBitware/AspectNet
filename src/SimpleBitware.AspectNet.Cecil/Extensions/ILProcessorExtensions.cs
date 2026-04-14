@@ -10,64 +10,61 @@ namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 public static class ILProcessorExtensions
 {
-    public static void AddMethodReturn(this ILProcessor processor, MethodDefinition method)
+    public static Instruction[] AddMethodReturn(this ILProcessor processor, MethodDefinition method)
     {
-        // CRITICAL FIX: Load the return value back onto the stack AFTER all try/finally layers
+        var instructions = new List<Instruction>();
+        
+        // CRITICAL: Load the return value back onto the stack AFTER all try/finally layers
         if (method.ReturnType.MetadataType != MetadataType.Void && !method.IsConstructor)
         {
             // Find the return variable we used in the layers
             var returnVar = method.Body.Variables.FirstOrDefault(v => v.VariableType.FullName == method.ReturnType.FullName);
             if (returnVar != null)
-                processor.Emit(OpCodes.Ldloc, returnVar);
+                instructions.Add(processor.Create(OpCodes.Ldloc, returnVar));
         }
 
-        processor.Emit(OpCodes.Ret);
+        instructions.Add(processor.Create(OpCodes.Ret));
+        
+        return instructions.ToArray();
     }
 
-    public static ILProcessor AppendInstructions(this ILProcessor processor, Instruction[] instructions)
-    {
-        instructions.ForEach(processor.Append);
-        return processor;
-    }
-
-    public static ILProcessor CreateAspectContext<T>(
+    public static Instruction[] CreateAspectContext<T>(
         this ILProcessor processor,
         ModuleDefinition module,
         VariableDefinition entryContextVar,
         MethodDefinition method)
     {
-        processor.Emit(OpCodes.Newobj, module.ImportReference(typeof(T).GetConstructor(Type.EmptyTypes)));
-        processor.Emit(OpCodes.Stloc, entryContextVar);
+        var instanceSetMethod = module.ImportReference(typeof(T).GetProperty(nameof(AspectNetAttributeContext.Instance))!.SetMethod);
+        var getTypeFromHandleMethod = module.ImportReference(typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle), [typeof(RuntimeTypeHandle)])); //TODO: move out to run it only once
+        var classTypeSetMethod = module.ImportReference(typeof(T).GetProperty(nameof(AspectNetAttributeContext.ClassType))!.SetMethod);
+        var memberNameSetMethod = module.ImportReference(typeof(T).GetProperty(nameof(AspectNetAttributeContext.MemberName))!.SetMethod);
+        var parametersGetMethod = module.ImportReference(typeof(T).GetProperty(nameof(AspectNetAttributeContext.Parameters))!.GetMethod);
 
-        processor.SetObjectProperty(
-            entryContextVar,
-            method.HasThis ? method.Body.ThisParameter : null,
-            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.Instance)));
-
-        var getTypeFromHandleMethod = module.ImportReference(
-            typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle), [typeof(RuntimeTypeHandle)])); //TODO: move out to run it only once
-        processor.SetTypeProperty(
-            entryContextVar,
-            method.DeclaringType,
-            getTypeFromHandleMethod,
-            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.ClassType)));
-        
-        processor.SetStringProperty(
-            entryContextVar,
-            method.Name,
-            module.GetPropertySetMethodReference<T>(nameof(AspectNetAttributeContext.MemberName)));
-
-        processor.SetDictionaryProperty(
-            entryContextVar,
-            method.Parameters,
-            module.GetPropertyGetMethodReference<T>(nameof(AspectNetAttributeContext.Parameters)),
-            module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), [typeof(string), typeof(object)]))
-        );
-
-        if (!method.Body.Variables.Contains(entryContextVar))
-            method.Body.Variables.Add(entryContextVar);
-
-        return processor;
+        return new List<Instruction>()
+            {
+                processor.Create(OpCodes.Newobj, module.ImportReference(typeof(T).GetConstructor(Type.EmptyTypes))),
+                processor.Create(OpCodes.Stloc, entryContextVar)
+            }
+            .Concat(processor.SetObjectProperty(
+                entryContextVar,
+                method.HasThis ? method.Body.ThisParameter : null,
+                instanceSetMethod))
+            .Concat(processor.SetTypeProperty(
+                entryContextVar,
+                method.DeclaringType,
+                getTypeFromHandleMethod,
+                classTypeSetMethod))
+            .Concat(processor.SetStringProperty(
+                entryContextVar,
+                method.Name,
+                memberNameSetMethod))
+            .Concat(processor.SetDictionaryProperty(
+                entryContextVar,
+                method.Parameters,
+                parametersGetMethod,
+                module.ImportReference(typeof(Dictionary<string, object>).GetMethod(nameof(IList.Add), [typeof(string), typeof(object)]))
+            ))
+            .ToArray();
     }
 
     public static Instruction[] CreateGetAspectInstanceBlock(
@@ -83,24 +80,6 @@ public static class ILProcessorExtensions
             processor.Create(OpCodes.Call, getService),
             processor.Create(OpCodes.Stloc, aspectVar)
         ];
-    }
-
-    public static Instruction[] SetAspectInstancePriority(
-        this ILProcessor processor,
-        ModuleDefinition module,
-        CustomAttribute customAttribute,
-        VariableDefinition aspectVar)
-    {
-        var priorityValue = customAttribute.GetPriorityValue(); 
-        var setPriorityMethod = customAttribute.AttributeType.Resolve().GetMethod(MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)));
-        return (setPriorityMethod == null)
-            ? []
-            :
-            [
-                processor.Create(OpCodes.Ldloc, aspectVar),
-                processor.Create(OpCodes.Ldc_I4, priorityValue),
-                processor.Create(OpCodes.Callvirt, module.ImportReference(setPriorityMethod))
-            ];
     }
 
     public static Instruction[] CreateOnExceptionBlock(
@@ -134,7 +113,7 @@ public static class ILProcessorExtensions
         instructions.Add(processor.Create(OpCodes.Ldloc, exceptionVar)); // Load ORIGINAL 'ex'
         instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
         instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
-    
+
         // Compare the two objects on the stack
         instructions.Add(processor.Create(OpCodes.Bne_Un_S, skipRethrow));
         instructions.Add(processor.Create(OpCodes.Rethrow)); // bare 'throw;'
@@ -145,7 +124,7 @@ public static class ILProcessorExtensions
         instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
         instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
         instructions.Add(processor.Create(OpCodes.Brfalse_S, endOfBlock));
-    
+
         instructions.Add(processor.Create(OpCodes.Ldloc, entryContextVar));
         instructions.Add(processor.Create(OpCodes.Callvirt, getExceptionMethod));
         instructions.Add(processor.Create(OpCodes.Throw)); // 'throw val.Exception;'
@@ -227,75 +206,93 @@ public static class ILProcessorExtensions
         ];
     }
 
-    private static void SetStringProperty(
+    private static Instruction[] SetStringProperty(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
         string propertyValue,
         MethodReference methodReference)
     {
-        processor.Emit(OpCodes.Ldloc, entryContextVar);
-        processor.Emit(OpCodes.Ldstr, propertyValue);
-        processor.Emit(OpCodes.Callvirt, methodReference);
+        return
+        [
+            processor.Create(OpCodes.Ldloc, entryContextVar),
+            processor.Create(OpCodes.Ldstr, propertyValue),
+            processor.Create(OpCodes.Callvirt, methodReference)
+        ];
     }
-    
-    private static void SetTypeProperty(
+
+    private static Instruction[] SetTypeProperty(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
         TypeReference declaringType,
         MethodReference getTypeFromHandle,
         MethodReference setClassTypeMethod)
     {
-        // 1. Load the context variable (the 'val' local)
-        processor.Emit(OpCodes.Ldloc, entryContextVar);
-
-        // 2. typeof(DeclaringClass)
-        processor.Emit(OpCodes.Ldtoken, declaringType);
-        processor.Emit(OpCodes.Call, getTypeFromHandle);
-
-        // 3. val.ClassType = [result of GetTypeFromHandle]
-        processor.Emit(OpCodes.Callvirt, setClassTypeMethod);
+        return
+        [
+            processor.Create(OpCodes.Ldloc, entryContextVar), // Load the context variable (the 'val' local)
+            processor.Create(OpCodes.Ldtoken, declaringType), // typeof(DeclaringClass)    
+            processor.Create(OpCodes.Call, getTypeFromHandle),
+            processor.Create(OpCodes.Callvirt, setClassTypeMethod) // val.ClassType = [result of GetTypeFromHandle]
+        ];
     }
 
-    private static void SetObjectProperty(
+    private static Instruction[] SetObjectProperty(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
         ParameterDefinition? propertyValue,
         MethodReference methodReference)
     {
-        processor.Emit(OpCodes.Ldloc, entryContextVar);
-        
-        if (propertyValue != null)
-        {
-            // It's an instance method: Load 'this'
-            processor.Emit(OpCodes.Ldarg, propertyValue);
-        }
-        else
-        {
-            // It's a static method: Load 'null'
-            processor.Emit(OpCodes.Ldnull);
-        }
-        
-        processor.Emit(OpCodes.Callvirt, methodReference);
+        return
+        [
+            processor.Create(OpCodes.Ldloc, entryContextVar),
+            propertyValue == null
+                ? processor.Create(OpCodes.Ldnull) // It's a static method: Load 'null'
+                : processor.Create(OpCodes.Ldarg, propertyValue), // It's an instance method: Load 'this'
+            processor.Create(OpCodes.Callvirt, methodReference)
+        ];
     }
 
-    private static void SetDictionaryProperty(
+    private static Instruction[] SetDictionaryProperty(
         this ILProcessor processor,
         VariableDefinition entryContextVar,
         IList<ParameterDefinition> parameters,
-        MethodReference getParams,
+        MethodReference parametersGetMethod,
         MethodReference addToDictionary)
     {
+        var instructions = new List<Instruction>();
         foreach (var param in parameters)
         {
-            processor.Emit(OpCodes.Ldloc, entryContextVar);
-            processor.Emit(OpCodes.Callvirt, getParams); // Push Dictionary
-            processor.Emit(OpCodes.Ldstr, param.Name); // Push Key
-            processor.Emit(OpCodes.Ldarg, param); // Push Value
+            instructions.AddRange(
+            [
+                processor.Create(OpCodes.Ldloc, entryContextVar),
+                processor.Create(OpCodes.Callvirt, parametersGetMethod), // Push Dictionary
+                processor.Create(OpCodes.Ldstr, param.Name), // Push Key
+                processor.Create(OpCodes.Ldarg, param), // Push Value
+            ]);
 
             if (param.ParameterType.IsValueType || param.ParameterType is GenericParameter)
-                processor.Emit(OpCodes.Box, param.ParameterType);
+                instructions.Add(processor.Create(OpCodes.Box, param.ParameterType));
 
-            processor.Emit(OpCodes.Callvirt, addToDictionary);
+            instructions.Add(processor.Create(OpCodes.Callvirt, addToDictionary));
         }
+
+        return instructions.ToArray();
+    }
+
+    public static Instruction[] SetIntegerProperty(
+        this ILProcessor processor,
+        ModuleDefinition module,
+        VariableDefinition variableDefinition,
+        MethodDefinition? propertySetMethod,
+        int value)
+    {
+        return propertySetMethod == null
+            ? []
+            :
+            [
+                processor.Create(OpCodes.Ldloc, variableDefinition),
+                processor.Create(OpCodes.Ldc_I4, value),
+                processor.Create(OpCodes.Callvirt, module.ImportReference(propertySetMethod))
+            ];
     }
 }

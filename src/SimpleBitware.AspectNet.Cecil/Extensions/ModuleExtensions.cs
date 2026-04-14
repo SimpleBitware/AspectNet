@@ -12,16 +12,4 @@ internal static class ModuleExtensions
             ? targetModule.FindAndImport(typeDef.BaseType.Resolve(), name, paramCount)
             : targetModule.ImportReference(method);
     }
-    
-    public static MethodReference GetPropertyGetMethodReference<T>(this ModuleDefinition module, string methodName)
-    {
-        var propertyName = typeof(T).GetProperty(methodName) ?? throw new ArgumentException($"Method {methodName} of type {typeof(T).FullName} not found");
-        return module.ImportReference(propertyName.GetMethod);
-    }
-    
-    public static MethodReference GetPropertySetMethodReference<T>(this ModuleDefinition module, string methodName)
-    {
-        var propertyName = typeof(T).GetProperty(methodName) ?? throw new ArgumentException($"Method {methodName} of type {typeof(T).FullName} not found");
-        return module.ImportReference(propertyName.SetMethod);
-    }
 }
