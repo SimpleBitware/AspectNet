@@ -25,7 +25,7 @@ public static class CustomAttributeExtensions
     public static CustomAttribute[] GetAspectNetDerivedAttributes(this IList<CustomAttribute> customAttributes, TypeDefinition baseAspectNetAttribute)
     {
         return customAttributes
-            .Where(customAttribute => customAttribute.AttributeType.Resolve().InheritsFrom(baseAspectNetAttribute))
+            .Where(customAttribute => baseAspectNetAttribute.Module.Cache().IsAspect(customAttribute.AttributeType, baseAspectNetAttribute))
             .ToArray();
     }
 }

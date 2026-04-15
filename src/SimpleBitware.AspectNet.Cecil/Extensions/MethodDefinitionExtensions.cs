@@ -201,7 +201,7 @@ public static class MethodDefinitionExtensions
             .Concat(processor.SetIntegerProperty(
                 module,
                 aspectVariableDefinition,
-                customAttribute.AttributeType.Resolve().GetMethod(MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority))),
+                module.Cache().ImportAndCache(customAttribute.AttributeType.Resolve(), MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1).Resolve(),
                 customAttribute.GetPriorityValue()
             ))
             // --- START TRY ---
@@ -530,7 +530,7 @@ public static class MethodDefinitionExtensions
         var aspectBaseType = module.ImportReference(typeof(AbstractAspectNetAttribute)).Resolve();
 
         // Most aspect methods take exactly 1 parameter: the AspectEventArgs (context)
-        return module.FindAndImport(aspectBaseType, methodName, 1);
+        return module.Cache().ImportAndCache(aspectBaseType, methodName, 1);
     }
 
     private static MethodReference ImportGetRequiredService(ModuleDefinition module, TypeReference attributeType)
