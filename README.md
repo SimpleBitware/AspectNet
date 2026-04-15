@@ -63,14 +63,19 @@ public class LogAttribute : AbstractAspectNetAttribute
       base.OnEntry(context);
    }
 
-   public override void OnExit(AspectNetAttributeContext context)
+   public override void OnSuccess(AspectNetAttributeContext context)
    {
-      base.OnExit(context);
+      base.OnSuccess(context);
    }
 
    public override void OnException(AspectNetAttributeContext context)
    {
       base.OnException(context);
+   }
+
+   public override void OnExit(AspectNetAttributeContext context)
+   {
+      base.OnExit(context);
    }
 }  
 
