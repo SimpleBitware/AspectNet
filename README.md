@@ -1,4 +1,4 @@
-<img src="resources\logo.png" width="110" align="right"></br></br>
+<img src="resources/logo.png" width="110" align="right"></br></br>
 
 # AspectNet
 
