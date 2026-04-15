@@ -1,10 +1,8 @@
 using System.Collections;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Cecil.Helpers;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
