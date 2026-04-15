@@ -2,25 +2,52 @@
 
 # AspectNet
 
-Enables Aspect Oriented Programming in the target project
+AspectNet brings Aspect-Oriented Programming (AOP) to any .NET project through compile‑time IL weaving. </br>
+It enables the creation of cross‑cutting behaviors and ASP.NET‑style middleware pipelines that can be applied to any class, method, constructor, or property—regardless of visibility or static/instance context.
 
 ## Features
 
-- Attribute-driven aspects
-- Supports attribute usage on classes, constructors, methods and properties, irrespective of their visibility (private, protected, public), static or instance
-- Supports multiple attributes on the same class or class member and organizes execution based on their Priority (attribute property) and their position. The attributes are executed in order, lower Priority value first and, for the same Priority, first (top) applied attributes first.
-- Provides access to member details (class name, member name, member parameters and their values) via a read-only context
-- Provides access to exception in case one is thrown and allows to inspect it, handle it or throw a new exception
-- Provides access to return value and allows to inspect it or change it
-- Honors debugging breakpoints in the original code and attributes
-- Async support (`Task`, `Task<T>`, `ValueTask`, `ValueTask<T>`)
+### Attribute‑driven aspect model
+Defines aspects using custom attributes applied directly to classes, constructors, methods, or properties.
+
+### Full member coverage
+Works with private, protected, internal, and public members, as well as static and instance targets.
+
+### Multiple attributes with deterministic ordering
+Supports stacking multiple attributes on the same member. Execution order is determined first by the Priority property (ascending), then by declaration order (topmost applied attribute executes first for equal priorities).
+
+### Rich execution context
+Provides read‑only access to: </br>
+- Declaring type and member metadata </br>
+- Method parameters and their runtime values
+
+### Exception handling pipeline
+Captures thrown exceptions and allows aspects to inspect, handle, suppress, or replace them.
+
+### Return value interception
+Enables inspection and modification of return values before they reach the caller.
+
+### Shared attribute state
+Allows attribute instances to maintain state across their lifecycle during a single invocation.
+
+### Debugger‑friendly weaving
+Preserves debugging breakpoints in both user code and aspect code.
+
+### Comprehensive async support
+Fully supports `Task`, `Task<T>`, `ValueTask` and `ValueTask<T>`.
 
 ## How it works
 
-The aspects are weaven into the target assembly immediately after it is built using IL weaving. </br>
-Each project using AspectNet needs to import the nuget package separately to have attributes weaven into the decorated class member. This helps with incremental and paralel projects building. </br>
-DI-resolved aspects via `IServiceProvider` requires usage of `UseAspectNet()` extension method on service provider. This gives weaven code access to the application IoC to resolve potential attributes/aspects dependencies. </br>
-When no service provider registered or aspect/attribute not registered with service provider, the default aspect/attribute constructor is used.
+AspectNet weaves aspects into the target assembly immediately after the build completes, using IL rewriting.
+
+### Per‑project installation
+Each project that uses AspectNet must reference the NuGet package. This ensures correct incremental builds and parallel compilation across solutions.
+
+### Dependency‑injected aspects
+When aspects require DI, call `UseAspectNet()` on the application’s `IServiceProvider`. This enables the woven code to resolve attribute instances through the application’s IoC container.
+
+### Fallback construction
+If no service provider is registered—or if a given aspect type is not registered—AspectNet falls back to using the attribute’s default constructor.
 
 ## Basic usage
 
