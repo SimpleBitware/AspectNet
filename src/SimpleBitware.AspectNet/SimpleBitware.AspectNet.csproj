@@ -43,7 +43,7 @@
               Pack="true"
               PackagePath=""
               Visible="false"/>
-        <None Include="..\..\logo.png"
+        <None Include="..\..\resources\logo.png"
               Pack="true"
               PackagePath=""
               Visible="false"/>
