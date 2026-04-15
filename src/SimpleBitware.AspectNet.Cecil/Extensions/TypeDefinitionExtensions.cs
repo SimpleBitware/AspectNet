@@ -28,7 +28,7 @@ public static class TypeDefinitionExtensions
             .Select(group => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
                 group.Key,
                 group.SelectMany(x => x.Value)
-                    .Distinct()
+                    .Distinct(new AttributeInstanceComparer())
                     .ToArray()
             ))
             .Where(kvp => kvp.Value.Length > 0)
@@ -85,7 +85,7 @@ public static class TypeDefinitionExtensions
                     var methodAspects = method.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
 
                     var merged = methodAspects
-                        .Union(propertyAspects, new AttributeTypeComparer())
+                        .Concat(propertyAspects)
                         .Concat(classAspects)
                         .ToArray();
 

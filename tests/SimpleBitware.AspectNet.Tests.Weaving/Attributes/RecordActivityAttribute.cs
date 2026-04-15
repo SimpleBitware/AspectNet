@@ -16,8 +16,8 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var activity = new Activity()
         {
             Context = context,
-            Priority = this.Priority,
-            AspectMethodName = nameof(OnEntry)
+            AspectMethodName = nameof(OnEntry),
+            Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);
     }
@@ -28,8 +28,8 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var activity = new Activity()
         {
             Context = context,
-            Priority = this.Priority,
-            AspectMethodName = nameof(OnSuccess)
+            AspectMethodName = nameof(OnSuccess),
+            Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);
     }
@@ -40,8 +40,8 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var activity = new Activity()
         {
             Context = context,
-            Priority = this.Priority,
-            AspectMethodName = nameof(OnExit)
+            AspectMethodName = nameof(OnExit),
+            Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);
     }
@@ -52,8 +52,8 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var activity = new Activity()
         {
             Context = context,
-            Priority = this.Priority,
-            AspectMethodName = nameof(OnException)
+            AspectMethodName = nameof(OnException),
+            Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);
     }

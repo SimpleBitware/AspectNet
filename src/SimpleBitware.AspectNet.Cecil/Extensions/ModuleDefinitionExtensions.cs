@@ -1,15 +1,15 @@
-using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Mono.Cecil;
-using SimpleBitware.AspectNet.Cecil.Helpers;
+using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 internal static class ModuleDefinitionExtensions
 {
-    private static readonly ConcurrentDictionary<ModuleDefinition, ModuleCache> ModulesCache = new();
+    private static readonly ConditionalWeakTable<ModuleDefinition, ModuleCache> ModulesCache = new();
+    
     public static ModuleCache Cache(this ModuleDefinition module)
     {
-        ModulesCache.TryAdd(module, new ModuleCache(module));
-        return ModulesCache[module];
+        return ModulesCache.GetValue(module, m => new ModuleCache(m));
     }
 }

@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using Mono.Cecil;
-using SimpleBitware.AspectNet.Cecil.Extensions;
 
-namespace SimpleBitware.AspectNet.Cecil.Helpers;
+namespace SimpleBitware.AspectNet.Cecil.Runtime;
 
 public class ModuleCache(ModuleDefinition module)
 {
@@ -67,7 +66,10 @@ public class ModuleCache(ModuleDefinition module)
 
         // 3. Check Interfaces
         if (type.Interfaces.Any(i => i.InterfaceType.FullName == baseType.FullName || InheritsFrom(ResolveAndCache(i.InterfaceType), baseType)))
-            return inheritanceCache.TryAdd(type.FullName, true);
+        {
+            inheritanceCache.TryAdd(type.FullName, true);
+            return true;
+        }
 
         // 4. Check Base Class (Recursive)
         try

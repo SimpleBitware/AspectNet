@@ -57,7 +57,7 @@ public static class CecilWeaver
             if(generateDebugFiles)
                 File.WriteAllText("before.il", module.DumpModule());
             
-            var baseAspectNetAttribute = module.ImportReference(typeof(TAttribute)).Resolve()
+            var baseAspectNetAttribute = module.Cache().ResolveAndCache(module.ImportReference(typeof(TAttribute)))
                 ?? throw new SymbolsNotFoundException($"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
             var markerAttributeConstructor = module.ImportReference(typeof(TMarker).GetConstructor(Type.EmptyTypes))
                 ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {nameof(TMarker)} has a parameterless constructor.");
