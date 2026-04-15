@@ -21,13 +21,17 @@ public class ClassDecoratedWithAspectNetAttributeConstructorsTests
         Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.Null);
-            Assert.That(activity.Context.Exception, Is.Not.Null);
-            Assert.That(activity.Context.Parameters.Count, Is.EqualTo(1));
-            Assert.That(activity.Context.Parameters.FirstOrDefault().Value, Is.EqualTo(no));
-            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassDecoratedWithAspectNetAttributeMethods>());
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                a.Context.ReturnValue is null &&
+                a.Context.Exception is not null &&
+                a.Context.MemberName == Constants.InstanceConstructorMethodName &&
+                a.Context.Parameters.Count == 1 &&
+                (int)a.Context.Parameters.First().Value == no &&
+                a.Context.Instance?.GetType() == typeof(ClassDecoratedWithAspectNetAttributeMethods)
+                ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnException)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
 }

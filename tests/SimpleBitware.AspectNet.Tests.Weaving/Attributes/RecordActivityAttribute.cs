@@ -22,6 +22,18 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         ActivitiesStorage.Activities[key].Add(activity);
     }
 
+    public override void OnSuccess(AspectNetAttributeContext context)
+    {
+        var key = context.GetActivityKey();
+        var activity = new Activity()
+        {
+            Context = context,
+            Priority = this.Priority,
+            AspectMethodName = nameof(OnSuccess)
+        };
+        ActivitiesStorage.Activities[key].Add(activity);
+    }
+    
     public override void OnExit(AspectNetAttributeContext context)
     {
         var key = context.GetActivityKey();

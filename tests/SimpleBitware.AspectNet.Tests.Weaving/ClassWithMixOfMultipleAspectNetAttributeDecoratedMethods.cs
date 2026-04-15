@@ -17,7 +17,7 @@ public class ClassWithMixMultipleAspectNetAttributeDecoratedMethods
     }
     
     [NewRecordActivity(Priority = 2)]
-    public static void PublicStaticMethodWithDifferentDuplicatedAspects()
+    public static void PublicStaticMethodWithSameAspectAsClass()
     {
     }
     

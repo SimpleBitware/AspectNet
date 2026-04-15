@@ -20,15 +20,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters, Is.Empty);
-            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                (int)a.Context.ReturnValue! == value &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute)) &&
+                a.Context.Parameters.Count == 0 &&
+                a.Context.Instance?.GetType() == typeof(ClassWithAspectNetAttributeDecoratedMembers)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
     
@@ -44,15 +48,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.Null);
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                a.Context.ReturnValue is null &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithPropertyAttribute)) &&
+                (int)a.Context.Parameters[Constants.PropertySetterParameterName] == propertyValue &&
+                a.Context.Instance?.GetType() == typeof(ClassWithAspectNetAttributeDecoratedMembers)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
     
@@ -81,15 +89,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.Null);
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                a.Context.ReturnValue is null &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithSetterPropertyAttribute)) &&
+                (int)a.Context.Parameters[Constants.PropertySetterParameterName] == propertyValue &&
+                a.Context.Instance?.GetType() == typeof(ClassWithAspectNetAttributeDecoratedMembers)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
     
@@ -104,15 +116,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters, Is.Empty);
-            Assert.That(activity.Context.Instance, Is.InstanceOf<ClassWithAspectNetAttributeDecoratedMembers>());
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                (int)a.Context.ReturnValue! == value &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicValueWithGetterPropertyAttribute)) &&
+                a.Context.Parameters.Count == 0 &&
+                a.Context.Instance?.GetType() == typeof(ClassWithAspectNetAttributeDecoratedMembers)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
     
@@ -141,15 +157,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.EqualTo(value));
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters, Is.Empty);
-            Assert.That(activity.Context.Instance, Is.Null);
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                (int)a.Context.ReturnValue! == value &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicStaticValueWithPropertyAttribute)) &&
+                a.Context.Parameters.Count == 0 &&
+                a.Context.Instance is null
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
     
@@ -165,15 +185,19 @@ public class ClassWithAspectNetAttributeDecoratedPropertiesTests
         var activities = ActivitiesStorage.Activities[activityKey];
 
         //then
-        Assert.That(activities, Has.Count.EqualTo(2));
+        Assert.That(activities, Has.Count.EqualTo(3));
         using (Assert.EnterMultipleScope())
         {
-            var activity = activities.Last();
-            Assert.That(activity, Is.Not.Null);
-            Assert.That(activity.Context.ReturnValue, Is.Null);
-            Assert.That(activity.Context.Exception, Is.Null);
-            Assert.That(activity.Context.Parameters[Constants.PropertySetterParameterName], Is.EqualTo(propertyValue));
-            Assert.That(activity.Context.Instance, Is.Null);
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                a.Context.ReturnValue is null &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertySetterName(nameof(ClassWithAspectNetAttributeDecoratedMembers.PublicStaticValueWithPropertyAttribute)) &&
+                (int)a.Context.Parameters[Constants.PropertySetterParameterName] == propertyValue &&
+                a.Context.Instance is null
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
 }
