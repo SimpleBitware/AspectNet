@@ -7,46 +7,46 @@ It enables the creation of cross‑cutting behaviors and ASP.NET‑style middlew
 
 ## Features
 
-### Attribute‑driven aspect model
+> ### Attribute‑driven aspect model
 Defines aspects using custom attributes applied directly to classes, constructors, methods, or properties.
 
-### Full member coverage
+> ### Full member coverage
 Works with private, protected, internal, and public members, as well as static and instance targets.
 
-### Multiple attributes with deterministic ordering
+> ### Multiple attributes with deterministic ordering
 Supports stacking multiple attributes on the same member. Execution order is determined first by the Priority property (ascending), then by declaration order (topmost applied attribute executes first for equal priorities).
 
-### Rich execution context
+> ### Rich execution context
 Provides read‑only access to: </br>
 - Declaring type and member metadata </br>
 - Method parameters and their runtime values
 
-### Exception handling pipeline
+> ### Exception handling pipeline
 Captures thrown exceptions and allows aspects to inspect, handle, suppress, or replace them.
 
-### Return value interception
+> ### Return value interception
 Enables inspection and modification of return values before they reach the caller.
 
-### Shared attribute state
+> ### Shared attribute state
 Allows attribute instances to maintain state across their lifecycle during a single invocation.
 
-### Debugger‑friendly weaving
+> ### Debugger‑friendly weaving
 Preserves debugging breakpoints in both user code and aspect code.
 
-### Comprehensive async support
+> ### Comprehensive async support
 Fully supports `Task`, `Task<T>`, `ValueTask` and `ValueTask<T>`.
 
 ## How it works
 
 AspectNet weaves aspects into the target assembly immediately after the build completes, using IL rewriting.
 
-### Per‑project installation
+> ### Per‑project installation
 Each project that uses AspectNet must reference the NuGet package. This ensures correct incremental builds and parallel compilation across solutions.
 
-### Dependency‑injected aspects
+> ### Dependency‑injected aspects
 When aspects require DI, call `UseAspectNet()` on the application’s `IServiceProvider`. This enables the woven code to resolve attribute instances through the application’s IoC container.
 
-### Fallback construction
+> ### Fallback construction
 If no service provider is registered—or if a given aspect type is not registered—AspectNet falls back to using the attribute’s default constructor.
 
 ## Basic usage
