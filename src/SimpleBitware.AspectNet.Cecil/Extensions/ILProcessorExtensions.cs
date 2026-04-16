@@ -11,7 +11,7 @@ public static class ILProcessorExtensions
     public static Instruction[] AddMethodReturn(this ILProcessor processor, MethodDefinition method)
     {
         var instructions = new List<Instruction>();
-        
+
         // CRITICAL: Load the return value back onto the stack AFTER all try/finally layers
         if (method.ReturnType.MetadataType != MetadataType.Void && !method.IsConstructor)
         {
@@ -22,7 +22,7 @@ public static class ILProcessorExtensions
         }
 
         instructions.Add(processor.Create(OpCodes.Ret));
-        
+
         return instructions.ToArray();
     }
 
@@ -134,74 +134,95 @@ public static class ILProcessorExtensions
     public static IEnumerable<Instruction> CreateOnExitBlock(
         this ILProcessor processor,
         VariableDefinition? returnValueVariableDefinition,
-        bool returnTypeIsValueType,
         VariableDefinition contextVariableDefinition,
         VariableDefinition aspectVariableDefinition,
         MethodReference exitContextReturnValueGetMethod,
-        MethodReference exitContextReturnValueSetMethod,
         TypeReference returnTypeReference,
         MethodReference onExit)
     {
-        if (returnValueVariableDefinition != null)
-        {
-            yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
-            yield return processor.Create(OpCodes.Ldloc, returnValueVariableDefinition);
-
-            if (returnTypeIsValueType)
-                yield return processor.Create(OpCodes.Box, returnTypeReference);
-
-            yield return processor.Create(OpCodes.Callvirt, exitContextReturnValueSetMethod);
-        }
-
-        // Call OnExit using the SHARED exitContext
+        // 1. Call OnExit(val)
         yield return processor.Create(OpCodes.Ldloc, aspectVariableDefinition);
         yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, onExit);
 
-        // Interceptor Sync: Read possibly modified ReturnValue back from SHARED context
+        // If the method is void, we're done
         if (returnValueVariableDefinition == null)
             yield break;
 
+        // 2. Load val.ReturnValue
         yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, exitContextReturnValueGetMethod);
+
+        // Duplicate for null check
+        yield return processor.Create(OpCodes.Dup);
+
+        var isNotNullLabel = processor.Create(OpCodes.Nop);
+        var endOfBlock = processor.Create(OpCodes.Nop);
+
+        // Jump to unboxing logic if ReturnValue is NOT null
+        yield return processor.Create(OpCodes.Brtrue_S, isNotNullLabel);
+
+        // --- NULL PATH: Set to default ---
+        yield return processor.Create(OpCodes.Pop); // Remove the 'null' from the stack (the dup)
+
+        if (returnTypeReference.IsValueType)
+        {
+            // For value types (int, bool, custom structs), we use initobj
+            // This effectively does: returnValue = default(T)
+            yield return processor.Create(OpCodes.Ldloca, returnValueVariableDefinition);
+            yield return processor.Create(OpCodes.Initobj, returnTypeReference);
+        }
+        else
+        {
+            // For reference types (class, string, etc.), we simply store null
+            yield return processor.Create(OpCodes.Ldnull);
+            yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
+        }
+
+        yield return processor.Create(OpCodes.Br_S, endOfBlock);
+
+        // --- NOT NULL PATH: Unbox and assign ---
+        yield return isNotNullLabel;
         yield return processor.Create(OpCodes.Unbox_Any, returnTypeReference);
         yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
-    }
 
-    public static IEnumerable<Instruction> CreateMethodInnerInstructionsBlock(
-        this ILProcessor processor,
-        Instruction[] instructions,
-        VariableDefinition? returnVar,
-        Instruction exitPoint)
-    {
-        foreach (var instruction in instructions)
-        {
-            if (instruction.OpCode == OpCodes.Ret)
-            {
-                if (returnVar != null)
-                    yield return processor.Create(OpCodes.Stloc, returnVar);
-
-                yield return processor.Create(OpCodes.Leave, exitPoint);
-            }
-            else
-            {
-                yield return instruction;
-            }
-        }
+        yield return endOfBlock;
     }
 
     public static Instruction[] CreateOnAspectMethodBlock(
         this ILProcessor processor,
-        VariableDefinition aspectVar,
-        VariableDefinition entryContext,
-        MethodReference onEntry)
+        VariableDefinition aspectVariable,
+        VariableDefinition aspectContext,
+        MethodReference aspectContextMethod)
     {
         return
         [
-            processor.Create(OpCodes.Ldloc, aspectVar),
-            processor.Create(OpCodes.Ldloc, entryContext),
-            processor.Create(OpCodes.Callvirt, onEntry)
+            processor.Create(OpCodes.Ldloc, aspectVariable),
+            processor.Create(OpCodes.Ldloc, aspectContext),
+            processor.Create(OpCodes.Callvirt, aspectContextMethod)
         ];
+    }
+
+    public static IEnumerable<Instruction> SetContextReturnValue(
+        this ILProcessor processor,
+        VariableDefinition? returnValueVariableDefinition,
+        VariableDefinition contextVariableDefinition,
+        MethodReference contextReturnValueSetMethod,
+        TypeReference returnTypeReference,
+        bool returnTypeIsValueType)
+    {
+        if (returnValueVariableDefinition == null)
+            yield break;
+
+        yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
+        yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
+        yield return processor.Create(OpCodes.Ldloc, returnValueVariableDefinition);
+
+        if (returnTypeIsValueType)
+            yield return processor.Create(OpCodes.Box, returnTypeReference);
+
+        yield return processor.Create(OpCodes.Callvirt, contextReturnValueSetMethod);
+        yield return processor.Create(OpCodes.Ldloc, returnValueVariableDefinition);
     }
 
     private static Instruction[] SetStringProperty(

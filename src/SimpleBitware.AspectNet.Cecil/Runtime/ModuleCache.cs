@@ -11,7 +11,7 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
-    public TypeDefinition ResolveAndCache(TypeReference typeReference)
+    public TypeDefinition Resolve(TypeReference typeReference)
     {
         if (typeDefinitions.TryGetValue(typeReference.FullName, out var cached))
             return cached;
@@ -23,7 +23,7 @@ public class ModuleCache(ModuleDefinition module)
         return resolvedTypeDefinition ?? throw new ArgumentException($"TypeDefinition not found for {typeReference.FullName}");
     }
 
-    public MethodReference ImportAndCache(TypeDefinition typeDefinition, string name, int paramCount)
+    public MethodReference ImportReference(TypeDefinition typeDefinition, string name, int paramCount)
     {
         var key = $"{typeDefinition.FullName}:{name}({paramCount})";
         if(methodReferences.TryGetValue(key, out var cachedMethodReference))
@@ -32,7 +32,7 @@ public class ModuleCache(ModuleDefinition module)
         var method = typeDefinition.Methods.FirstOrDefault(m => m.Name == name && m.Parameters.Count == paramCount);
         
         var methodReference = (method == null && typeDefinition.BaseType != null)
-            ? ImportAndCache(ResolveAndCache(typeDefinition.BaseType), name, paramCount)
+            ? ImportReference(Resolve(typeDefinition.BaseType), name, paramCount)
             : module.ImportReference(method);
         
         methodReferences.TryAdd(key, methodReference);
@@ -45,13 +45,13 @@ public class ModuleCache(ModuleDefinition module)
         if (aspectCache.TryGetValue(fullName, out bool result))
             return result;
 
-        result = InheritsFrom(ResolveAndCache(typeReference), baseType);
+        result = InheritsFrom(Resolve(typeReference), baseType);
         aspectCache.TryAdd(fullName, result);
         
         return result;
     }
-    
-    public bool InheritsFrom(TypeDefinition? type, TypeDefinition baseType)
+
+    private bool InheritsFrom(TypeDefinition? type, TypeDefinition baseType)
     {
         if (type == null) 
             return false;
@@ -65,7 +65,7 @@ public class ModuleCache(ModuleDefinition module)
             return result;
 
         // 3. Check Interfaces
-        if (type.Interfaces.Any(i => i.InterfaceType.FullName == baseType.FullName || InheritsFrom(ResolveAndCache(i.InterfaceType), baseType)))
+        if (type.Interfaces.Any(i => i.InterfaceType.FullName == baseType.FullName || InheritsFrom(Resolve(i.InterfaceType), baseType)))
         {
             inheritanceCache.TryAdd(type.FullName, true);
             return true;
@@ -74,7 +74,7 @@ public class ModuleCache(ModuleDefinition module)
         // 4. Check Base Class (Recursive)
         try
         {
-            var resolvedBase = ResolveAndCache(type.BaseType);
+            var resolvedBase = Resolve(type.BaseType);
             result = InheritsFrom(resolvedBase, baseType);
         }
         catch

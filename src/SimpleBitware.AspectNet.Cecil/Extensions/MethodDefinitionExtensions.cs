@@ -57,12 +57,13 @@ public static class MethodDefinitionExtensions
             .ThenBy(x => x.index)
             .Select(x => x.attribute)
             .Reverse()
-            .ForEach(attribute =>
+            .Select((attribute, index) => new { attribute, index })
+            .ForEach(t =>
             {
                 methodInstructions = method.ReturnType.IsTaskType()
-                    ? WrapAsyncMethodInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition)
-                    : WrapSyncMethodInAttributeLayer(method, attribute, methodInstructions.ToArray(), contextVariableDefinition);
-                method.RemoveAttribute(attribute);
+                    ? WrapAsyncMethodInAttributeLayer(method, t.attribute, methodInstructions.ToArray(), contextVariableDefinition)
+                    : WrapSyncMethodInAttributeLayer(method, t.attribute, methodInstructions.ToArray(), contextVariableDefinition, t.index);
+                method.RemoveAttribute(t.attribute);
             });
 
         methodStartInstructions
@@ -148,7 +149,8 @@ public static class MethodDefinitionExtensions
         MethodDefinition method,
         CustomAttribute customAttribute,
         Instruction[] innerInstructions,
-        VariableDefinition contextVariableDefinition)
+        VariableDefinition contextVariableDefinition,
+        int index)
     {
         var processor = method.Body.GetILProcessor();
         var module = method.Module;
@@ -201,15 +203,17 @@ public static class MethodDefinitionExtensions
             .Concat(processor.SetIntegerProperty(
                 module,
                 aspectVariableDefinition,
-                module.Cache().ImportAndCache(customAttribute.AttributeType.Resolve(), MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1).Resolve(),
+                module.Cache().ImportReference(customAttribute.AttributeType.Resolve(), MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1).Resolve(),
                 customAttribute.GetPriorityValue()
             ))
             // --- START TRY ---
             .Append(handlerTryStart)
             .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry))
             .Concat(innerInstructions.Where(x => x.OpCode != OpCodes.Ret))
+            .Concat(index == 0 
+                ? processor.SetContextReturnValue(returnValueVariableDefinition, contextVariableDefinition, contextReturnValueSetMethod, returnTypeReference, method.ReturnType.IsValueType)
+                : [])
             .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnSuccess))
-            .Concat(processor.CreateMethodInnerInstructionsBlock(innerInstructions.Where(x => x.OpCode == OpCodes.Ret).ToArray(), returnValueVariableDefinition, exitPoint))
             .Append(processor.Create(OpCodes.Leave, exitPoint)) // This will trigger Finally then jump to exitPoint
 
             // --- START CATCH ---
@@ -227,11 +231,9 @@ public static class MethodDefinitionExtensions
             .Append(handlerFinallyStart)
             .Concat(processor.CreateOnExitBlock(
                 returnValueVariableDefinition,
-                method.ReturnType.IsValueType,
                 contextVariableDefinition,
                 aspectVariableDefinition,
                 contextReturnValueGetMethod,
-                contextReturnValueSetMethod,
                 returnTypeReference,
                 aspectReferences.OnExit))
             .Append(processor.Create(OpCodes.Endfinally))
@@ -530,7 +532,7 @@ public static class MethodDefinitionExtensions
         var aspectBaseType = module.ImportReference(typeof(AbstractAspectNetAttribute)).Resolve();
 
         // Most aspect methods take exactly 1 parameter: the AspectEventArgs (context)
-        return module.Cache().ImportAndCache(aspectBaseType, methodName, 1);
+        return module.Cache().ImportReference(aspectBaseType, methodName, 1);
     }
 
     private static MethodReference ImportGetRequiredService(ModuleDefinition module, TypeReference attributeType)

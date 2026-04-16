@@ -36,6 +36,34 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
             Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
         }
     }
+    
+    [Test]
+    public void Should_Record_Activity_For_Get_Public_Nullable_Property()
+    {
+        //given
+        var activityKey = new ActivityKey(typeof(ClassDecoratedWithAspectNetAttributeMethods),
+            MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicNullableValue)));
+
+        //when
+        var value = sut.PublicNullableValue;
+        var activities = ActivitiesStorage.Activities[activityKey];
+
+        //then
+        Assert.That(activities, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activities, Has.All.Matches<Activity>(a => 
+                (int?)a.Context.ReturnValue! == value &&
+                a.Context.Exception is null &&
+                a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicNullableValue)) &&
+                a.Context.Parameters.Count == 0 &&
+                a.Context.Instance?.GetType() == typeof(ClassDecoratedWithAspectNetAttributeMethods)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
+        }
+    }
 
     [Test]
     public void Should_Record_Activity_For_Set_Public_Property()
@@ -81,7 +109,7 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activities, Has.All.Matches<Activity>(a => 
-                (int)a.Context.ReturnValue! == 0 &&
+                a.Context.ReturnValue is null &&
                 a.Context.Exception is not null &&
                 a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicValueException)) &&
                 a.Context.Parameters.Count == 0 &&
@@ -109,7 +137,7 @@ public class ClassDecoratedWithAspectNetAttributePropertiesTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(activities, Has.All.Matches<Activity>(a => 
-                (int)a.Context.ReturnValue! == 0 &&
+                (int)a.Context.ReturnValue! == value &&
                 a.Context.Exception is null &&
                 a.Context.MemberName == MemberNameHelper.PropertyGetterName(nameof(ClassDecoratedWithAspectNetAttributeMethods.PublicStaticValue)) &&
                 a.Context.Parameters.Count == 0 &&

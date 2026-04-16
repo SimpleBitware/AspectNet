@@ -7,6 +7,8 @@ public class ClassDecoratedWithAspectNetAttributeMethods
 {
     public int PublicValue { get; set; }
     
+    public int? PublicNullableValue { get; set; }
+    
     public static int PublicStaticValue { get; set; }
 
     public int PublicValueException => throw new Exception(nameof(PublicValueException));
