@@ -1,9 +1,9 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
-using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Cecil.Builders;
 using SimpleBitware.AspectNet.Cecil.Helpers;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
@@ -36,45 +36,147 @@ public static class MethodDefinitionExtensions
     /// Weaves method's body into try-catch-finally block for each of the aspect net attributes.
     /// </summary>
     /// <param name="methodWithAspects"></param>
-    /// <typeparam name="TContext"></typeparam>
     /// <returns>Weaved method definition.</returns>
-    public static MethodDefinition WeaveMethod<TContext>(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
+    public static MethodDefinition WeaveMethod(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
         var aspectAttributes = methodWithAspects.Value;
+        var methodStartInstructions = method.GetStartInstructions();
+        var innerInstructions = method.GetInnerInstructions();
+        var isAsyncMethod = method.ReturnType.IsTaskType();
+        
+        if(isAsyncMethod)
+            return method;
+
+        var moduleCache = method.Module.Cache();
         var processor = method.Body.GetILProcessor();
-        var module = method.Module;
-        var contextVariableDefinition = new VariableDefinition(module.ImportReference(typeof(TContext)));
+        var contextReferences = new AspectContextReferences(moduleCache);
+        var aspectReferences = new AspectReferences(moduleCache);
 
-        var methodStartInstructions = method.GetMethodStartInstructions();
-        var methodInstructions = method.GetMethodInstructions();
+        var contextVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(AspectNetAttributeContext)));
+        var returnValueVariableDefinition = method.FindOrCreateReturnVariable();
+        var returnTypeReference = moduleCache.ImportReference(method.ReturnType);
+        var instructionSet = new InstructionSet()
+        {
+            Instructions = innerInstructions
+        };
 
-        method.ClearMethodBody();
+        var orderedAspects = aspectAttributes
+            .Select((attribute, index) => (CustomAttribute: attribute, Index: index))
+            .OrderBy(x => x.CustomAttribute.GetPriorityValue())
+            .ThenBy(x => x.Index)
+            .Select(x => x.CustomAttribute)
+            .Reverse();
 
-        aspectAttributes
-            .Select((attribute, index) => new { attribute, index })
-            .OrderBy(x => x.attribute.GetPriorityValue())
-            .ThenBy(x => x.index)
-            .Select(x => x.attribute)
-            .Reverse()
-            .Select((attribute, index) => new { attribute, index })
-            .ForEach(t =>
-            {
-                methodInstructions = method.ReturnType.IsTaskType()
-                    ? WrapAsyncMethodInAttributeLayer(method, t.attribute, methodInstructions.ToArray(), contextVariableDefinition)
-                    : WrapSyncMethodInAttributeLayer(method, t.attribute, methodInstructions.ToArray(), contextVariableDefinition, t.index);
-                method.RemoveAttribute(t.attribute);
-            });
+        new MethodBodyBuilder(method, processor, moduleCache)
+            .ClearMethodBody()
+            .AddVariable(contextVariableDefinition)
+            .ExecuteIf(returnValueVariableDefinition != null && !method.Body.Variables.Contains(returnValueVariableDefinition),
+                methodBodyBuilder => methodBodyBuilder.AddVariable(returnValueVariableDefinition))
+            .AddInstructions(methodStartInstructions)
+            .AddInstructionsBlock(instructionBlockBuilder => instructionBlockBuilder
+                .AddGenericVariable(returnValueVariableDefinition, method.ReturnType)
+                .AddInstanceVariableBlock<AspectNetAttributeContext>(instanceVariableBuilder => instanceVariableBuilder
+                    .AssignResultToVariable(contextVariableDefinition)
+                    .SetStringProperty(contextVariableDefinition, contextReferences.NameSetMethod, method.Name)
+                    .SetObjectProperty(contextVariableDefinition, contextReferences.InstanceSetMethod, method.HasThis ? method.Body.ThisParameter : null)
+                    .SetTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)), method.DeclaringType)
+                    .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)
+                    .Build()
+                )
+                .Build()
+            )
+            .AddInstructionsBlock(instructionBlockBuilder => instructionBlockBuilder
+                .ForEachAsOnion(
+                    orderedAspects,
+                    instructionSet,
+                    (builder, customAttribute, currentInstructionSet) =>
+                    {
+                        var isInnermost = (currentInstructionSet == instructionSet);
+                        var aspectVariableDefinition = new VariableDefinition(moduleCache.ImportReference(customAttribute.AttributeType));
+                        var exceptionVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(Exception)));
+                        var builtInstructionSet = builder
+                            .AddVariable(aspectVariableDefinition)
+                            .AddVariable(exceptionVariableDefinition)
+                            .Execute(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)), aspectVariableDefinition.VariableType)
+                            .AddInstanceVariableBlock(instanceVariableBuilder => instanceVariableBuilder
+                                .AssignResultToVariable(aspectVariableDefinition)
+                                .SetIntProperty(
+                                    aspectVariableDefinition,
+                                    moduleCache.ImportReference(customAttribute.AttributeType, MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1),
+                                    customAttribute.GetPriorityValue())
+                                .Build()
+                            )
+                            .AddTryCatchBlock(tryCatchBuilder =>
+                                tryCatchBuilder
+                                    .StartTry()
+                                    .AddInstructionsBlock(instructionsBlockBuilder => instructionsBlockBuilder
+                                        .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry)
+                                        .AddInstructions(currentInstructionSet.Instructions.Where(i => i.OpCode != OpCodes.Ret))
+                                        .ExecuteIf(returnValueVariableDefinition != null,
+                                            tryInstructionsBlockBuilder => tryInstructionsBlockBuilder
+                                                // Only the innermost layer consumes the stack value left by the original code.
+                                                .ExecuteIf(isInnermost, innerInstructionsBlockBuilder => 
+                                                    innerInstructionsBlockBuilder
+                                                        .AddInstanceVariableBlock(tryReturnInstanceBlockBuilder =>
+                                                            tryReturnInstanceBlockBuilder
+                                                                .AssignResultToVariable(returnValueVariableDefinition)
+                                                                .Build()
+                                                        )
+                                                        .Build()
+                                                )
+                                                .AddInstanceVariableBlock(assignReturnValueToContextBlockBuilder =>
+                                                    assignReturnValueToContextBlockBuilder
+                                                        .SetObjectProperty(
+                                                            contextVariableDefinition,
+                                                            typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue)),
+                                                            returnValueVariableDefinition)
+                                                        .Build()
+                                                )
+                                                .Build()
+                                        )
+                                        .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnSuccess)
+                                        .Build()
+                                    )
+                                    .EndTry()
+                                    .StartCatch()
+                                    .AddInstructionsBlock(catchInstructionBlockBuilder => catchInstructionBlockBuilder
+                                        .AddInstanceVariableBlock(assignExceptionToContextBlockBuilder =>
+                                            assignExceptionToContextBlockBuilder
+                                                .AssignResultToVariable(exceptionVariableDefinition)
+                                                .SetObjectProperty(contextVariableDefinition,
+                                                    typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception)),
+                                                    exceptionVariableDefinition)
+                                                .Build()
+                                        )
+                                        .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnException)
+                                        .Execute(exceptionVariableDefinition, contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                        .RethrowWhenEqual()
+                                        .GetValue(contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                        .ThrowWhenDifferent(contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                        .Build()
+                                    )
+                                    .EndCatch()
+                                    .StartFinally()
+                                    .AddInstructionsBlock(finallyInstructionBlockBuilder => finallyInstructionBlockBuilder
+                                        .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnExit)
+                                        // Restore return value if modified by aspect
+                                        .ExecuteIf(() => returnValueVariableDefinition != null, b =>
+                                            b.SetPropertyOrDefault(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference))
+                                        .Build()
+                                    )
+                                    .EndFinally()
+                                    .Build())
+                            .Build();
+                        method.RemoveAttribute(customAttribute);
+                        return builtInstructionSet;
+                    })
+                .Build()
+            )
+            .AddReturn(returnValueVariableDefinition)
+            .Build()
+            .ApplyTo(method);
 
-        methodStartInstructions
-            .Concat(processor.CreateAspectContext<TContext>(module, contextVariableDefinition, method))
-            .Concat(methodInstructions)
-            .Concat(processor.AddMethodReturn(method))
-            .ForEach(processor.Append);
-        
-        if (!method.Body.Variables.Contains(contextVariableDefinition))
-            method.Body.Variables.Add(contextVariableDefinition);
-        
         return method;
     }
 
@@ -95,21 +197,7 @@ public static class MethodDefinitionExtensions
         return genericType;
     }
 
-    private static Instruction[] GetMethodInstructions(this MethodDefinition method)
-    {
-        var originalInstructions = method.Body.Instructions.ToList();
-        if (!method.IsConstructor)
-            return originalInstructions.ToArray();
-
-        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: Constants.InstanceConstructorMethodName });
-        if (baseCall == null)
-            return originalInstructions.ToArray();
-
-        var index = originalInstructions.IndexOf(baseCall);
-        return originalInstructions.Skip(index + 1).ToArray();
-    }
-
-    private static Instruction[] GetMethodStartInstructions(this MethodDefinition method)
+    private static Instruction[] GetStartInstructions(this MethodDefinition method)
     {
         if (!method.IsConstructor)
             return [];
@@ -123,10 +211,18 @@ public static class MethodDefinitionExtensions
         return originalInstructions.Take(index + 1).ToArray();
     }
 
-    private static void ClearMethodBody(this MethodDefinition method)
+    private static Instruction[] GetInnerInstructions(this MethodDefinition method)
     {
-        method.Body.Instructions.Clear();
-        method.Body.ExceptionHandlers.Clear();
+        var originalInstructions = method.Body.Instructions.ToList();
+        if (!method.IsConstructor)
+            return originalInstructions.ToArray();
+
+        var baseCall = originalInstructions.FirstOrDefault(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference { Name: Constants.InstanceConstructorMethodName });
+        if (baseCall == null)
+            return originalInstructions.ToArray();
+
+        var index = originalInstructions.IndexOf(baseCall);
+        return originalInstructions.Skip(index + 1).ToArray();
     }
 
     private static VariableDefinition? FindOrCreateReturnVariable(this MethodDefinition method)
@@ -143,104 +239,6 @@ public static class MethodDefinitionExtensions
         }
 
         return returnVar;
-    }
-
-    private static Instruction[] WrapSyncMethodInAttributeLayer(
-        MethodDefinition method,
-        CustomAttribute customAttribute,
-        Instruction[] innerInstructions,
-        VariableDefinition contextVariableDefinition,
-        int index)
-    {
-        var processor = method.Body.GetILProcessor();
-        var module = method.Module;
-        var aspectReferences = new AspectReferences(module, customAttribute.AttributeType.Resolve());
-        var contextExceptionGetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception))!.GetMethod);
-        var contextExceptionSetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception))!.SetMethod);
-        var contextReturnValueGetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue))!.GetMethod);
-        var contextReturnValueSetMethod = module.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue))!.SetMethod);
-        var returnTypeReference = module.ImportReference(method.ReturnType);
-
-        // Layer Locals
-        var aspectVariableDefinition = new VariableDefinition(module.ImportReference(customAttribute.AttributeType));
-        var exceptionVariableDefinition = new VariableDefinition(module.ImportReference(typeof(Exception)));
-
-        method.Body.Variables.Add(aspectVariableDefinition);
-        method.Body.Variables.Add(exceptionVariableDefinition);
-
-        // Find or Create Return Variable for this method
-        var returnValueVariableDefinition = method.FindOrCreateReturnVariable();
-
-        // Jump Targets
-        var handlerTryStart = processor.Create(OpCodes.Nop);
-        var handlerCatchStart = processor.Create(OpCodes.Nop);
-        var handlerFinallyStart = processor.Create(OpCodes.Nop);
-        var exitPoint = processor.Create(OpCodes.Nop); // The landing pad after everything
-
-        // 1. Catch Handler: Protects the "Try" code
-        var catchHandler = new ExceptionHandler(ExceptionHandlerType.Catch)
-        {
-            TryStart = handlerTryStart,
-            TryEnd = handlerCatchStart, // Ends where catch begins
-            HandlerStart = handlerCatchStart,
-            HandlerEnd = handlerFinallyStart, // Ends where finally begins
-            CatchType = module.ImportReference(typeof(Exception))
-        };
-
-        // 2. Finally Handler: Protects BOTH the Try and the Catch
-        var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
-        {
-            TryStart = handlerTryStart,
-            TryEnd = handlerFinallyStart, // Covers Try + Catch
-            HandlerStart = handlerFinallyStart,
-            HandlerEnd = exitPoint // Ends at the final exit nop
-        };
-
-        method.Body.ExceptionHandlers.Add(catchHandler);
-        method.Body.ExceptionHandlers.Add(finallyHandler);
-
-        return processor.CreateGetAspectInstanceBlock(module, aspectVariableDefinition)
-            .Concat(processor.SetIntegerProperty(
-                module,
-                aspectVariableDefinition,
-                module.Cache().ImportReference(customAttribute.AttributeType.Resolve(), MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1).Resolve(),
-                customAttribute.GetPriorityValue()
-            ))
-            // --- START TRY ---
-            .Append(handlerTryStart)
-            .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry))
-            .Concat(innerInstructions.Where(x => x.OpCode != OpCodes.Ret))
-            .Concat(index == 0 
-                ? processor.SetContextReturnValue(returnValueVariableDefinition, contextVariableDefinition, contextReturnValueSetMethod, returnTypeReference, method.ReturnType.IsValueType)
-                : [])
-            .Concat(processor.CreateOnAspectMethodBlock(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnSuccess))
-            .Append(processor.Create(OpCodes.Leave, exitPoint)) // This will trigger Finally then jump to exitPoint
-
-            // --- START CATCH ---
-            .Append(handlerCatchStart)
-            .Concat(processor.CreateOnExceptionBlock(
-                contextVariableDefinition,
-                exceptionVariableDefinition,
-                contextExceptionSetMethod,
-                contextExceptionGetMethod,
-                aspectVariableDefinition,
-                aspectReferences.OnException))
-            .Append(processor.Create(OpCodes.Leave, exitPoint))
-
-            // --- START FINALLY ---
-            .Append(handlerFinallyStart)
-            .Concat(processor.CreateOnExitBlock(
-                returnValueVariableDefinition,
-                contextVariableDefinition,
-                aspectVariableDefinition,
-                contextReturnValueGetMethod,
-                returnTypeReference,
-                aspectReferences.OnExit))
-            .Append(processor.Create(OpCodes.Endfinally))
-
-            // --- EXIT ---
-            .Append(exitPoint)
-            .ToArray();
     }
 
     private static Instruction[] WrapAsyncMethodInAttributeLayer(
@@ -507,7 +505,6 @@ public static class MethodDefinitionExtensions
             default: return -1;
         }
     }
-    //------
 
     private static MethodReference ImportRunnerMethod(ModuleDefinition module, string name, bool isGeneric)
     {

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using Mono.Cecil;
 
 namespace SimpleBitware.AspectNet.Cecil.Runtime;
@@ -6,8 +7,10 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 public class ModuleCache(ModuleDefinition module)
 {
     private readonly ModuleDefinition module = module ?? throw new ArgumentNullException(nameof(module));
-    private readonly ConcurrentDictionary<string, MethodReference> methodReferences = new();
     private readonly ConcurrentDictionary<string, TypeDefinition> typeDefinitions = new();
+    private readonly ConcurrentDictionary<string, TypeReference> typeReferences = new();
+    private readonly ConcurrentDictionary<string, MethodReference> methodReferences = new();
+    private readonly ConcurrentDictionary<MethodBase, MethodReference> methodBaseReferences = new();
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
@@ -23,6 +26,50 @@ public class ModuleCache(ModuleDefinition module)
         return resolvedTypeDefinition ?? throw new ArgumentException($"TypeDefinition not found for {typeReference.FullName}");
     }
 
+    public TypeReference ImportReference(Type type)
+    {
+        if (typeReferences.TryGetValue(type.FullName, out var cached))
+            return cached;
+        
+        var importedTypeReference = module.ImportReference(type);
+        if (importedTypeReference != null)
+            typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
+    
+        return importedTypeReference ?? throw new ArgumentException($"TypeReference not found for {type.FullName}");
+    }
+
+    public TypeReference ImportReference(TypeReference typeReference)
+    {
+        if (typeReferences.TryGetValue(typeReference.FullName, out var cached))
+            return cached;
+        
+        var importedTypeReference = module.ImportReference(typeReference);
+        if (importedTypeReference != null)
+            typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
+    
+        return importedTypeReference ?? throw new ArgumentException($"TypeReference not found for {typeReference.FullName}");
+    }
+    
+    public MethodReference? ImportReference(MethodBase? method)
+    {
+        if (method is null)
+            return null;
+        
+        if (methodBaseReferences.TryGetValue(method, out var cached))
+            return cached;
+        
+        var importedMethodReference = module.ImportReference(method);
+        if (importedMethodReference != null)
+            methodBaseReferences.TryAdd(method, importedMethodReference);
+    
+        return importedMethodReference ?? throw new ArgumentException($"MethodReference not found for {method.Name} in class {method.DeclaringType?.FullName ?? "unknown"}");
+    }
+
+    public MethodReference ImportReference(TypeReference typeReference, string name, int paramCount)
+    {
+        return ImportReference(Resolve(typeReference), name, paramCount);
+    }
+    
     public MethodReference ImportReference(TypeDefinition typeDefinition, string name, int paramCount)
     {
         var key = $"{typeDefinition.FullName}:{name}({paramCount})";

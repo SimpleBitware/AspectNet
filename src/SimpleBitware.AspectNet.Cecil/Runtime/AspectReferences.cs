@@ -4,10 +4,19 @@ using SimpleBitware.AspectNet.Cecil.Extensions;
 
 namespace SimpleBitware.AspectNet.Cecil.Runtime;
 
-public class AspectReferences(ModuleDefinition targetModule, TypeDefinition baseAspectNetAttributeTypeDefinition)
+public class AspectReferences
 {
-    public MethodReference OnEntry { get; } = targetModule.Cache().ImportReference(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnEntry), 1);
-    public MethodReference OnSuccess { get; } = targetModule.Cache().ImportReference(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnSuccess), 1);
-    public MethodReference OnException { get; } = targetModule.Cache().ImportReference(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnException), 1);
-    public MethodReference OnExit { get; } = targetModule.Cache().ImportReference(baseAspectNetAttributeTypeDefinition, nameof(IAspectNetAttribute.OnExit), 1);
+    public AspectReferences(ModuleCache moduleCache)
+    {
+        var baseAspectNetAttributeTypeReference = moduleCache.ImportReference(typeof(AbstractAspectNetAttribute));
+        OnEntry = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnEntry), 1);
+        OnSuccess = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnSuccess), 1);
+        OnException = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnException), 1);
+        OnExit = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnExit), 1);
+    }
+
+    public MethodReference OnEntry { get; }
+    public MethodReference OnSuccess { get; }
+    public MethodReference OnException { get; }
+    public MethodReference OnExit { get; }
 }

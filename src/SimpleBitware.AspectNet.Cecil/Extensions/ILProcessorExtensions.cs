@@ -3,6 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Cecil.Builders;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
@@ -145,48 +146,45 @@ public static class ILProcessorExtensions
         yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, onExit);
 
-        // If the method is void, we're done
         if (returnValueVariableDefinition == null)
             yield break;
 
-        // 2. Load val.ReturnValue
+        // 2. Load val.ReturnValue onto stack
         yield return processor.Create(OpCodes.Ldloc, contextVariableDefinition);
         yield return processor.Create(OpCodes.Callvirt, exitContextReturnValueGetMethod);
-
-        // Duplicate for null check
         yield return processor.Create(OpCodes.Dup);
 
-        var isNotNullLabel = processor.Create(OpCodes.Nop);
-        var endOfBlock = processor.Create(OpCodes.Nop);
+        // Prepare our jump targets
+        var unboxTarget = processor.Create(OpCodes.Unbox_Any, returnTypeReference);
+        var finalStore = processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
 
-        // Jump to unboxing logic if ReturnValue is NOT null
-        yield return processor.Create(OpCodes.Brtrue_S, isNotNullLabel);
+        // 3. Null Check
+        yield return processor.Create(OpCodes.Brtrue_S, unboxTarget);
 
-        // --- NULL PATH: Set to default ---
-        yield return processor.Create(OpCodes.Pop); // Remove the 'null' from the stack (the dup)
-
-        if (returnTypeReference.IsValueType)
+        // --- NULL PATH ---
+        yield return processor.Create(OpCodes.Pop); // Pop the duped null
+        if (returnTypeReference.IsValueType || returnTypeReference.IsGenericParameter)
         {
-            // For value types (int, bool, custom structs), we use initobj
-            // This effectively does: returnValue = default(T)
+            // We need default(T) on the stack.
+            // We use the variable as a temporary buffer to create it.
             yield return processor.Create(OpCodes.Ldloca, returnValueVariableDefinition);
             yield return processor.Create(OpCodes.Initobj, returnTypeReference);
+            yield return processor.Create(OpCodes.Ldloc, returnValueVariableDefinition);
         }
         else
         {
-            // For reference types (class, string, etc.), we simply store null
             yield return processor.Create(OpCodes.Ldnull);
-            yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
         }
 
-        yield return processor.Create(OpCodes.Br_S, endOfBlock);
+        yield return processor.Create(OpCodes.Br_S, finalStore); // Jump to the ONLY store
 
-        // --- NOT NULL PATH: Unbox and assign ---
-        yield return isNotNullLabel;
-        yield return processor.Create(OpCodes.Unbox_Any, returnTypeReference);
-        yield return processor.Create(OpCodes.Stloc, returnValueVariableDefinition);
+        // --- NOT NULL PATH ---
+        yield return unboxTarget; // Stack now has the unboxed value
 
-        yield return endOfBlock;
+        // --- THE ONLY STORE ---
+        // Decompiler sees: StackValue = (Condition) ? PathA_Stack : PathB_Stack;
+        // Followed by: num = StackValue;
+        yield return finalStore;
     }
 
     public static Instruction[] CreateOnAspectMethodBlock(
