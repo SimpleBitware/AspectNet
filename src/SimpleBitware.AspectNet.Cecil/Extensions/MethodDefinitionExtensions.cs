@@ -9,23 +9,38 @@ using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
+/// <summary>
+/// Provides extension methods for weaving aspect-oriented programming logic into method definitions.
+/// </summary>
+/// <remarks>
+/// This class contains the core weaving logic for AspectNet, including method body transformation,
+/// try-catch-finally block generation, and aspect attribute processing.
+/// </remarks>
 public static class MethodDefinitionExtensions
 {
     /// <summary>
-    /// Applies Marker Attribute to weaved method.
+    /// Applies a marker attribute to a weaved method to indicate it has been processed.
     /// </summary>
-    /// <param name="method"></param>
-    /// <param name="markerAttributeConstructor"></param>
+    /// <param name="method">The method definition to apply the marker to.</param>
+    /// <param name="markerAttributeConstructor">The constructor of the marker attribute to apply.</param>
+    /// <remarks>
+    /// This method adds a custom attribute to the method to mark it as having been processed
+    /// by the aspect weaver, preventing duplicate processing.
+    /// </remarks>
     public static void ApplyMarkerAttribute(this MethodDefinition method, MethodReference markerAttributeConstructor)
     {
         method.CustomAttributes.Add(new CustomAttribute(markerAttributeConstructor));
     }
 
     /// <summary>
-    /// Optimizes method.
+    /// Optimizes the macros in a method's body.
     /// </summary>
-    /// <param name="method"></param>
-    /// <returns></returns>
+    /// <param name="method">The method definition to optimize.</param>
+    /// <returns>The optimized method definition.</returns>
+    /// <remarks>
+    /// This method applies Mono.Cecil's macro optimizations to the method body,
+    /// which can improve performance and reduce IL size.
+    /// </remarks>
     public static MethodDefinition OptimizeMacros(this MethodDefinition method)
     {
         method.Body.OptimizeMacros();
@@ -33,10 +48,15 @@ public static class MethodDefinitionExtensions
     }
 
     /// <summary>
-    /// Weaves method's body into try-catch-finally block for each of the aspect net attributes.
+    /// Weaves a method's body into try-catch-finally blocks for each AspectNet attribute.
     /// </summary>
-    /// <param name="methodWithAspects"></param>
-    /// <returns>Weaved method definition.</returns>
+    /// <param name="methodWithAspects">A key-value pair containing the method and its associated aspect attributes.</param>
+    /// <returns>The weaved method definition.</returns>
+    /// <remarks>
+    /// This is the core weaving method that transforms a method to include aspect-oriented behavior.
+    /// It creates nested try-catch-finally blocks for each aspect attribute, ordered by priority,
+    /// and handles both synchronous and asynchronous methods.
+    /// </remarks>
     public static MethodDefinition WeaveMethod(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
@@ -180,6 +200,15 @@ public static class MethodDefinitionExtensions
         return method;
     }
 
+    /// <summary>
+    /// Removes a custom attribute from a method and its associated property if applicable.
+    /// </summary>
+    /// <param name="method">The method definition to remove the attribute from.</param>
+    /// <param name="attribute">The custom attribute to remove.</param>
+    /// <remarks>
+    /// This method removes the attribute from the method's custom attributes collection.
+    /// If the method is a property accessor, it also removes the attribute from the property itself.
+    /// </remarks>
     private static void RemoveAttribute(this MethodDefinition method, CustomAttribute attribute)
     {
         method.CustomAttributes.Remove(attribute);
@@ -190,6 +219,15 @@ public static class MethodDefinitionExtensions
         property?.CustomAttributes.Remove(attribute);
     }
 
+    /// <summary>
+    /// Creates a generic instance of a method reference with the specified type arguments.
+    /// </summary>
+    /// <param name="method">The method reference to make generic.</param>
+    /// <param name="args">The type arguments to use for the generic method.</param>
+    /// <returns>A generic instance method reference.</returns>
+    /// <remarks>
+    /// This method is used to create closed generic method references from open generic method definitions.
+    /// </remarks>
     public static MethodReference MakeGeneric(this MethodReference method, params TypeReference[] args)
     {
         var genericType = new GenericInstanceMethod(method);
@@ -197,6 +235,15 @@ public static class MethodDefinitionExtensions
         return genericType;
     }
 
+    /// <summary>
+    /// Gets the start instructions of a method, typically the base constructor call for constructors.
+    /// </summary>
+    /// <param name="method">The method definition to extract start instructions from.</param>
+    /// <returns>An array of instructions that should be executed at the start of the method.</returns>
+    /// <remarks>
+    /// For constructors, this returns the instructions up to and including the base constructor call.
+    /// For other methods, returns an empty array.
+    /// </remarks>
     private static Instruction[] GetStartInstructions(this MethodDefinition method)
     {
         if (!method.IsConstructor)
@@ -211,6 +258,15 @@ public static class MethodDefinitionExtensions
         return originalInstructions.Take(index + 1).ToArray();
     }
 
+    /// <summary>
+    /// Gets the inner instructions of a method, excluding the start instructions.
+    /// </summary>
+    /// <param name="method">The method definition to extract inner instructions from.</param>
+    /// <returns>An array of instructions that form the main body of the method.</returns>
+    /// <remarks>
+    /// For constructors, this returns the instructions after the base constructor call.
+    /// For other methods, returns all instructions.
+    /// </remarks>
     private static Instruction[] GetInnerInstructions(this MethodDefinition method)
     {
         var originalInstructions = method.Body.Instructions.ToList();
@@ -225,6 +281,15 @@ public static class MethodDefinitionExtensions
         return originalInstructions.Skip(index + 1).ToArray();
     }
 
+    /// <summary>
+    /// Finds or creates a return value variable for the method.
+    /// </summary>
+    /// <param name="method">The method definition to find or create a return variable for.</param>
+    /// <returns>The return value variable, or null for void methods or constructors.</returns>
+    /// <remarks>
+    /// This method looks for an existing variable with the same type as the method's return type.
+    /// If none exists and the method is not void, it creates a new variable.
+    /// </remarks>
     private static VariableDefinition? FindOrCreateReturnVariable(this MethodDefinition method)
     {
         var isVoid = method.ReturnType.MetadataType == MetadataType.Void || method.IsConstructor;
@@ -241,6 +306,18 @@ public static class MethodDefinitionExtensions
         return returnVar;
     }
 
+    /// <summary>
+    /// Wraps the asynchronous method in the attribute layer for AspectNet.
+    /// </summary>
+    /// <param name="method">The method definition to wrap.</param>
+    /// <param name="customAttribute">The custom attribute associated with the aspect.</param>
+    /// <param name="innerInstructions">The inner instructions of the method.</param>
+    /// <param name="contextVariableDefinition">The context variable for aspect-oriented data.</param>
+    /// <returns>The modified instructions for the method body.</returns>
+    /// <remarks>
+    /// This method generates the IL code to wrap an asynchronous method with the necessary
+    /// aspect-oriented programming logic, including try-catch-finally blocks and aspect method calls.
+    /// </remarks>
     private static Instruction[] WrapAsyncMethodInAttributeLayer(
         MethodDefinition method,
         CustomAttribute customAttribute,
@@ -485,6 +562,14 @@ public static class MethodDefinitionExtensions
         return instructions.ToArray();
     }
 
+    /// <summary>
+    /// Gets the variable index from a load/store local variable instruction.
+    /// </summary>
+    /// <param name="instruction">The instruction to analyze.</param>
+    /// <returns>The variable index, or -1 if the instruction is not a local variable operation.</returns>
+    /// <remarks>
+    /// This method is used for peephole optimization to identify variable-related instructions.
+    /// </remarks>
     private static int GetVariableIndex(Instruction instruction)
     {
         switch (instruction.OpCode.Code)
@@ -506,6 +591,18 @@ public static class MethodDefinitionExtensions
         }
     }
 
+    /// <summary>
+    /// Imports a method reference from the AsyncAspectRunner type.
+    /// </summary>
+    /// <param name="module">The module to import into.</param>
+    /// <param name="name">The name of the method to import.</param>
+    /// <param name="isGeneric">Whether the method is generic.</param>
+    /// <returns>The imported method reference.</returns>
+    /// <exception cref="Exception">Thrown when the method cannot be found.</exception>
+    /// <remarks>
+    /// This method is used to import methods from the AsyncAspectRunner utility class
+    /// for handling asynchronous aspect operations.
+    /// </remarks>
     private static MethodReference ImportRunnerMethod(ModuleDefinition module, string name, bool isGeneric)
     {
         // Replace 'AsyncAspectRunner' with the actual class name in your library
@@ -523,6 +620,16 @@ public static class MethodDefinitionExtensions
         return module.ImportReference(method);
     }
 
+    /// <summary>
+    /// Imports an aspect method reference from the AbstractAspectNetAttribute base type.
+    /// </summary>
+    /// <param name="module">The module to import into.</param>
+    /// <param name="methodName">The name of the aspect method to import.</param>
+    /// <returns>The imported method reference.</returns>
+    /// <remarks>
+    /// This method imports aspect lifecycle methods (OnEntry, OnExit, OnException, OnSuccess)
+    /// from the base aspect attribute class.
+    /// </remarks>
     private static MethodReference ImportAspectMethod(ModuleDefinition module, string methodName)
     {
         // Replace 'AbstractAspectNetAttribute' with your actual base class/interface
@@ -532,6 +639,16 @@ public static class MethodDefinitionExtensions
         return module.Cache().ImportReference(aspectBaseType, methodName, 1);
     }
 
+    /// <summary>
+    /// Imports the GetRequiredService generic method for dependency injection.
+    /// </summary>
+    /// <param name="module">The module to import into.</param>
+    /// <param name="attributeType">The attribute type to use as the generic type argument.</param>
+    /// <returns>The imported generic method reference.</returns>
+    /// <remarks>
+    /// This method creates a closed generic version of GetRequiredService&lt;T&gt;()
+    /// where T is the specified attribute type, used for aspect instance resolution.
+    /// </remarks>
     private static MethodReference ImportGetRequiredService(ModuleDefinition module, TypeReference attributeType)
     {
         var diType = module.ImportReference(typeof(AspectNetDependencyInjection)).Resolve();

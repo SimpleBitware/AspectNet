@@ -24,7 +24,7 @@
                 AssemblyPath="$(TargetPath)"
                 References="@(ReferencePath)"
                 ShowWeavingLogs="True"
-                GenerateDebugFiles="False"/>
+                GenerateDebugFiles="True"/>
     </Target>
 
 </Project>
