@@ -24,7 +24,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     {
         try
         {
-            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
+            Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Starting weaving assembly {0}", AssemblyPath);
 
             Guard.Against.NullOrEmpty(AssemblyPath);
             Guard.Against.FileDoesNotExists(AssemblyPath);
@@ -32,10 +32,10 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             var targetAssemblyDirectory = GetTargetAssemblyDirectory(AssemblyPath);
             var pdbFilePath = GetPdbFilePath(AssemblyPath);
             var references = GetReferences();
-            var updatedFiles = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
+            var result = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
 
-            LogUpdatedFiles(updatedFiles);
-            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
+            LogResult(result);
+            Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Completed weaving assembly {0}", AssemblyPath);
             return true;
         }
         catch (Exception ex)
@@ -55,13 +55,22 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
         return File.Exists(path) ? path : null;
     }
 
-    private void LogUpdatedFiles(string[] files)
+    private void LogResult(WeavingResult result)
     {
         if (!ShowWeavingLogs)
             return;
+
+        Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] {0} cached items during weaving process.", result.CachedItems.Length);
+        foreach (var item in result.CachedItems)
+        {
+            Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Cached item: {0}", item);
+        }
         
-        foreach (var filePath in files)
-            Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Updated file: {0}", filePath);
+        if(result.AssemblyFileName is not null)
+            Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Updated assembly file: {0}", result.AssemblyFileName);
+        
+        if(result.PdbFileName is not null)
+            Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Updated pdb file: {0}", result.PdbFileName);
     }
 
     private string[] GetReferences()
@@ -72,8 +81,9 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             .Distinct()
             .ToArray();
 
+        Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] {0} referenced assemblies.", references.Length);
         references
-            .ForEach(x => Log.LogWeavingMessage(ShowWeavingLogs, "[AspectNet] Reference: {0}", x));
+            .ForEach(x => Log.LogDebugMessage(ShowWeavingLogs, "[AspectNet] Referenced assembly: {0}", x));
         
         return references;
     }

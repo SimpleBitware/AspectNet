@@ -20,6 +20,17 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
+    public string[] GetCachedItems()
+    {
+        return typeDefinitions.Keys
+            .Concat(typeReferences.Keys)
+            .Concat(methodReferences.Keys)
+            .Concat(methodBaseReferences.Keys.Select(k => k.DeclaringType?.FullName + "." + k.Name))
+            .Concat(aspectCache.Keys)
+            .Concat(inheritanceCache.Keys)
+            .ToArray();
+    }
+    
     /// <summary>
     /// Resolves a type reference to its type definition, with caching.
     /// </summary>

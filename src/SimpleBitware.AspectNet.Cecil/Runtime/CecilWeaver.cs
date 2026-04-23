@@ -29,7 +29,7 @@ public static class CecilWeaver
     /// This method is the main entry point for aspect weaving. It loads the target assembly,
     /// discovers methods with aspect attributes, weaves the aspects, and saves the modified assembly.
     /// </remarks>
-    public static string[] ProcessAssembly(
+    public static WeavingResult ProcessAssembly(
         string targetAssemblyDirectory,
         string[] references,
         string assemblyPath,
@@ -73,7 +73,7 @@ public static class CecilWeaver
     /// This generic method provides the core weaving logic, allowing for different aspect
     /// and marker attribute types to be used in the weaving process.
     /// </remarks>
-    private static string[] ProcessAssembly<TAttribute, TMarker>(
+    private static WeavingResult ProcessAssembly<TAttribute, TMarker>(
         string targetAssemblyDirectory,
         string[] references,
         string assemblyPath,
@@ -83,6 +83,7 @@ public static class CecilWeaver
         where TAttribute : class
         where TMarker : class
     {
+        string[] cachedItems = [];
         var readerParameters = GetReaderParameters(targetAssemblyDirectory, references, pdbFilePath);
         var writerParameters = GetWriteParameters(readerParameters);
 
@@ -106,14 +107,15 @@ public static class CecilWeaver
                 File.WriteAllText("after.il", module.DumpModule());
 
             module.Write(assemblyStream, writerParameters);
+            cachedItems = module.Cache().GetCachedItems();
         }
 
-        return new[]
-            {
-                assemblyStream.SaveToFile(assemblyPath),
-                writerParameters.SymbolStream?.SaveToFile(pdbFilePath)
-            }
-            .Where(x => x != null).ToArray()!;
+        return new WeavingResult()
+        {
+            AssemblyFileName = assemblyStream.SaveToFile(assemblyPath),
+            PdbFileName = writerParameters.SymbolStream?.SaveToFile(pdbFilePath),
+            CachedItems = cachedItems
+        };
     }
     
     /// <summary>
