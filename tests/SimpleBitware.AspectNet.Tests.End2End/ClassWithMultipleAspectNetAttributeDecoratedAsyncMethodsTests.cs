@@ -41,6 +41,32 @@ public class ClassWithMultipleAspectNetAttributeDecoratedAsyncMethodsTests
     }
 
     [Test]
+    public async Task Should_Record_Activity_For_Public_Async_Method2_For_All_Aspects()
+    {
+        //given
+        var value = Random.Shared.Next();
+        var activityKey = new ActivityKey(typeof(ClassWithMultipleAspectNetAttributeDecoratedMethods), nameof(ClassWithMultipleAspectNetAttributeDecoratedMethods.PublicMethod2Async));
+
+        //when
+        await sut.PublicMethod2Async();
+        var activities = ActivitiesStorage.Activities[activityKey];
+
+        //then
+        Assert.That(activities, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(activities, Has.All.Matches<Activity>(a =>
+                a.Context.Exception is null &&
+                a.Context.MemberName == nameof(ClassWithMultipleAspectNetAttributeDecoratedMethods.PublicMethod2Async) &&
+                a.Context.Instance?.GetType() == typeof(ClassWithMultipleAspectNetAttributeDecoratedMethods)
+            ));
+            Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
+            Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
+            Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
+        }
+    }
+    
+    [Test]
     public void Should_Record_Activity_For_Public_Async_Method_With_Async_Exception_For_All_Aspects()
     {
         //given

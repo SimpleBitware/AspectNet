@@ -125,7 +125,6 @@ public static class MethodDefinitionExtensions
                                 .If(isAsyncMethod,
                                     ifBlockBuilder => ifBlockBuilder
                                         .AddTryBlockForAsyncMethods(
-                                            processor,
                                             moduleCache,
                                             returnValueVariableDefinition,
                                             contextVariableDefinition,
@@ -155,30 +154,22 @@ public static class MethodDefinitionExtensions
                                         .Build()
                                 )
                                 .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnException, contextVariableDefinition)
+                                .If(isAsyncMethod,
+                                    ifBlockBuilder => ifBlockBuilder
+                                        .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnExit, contextVariableDefinition)
+                                        .Build()
+                                )
                                 .ExecuteInstanceMethod(exceptionVariableDefinition, contextReferences.ExceptionGetMethod, contextVariableDefinition)
                                 .RethrowWhenEqual()
                                 .ExecuteInstanceMethod(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .ThrowWhenDifferent(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .Build(),
                             finallyBlockBuilder => finallyBlockBuilder
-                                .If(isAsyncMethod,
+                                .If(!isAsyncMethod,
                                     ifBlockBuilder => ifBlockBuilder
-                                        .AddFinallyBlockForAsyncMethods(
-                                            contextVariableDefinition,
-                                            aspectVariableDefinition,
-                                            aspectReferences,
-                                            contextReferences,
-                                            processor)
-                                        .Build(),
-                                    elseBlockBuilder => elseBlockBuilder
-                                        .AddFinallyBlockForSyncMethods(
-                                            returnValueVariableDefinition,
-                                            contextVariableDefinition,
-                                            aspectVariableDefinition,
-                                            aspectReferences,
-                                            contextReferences,
-                                            returnTypeReference)
-                                        .Build()
+                                        .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnExit, contextVariableDefinition)
+                                        .If(returnValueVariableDefinition != null, ifBuilder =>
+                                            ifBuilder.SetPropertyOrDefault(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference))
                                 )
                                 .Build()
                         )

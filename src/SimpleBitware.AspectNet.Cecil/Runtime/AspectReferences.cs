@@ -18,7 +18,7 @@ public class AspectReferences
     /// <param name="moduleCache">The module cache used for importing method references.</param>
     public AspectReferences(ModuleCache moduleCache)
     {
-        var baseAspectNetAttributeTypeReference = moduleCache.ImportReference(typeof(AbstractAspectNetAttribute));
+        var baseAspectNetAttributeTypeReference = moduleCache.Resolve(moduleCache.ImportReference(typeof(AbstractAspectNetAttribute)));
         OnEntry = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnEntry), 1);
         OnSuccess = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnSuccess), 1);
         OnException = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnException), 1);

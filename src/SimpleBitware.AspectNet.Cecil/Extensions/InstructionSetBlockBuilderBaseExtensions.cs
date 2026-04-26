@@ -114,7 +114,6 @@ public static class InstructionSetBlockBuilderBaseExtensions
 
     public static InstructionsSetBlockBuilder AddTryBlockForAsyncMethods(
         this InstructionsSetBlockBuilder builder,
-        ILProcessor processor,
         ModuleCache moduleCache,
         VariableDefinition? returnValueVariableDefinition,
         VariableDefinition contextVariableDefinition,
@@ -127,32 +126,27 @@ public static class InstructionSetBlockBuilderBaseExtensions
             return builder;
 
         var isGeneric = returnTypeReference.IsGenericInstance;
-        bool isValueTask = returnTypeReference.IsValueTaskType();
-
-
-        // 3. Resolve the WrapAsync overload
-        var runnerTypeDef = moduleCache.ImportReference(typeof(AsyncAspectRunner)).Resolve();
-
-        // Look for the specific overload (ValueTask vs Task)
-        var wrapRunnerMethod = runnerTypeDef.Methods.First(m =>
-            m.Name == "WrapAsync" &&
-            m.HasGenericParameters == isGeneric &&
-            m.Parameters[0].ParameterType.Name.StartsWith(isValueTask ? "ValueTask" : "Task")
-        );
-
+        var isValueTask = returnTypeReference.IsValueTaskType();
+        var runnerTypeDefinition = moduleCache.Resolve(moduleCache.ImportReference(typeof(AsyncAspectRunner)));
+        var runAsyncRunnerMethodDefinition = runnerTypeDefinition.Methods
+            .First(m =>
+                m.Name == nameof(AsyncAspectRunner.RunAsync) &&
+                m.HasGenericParameters == isGeneric &&
+                m.Parameters.Any(p => isValueTask ? p.ParameterType.IsValueTaskType() : p.ParameterType.IsTaskType())
+            );
 
         MethodReference importedMethod;
         if (isGeneric && returnTypeReference is GenericInstanceType genericVt)
         {
             var T = genericVt.GenericArguments[0];
-            var methodRef = moduleCache.Module.ImportReference(wrapRunnerMethod);
+            var methodRef = moduleCache.Module.ImportReference(runAsyncRunnerMethodDefinition);
             var closedMethod = new GenericInstanceMethod(methodRef);
             closedMethod.GenericArguments.Add(moduleCache.ImportReference(T));
             importedMethod = closedMethod;
         }
         else
         {
-            importedMethod = moduleCache.Module.ImportReference(wrapRunnerMethod);
+            importedMethod = moduleCache.Module.ImportReference(runAsyncRunnerMethodDefinition);
         }
 
         return builder
@@ -168,43 +162,11 @@ public static class InstructionSetBlockBuilderBaseExtensions
                     )
                     .Build()
             )
-            .ExecuteStaticMethod(importedMethod, returnValueVariableDefinition, contextVariableDefinition, aspectVariableDefinition)
+            .ExecuteStaticMethod(importedMethod, returnValueVariableDefinition, aspectVariableDefinition, contextVariableDefinition)
             .SetVariable(variableBuilder => variableBuilder
                 .AssignResultToVariable(returnValueVariableDefinition)
                 .Build()
             );
-    }
-
-    public static InstructionsSetBlockBuilder AddFinallyBlockForAsyncMethods(
-        this InstructionsSetBlockBuilder blockBuilder,
-        VariableDefinition contextVariableDefinition,
-        VariableDefinition aspectVariableDefinition,
-        AspectReferences aspectReferences,
-        AspectContextReferences contextReferences,
-        ILProcessor processor)
-    {
-        // The instruction we jump to if context.Exception == null
-        var skipOnExitInstruction = processor.Create(OpCodes.Nop);
-
-        return blockBuilder.AddInstructions([
-            // 1. Push context.Exception onto the stack
-            processor.Create(OpCodes.Ldloc, contextVariableDefinition),
-            processor.Create(OpCodes.Callvirt, contextReferences.ExceptionGetMethod),
-
-            // 2. If null (false), jump over the OnExit call
-            processor.Create(OpCodes.Brfalse_S, skipOnExitInstruction),
-
-            // 3. --- context.Exception is NOT null ---
-            // Push aspect instance
-            processor.Create(OpCodes.Ldloc, aspectVariableDefinition),
-            // Push context instance
-            processor.Create(OpCodes.Ldloc, contextVariableDefinition),
-            // Execute aspect.OnExit(context)
-            processor.Create(OpCodes.Callvirt, aspectReferences.OnExit),
-
-            // 4. --- Jump Target ---
-            skipOnExitInstruction
-        ]);
     }
 
     public static InstructionsSetBlockBuilder AddTryBlockForSyncMethods(
@@ -240,20 +202,5 @@ public static class InstructionSetBlockBuilderBaseExtensions
                     .Build()
             )
             .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnSuccess, contextVariableDefinition);
-    }
-
-    public static InstructionsSetBlockBuilder AddFinallyBlockForSyncMethods(
-        this InstructionsSetBlockBuilder blockBuilder,
-        VariableDefinition? returnValueVariableDefinition,
-        VariableDefinition contextVariableDefinition,
-        VariableDefinition aspectVariableDefinition,
-        AspectReferences aspectReferences,
-        AspectContextReferences contextReferences,
-        TypeReference returnTypeReference)
-    {
-        return blockBuilder
-            .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnExit, contextVariableDefinition)
-            .If(returnValueVariableDefinition != null, ifBuilder =>
-                ifBuilder.SetPropertyOrDefault(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference));
     }
 }

@@ -15,14 +15,14 @@ public static class AsyncAspectRunner
     /// Wraps a Task with aspect processing.
     /// </summary>
     /// <param name="task">The task to wrap, or null to skip execution.</param>
-    /// <param name="context">The aspect context containing execution metadata.</param>
     /// <param name="aspect">The aspect instance to apply.</param>
+    /// <param name="context">The aspect context containing execution metadata.</param>
     /// <returns>A task that completes after aspect processing.</returns>
     /// <remarks>
     /// If the task is null, only OnSuccess and OnExit aspect methods are called.
     /// Otherwise, the task is awaited and aspect lifecycle methods are applied.
     /// </remarks>
-    public static async Task WrapAsync(Task? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    public static async Task RunAsync(Task? task, IAspectNetAttribute aspect, AspectNetAttributeContext context)
     {
         if (task == null) 
         {
@@ -54,14 +54,14 @@ public static class AsyncAspectRunner
     /// </summary>
     /// <typeparam name="T">The result type of the task.</typeparam>
     /// <param name="task">The generic task to wrap, or null to skip execution.</param>
-    /// <param name="context">The aspect context containing execution metadata.</param>
     /// <param name="aspect">The aspect instance to apply.</param>
+    /// <param name="context">The aspect context containing execution metadata.</param>
     /// <returns>The result of the task after aspect processing.</returns>
     /// <remarks>
     /// If the task is null, only OnSuccess and OnExit aspect methods are called and default(T) is returned.
     /// Otherwise, the task is awaited, the result is processed through aspects, and the final result is returned.
     /// </remarks>
-    public static async Task<T> WrapAsync<T>(Task<T>? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    public static async Task<T> RunAsync<T>(Task<T>? task, IAspectNetAttribute aspect, AspectNetAttributeContext context)
     {
         if (task == null) 
         {
@@ -94,11 +94,18 @@ public static class AsyncAspectRunner
         return result;
     }
     
-    public static async ValueTask WrapAsync(ValueTask task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    /// <summary>
+    /// Wraps a ValueTask with aspect processing.
+    /// </summary>
+    /// <param name="valueTask">The value task to wrap, or null to skip execution.</param>
+    /// <param name="aspect">The aspect instance to apply.</param>
+    /// <param name="context">The aspect context containing execution metadata.</param>
+    /// <returns>A value task that completes after aspect processing.</returns>
+    public static async ValueTask RunAsync(ValueTask valueTask, IAspectNetAttribute aspect, AspectNetAttributeContext context)
     {
         try
         {
-            await task;
+            await valueTask;
             aspect.OnSuccess(context);
         }
         catch (Exception ex)
@@ -114,12 +121,19 @@ public static class AsyncAspectRunner
         }
     }
 
-    public static async ValueTask<T> WrapAsync<T>(ValueTask<T> task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    /// <summary>
+    /// Wraps a ValueTask with aspect processing.
+    /// </summary>
+    /// <param name="valueTask">The value task to wrap, or null to skip execution.</param>
+    /// <param name="aspect">The aspect instance to apply.</param>
+    /// <param name="context">The aspect context containing execution metadata.</param>
+    /// <returns>A value task that completes after aspect processing.</returns>
+    public static async ValueTask<T> RunAsync<T>(ValueTask<T> valueTask, IAspectNetAttribute aspect, AspectNetAttributeContext context)
     {
         T result;
         try
         {
-            result = await task;
+            result = await valueTask;
             context.ReturnValue = result;
             aspect.OnSuccess(context);
         }
