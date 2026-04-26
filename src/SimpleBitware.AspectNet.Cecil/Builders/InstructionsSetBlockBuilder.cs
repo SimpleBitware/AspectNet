@@ -14,27 +14,35 @@ namespace SimpleBitware.AspectNet.Cecil.Builders;
 /// This builder extends <see cref="InstructionSetBlockBuilderBase{TBuilder}"/> and provides specialized
 /// methods for common IL patterns such as property assignment, value extraction, and exception handling.
 /// </remarks>
-public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache) : InstructionSetBlockBuilderBase<InstructionsSetBlockBuilder>(method, processor, moduleCache)
+public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache)
+    : InstructionSetBlockBuilderBase<InstructionsSetBlockBuilder>(method, processor, moduleCache)
 {
     /// <summary>
     /// Loads a value from a variable and calls a method reference on it.
     /// </summary>
-    /// <param name="parameter">The variable to load from.</param>
+    /// <param name="instanceVariableDefinition">The object which has the method to be executed.</param>
     /// <param name="methodReference">The method to call on the loaded value, or null to skip the operation.</param>
+    /// <param name="parameters">The parameters passed to the method to be executed</param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <remarks>
     /// If <paramref name="methodReference"/> is null, this method has no effect.
     /// </remarks>
-    public InstructionsSetBlockBuilder GetValue(VariableDefinition parameter, MethodReference? methodReference)
+    public InstructionsSetBlockBuilder ExecuteInstanceMethod(
+        VariableDefinition? instanceVariableDefinition,
+        MethodReference? methodReference,
+        params VariableDefinition[] parameters)
     {
-        if (methodReference is not null)
+        if (instanceVariableDefinition is not null && methodReference is not null)
         {
-            Instructions.AddRange([
-                Processor.Create(OpCodes.Ldloc, parameter),
-                Processor.Create(OpCodes.Callvirt, methodReference)
-            ]);
+            var parameterInstructions = parameters
+                .Select(p => Processor.Create(OpCodes.Ldloc, p))
+                .ToArray();
+            
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, instanceVariableDefinition));
+            Instructions.AddRange(parameterInstructions);
+            Instructions.Add(Processor.Create(OpCodes.Callvirt, methodReference));
         }
-
+        
         return this;
     }
 
@@ -103,7 +111,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
 
         return this;
     }
-    
+
     public InstructionsSetBlockBuilder SetPropertyIfNotNull(
         VariableDefinition? variableDefinition,
         VariableDefinition instance,
@@ -140,7 +148,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
 
         return this;
     }
-    
+
     /// <summary>
     /// Executes a method with the specified return type.
     /// </summary>
@@ -162,29 +170,18 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
     }
 
     /// <summary>
-    /// Executes a method by loading variables and calling the method reference.
+    /// Loads variables to be available for future use.
     /// </summary>
-    /// <param name="variable">The variable to load first.</param>
-    /// <param name="parameter">The parameter variable to pass to the method.</param>
-    /// <param name="methodReference">The method reference to call, or null to skip operation.</param>
+    /// <param name="variable">The variable to load.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// If <paramref name="methodReference"/> is null, this method has no effect.
-    /// </remarks>
-    public InstructionsSetBlockBuilder Execute(
-        VariableDefinition variable,
-        VariableDefinition parameter,
-        MethodReference? methodReference)
+    public InstructionsSetBlockBuilder LoadVariable(VariableDefinition? variable)
     {
-        if (methodReference is not null)
-        {
+        if(variable is not null)
             Instructions.Add(Processor.Create(OpCodes.Ldloc, variable));
-            GetValue(parameter, methodReference);
-        }
 
         return this;
     }
-    
+
     /// <summary>
     /// Generates IL to rethrow an exception when a condition is equal to a specific value.
     /// </summary>
@@ -216,12 +213,14 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
     public InstructionsSetBlockBuilder ThrowWhenDifferent(VariableDefinition variable, MethodReference? methodReference)
     {
         var skipToInstruction = Processor.Create(OpCodes.Nop);
-        Instructions.Add(Processor.Create(OpCodes.Brfalse_S, skipToInstruction));
-        GetValue(variable, methodReference);
-        Instructions.AddRange([
-            Processor.Create(OpCodes.Throw),
-            skipToInstruction
-        ]);
+        AddInstructions([
+                Processor.Create(OpCodes.Brfalse_S, skipToInstruction)
+            ])
+            .ExecuteInstanceMethod(variable, methodReference)
+            .AddInstructions([
+                Processor.Create(OpCodes.Throw),
+                skipToInstruction
+            ]);
 
         return this;
     }

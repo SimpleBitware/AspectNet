@@ -63,7 +63,7 @@ public static class MethodDefinitionExtensions
         var aspectAttributes = methodWithAspects.Value;
         var methodStartInstructions = method.GetStartInstructions();
         var innerInstructions = method.GetInnerInstructions();
-        var isAsyncMethod = method.ReturnType.IsTaskType();
+        var isAsyncMethod = method.ReturnType.IsTaskOrValueTaskType();
 
         var moduleCache = method.Module.Cache();
         var processor = method.Body.GetILProcessor();
@@ -121,18 +121,16 @@ public static class MethodDefinitionExtensions
                         )
                         .AddTryCatch(
                             tryBlockBuilder => tryBlockBuilder
-                                .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry)
+                                .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnEntry, contextVariableDefinition)
                                 .If(isAsyncMethod,
                                     ifBlockBuilder => ifBlockBuilder
                                         .AddTryBlockForAsyncMethods(
                                             processor,
-                                            method.Module,
                                             moduleCache,
                                             returnValueVariableDefinition,
                                             contextVariableDefinition,
                                             aspectVariableDefinition,
                                             returnTypeReference,
-                                            returnTypeReference.IsGenericInstance,
                                             isInnermost,
                                             currentInstructionSet)
                                         .Build(),
@@ -156,10 +154,10 @@ public static class MethodDefinitionExtensions
                                             exceptionVariableDefinition)
                                         .Build()
                                 )
-                                .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnException)
-                                .Execute(exceptionVariableDefinition, contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnException, contextVariableDefinition)
+                                .ExecuteInstanceMethod(exceptionVariableDefinition, contextReferences.ExceptionGetMethod, contextVariableDefinition)
                                 .RethrowWhenEqual()
-                                .GetValue(contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                .ExecuteInstanceMethod(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .ThrowWhenDifferent(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .Build(),
                             finallyBlockBuilder => finallyBlockBuilder

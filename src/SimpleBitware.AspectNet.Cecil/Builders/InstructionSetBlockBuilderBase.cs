@@ -78,8 +78,7 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// </remarks>
     public TBuilder AddVariable(VariableDefinition? variableDefinition)
     {
-        if (variableDefinition is not null &&
-            !Method.Body.Variables.Contains(variableDefinition))
+        if (variableDefinition is not null && !Method.Body.Variables.Contains(variableDefinition))
             Method.Body.Variables.Add(variableDefinition);
 
         return (TBuilder)this;
@@ -195,36 +194,18 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// </summary>
     /// <param name="condition">The boolean condition to evaluate.</param>
     /// <param name="ifAction">The action to execute if the condition is true.</param>
-    /// <param name="elseAction">The action to execute if the condition is false.</param>
+    /// <param name="elseAction">Optional action to execute if the condition is false.</param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <remarks>
     /// This method allows for conditional builder logic at configuration time,
     /// not to be confused with runtime IL conditions.
     /// </remarks>
-    public TBuilder If(bool condition, Action<TBuilder> ifAction, Action<TBuilder> elseAction)
+    public TBuilder If(bool condition, Action<TBuilder> ifAction, Action<TBuilder>? elseAction = null)
     {
         if (condition)
             ifAction((TBuilder)this);
         else
-            elseAction((TBuilder)this);
-
-        return (TBuilder)this;
-    }
-
-    /// <summary>
-    /// Conditionally executes an action based on the provided condition delegate.
-    /// </summary>
-    /// <param name="condition">The boolean condition to evaluate.</param>
-    /// <param name="action">The action to execute if the condition returns true.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method allows for conditional builder logic at configuration time,
-    /// evaluating the condition immediately rather than generating IL conditional code.
-    /// </remarks>
-    public TBuilder If(bool condition, Action<TBuilder> action)
-    {
-        if (condition)
-            action((TBuilder)this);
+            elseAction?.Invoke((TBuilder)this);
 
         return (TBuilder)this;
     }

@@ -20,6 +20,8 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
+    public ModuleDefinition Module => module;
+
     public string[] GetCachedItems()
     {
         return typeDefinitions.Keys
