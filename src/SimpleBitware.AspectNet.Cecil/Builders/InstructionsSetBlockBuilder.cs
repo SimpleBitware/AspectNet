@@ -18,7 +18,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
     : InstructionSetBlockBuilderBase<InstructionsSetBlockBuilder>(method, processor, moduleCache)
 {
     /// <summary>
-    /// Loads a value from a variable and calls a method reference on it.
+    /// Executes instance method with specified parameters.
     /// </summary>
     /// <param name="instanceVariableDefinition">The object which has the method to be executed.</param>
     /// <param name="methodReference">The method to call on the loaded value, or null to skip the operation.</param>
@@ -45,7 +45,33 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
         
         return this;
     }
-
+    
+    /// <summary>
+    /// Executes static method with specified parameters.
+    /// </summary>
+    /// <param name="methodReference">The method to call on the loaded value, or null to skip the operation.</param>
+    /// <param name="parameters">The parameters passed to the method to be executed</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <remarks>
+    /// If <paramref name="methodReference"/> is null, this method has no effect.
+    /// </remarks>
+    public InstructionsSetBlockBuilder ExecuteStaticMethod(
+        MethodReference? methodReference,
+        params VariableDefinition[] parameters)
+    {
+        if (methodReference is not null)
+        {
+            var parameterInstructions = parameters
+                .Select(p => Processor.Create(OpCodes.Ldloc, p))
+                .ToArray();
+            
+            Instructions.AddRange(parameterInstructions);
+            Instructions.Add(Processor.Create(OpCodes.Call, methodReference));
+        }
+        
+        return this;
+    }
+    
     /// <summary>
     /// Sets a property value or uses a default value if the source is null.
     /// </summary>
@@ -164,7 +190,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
 
         var methodReference = ModuleCache.ImportReference(methodInfo)?.MakeGeneric(returnType);
         if (methodReference is not null)
-            Instructions.Add(Processor.Create(OpCodes.Call, methodReference));
+            ExecuteStaticMethod(methodReference);
 
         return this;
     }

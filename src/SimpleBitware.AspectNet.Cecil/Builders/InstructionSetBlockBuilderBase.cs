@@ -61,7 +61,7 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// </summary>
     /// <param name="function">A function that receives an <see cref="InstanceVariableBuilder"/> and returns an instruction set.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    public TBuilder AddInstanceVariable(Func<InstanceVariableBuilder, InstructionSet> function)
+    public TBuilder SetVariable(Func<InstanceVariableBuilder, InstructionSet> function)
     {
         var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
         Instructions.AddRange(instructionSet.Instructions);
@@ -72,14 +72,21 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// Adds a variable definition to the method body.
     /// </summary>
     /// <param name="variableDefinition">The variable to add, or null to skip addition.</param>
+    /// <param name="function"></param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <remarks>
     /// If <paramref name="variableDefinition"/> is null, this method has no effect.
     /// </remarks>
-    public TBuilder AddVariable(VariableDefinition? variableDefinition)
+    public TBuilder AddVariable(VariableDefinition? variableDefinition, Func<InstanceVariableBuilder, InstructionSet>? function = null)
     {
         if (variableDefinition is not null && !Method.Body.Variables.Contains(variableDefinition))
             Method.Body.Variables.Add(variableDefinition);
+        
+        if(function is not null)
+        {
+            var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
+            Instructions.AddRange(instructionSet.Instructions);
+        }
 
         return (TBuilder)this;
     }

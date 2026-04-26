@@ -123,11 +123,11 @@ public static class InstructionSetBlockBuilderBaseExtensions
         bool isInnermost,
         InstructionSet currentInstructionSet)
     {
+        if (returnValueVariableDefinition is null)
+            return builder;
+
         var isGeneric = returnTypeReference.IsGenericInstance;
         bool isValueTask = returnTypeReference.IsValueTaskType();
-
-        var instructions = new List<Instruction>();
-
 
 
         // 3. Resolve the WrapAsync overload
@@ -140,7 +140,7 @@ public static class InstructionSetBlockBuilderBaseExtensions
             m.Parameters[0].ParameterType.Name.StartsWith(isValueTask ? "ValueTask" : "Task")
         );
 
-        
+
         MethodReference importedMethod;
         if (isGeneric && returnTypeReference is GenericInstanceType genericVt)
         {
@@ -155,10 +155,6 @@ public static class InstructionSetBlockBuilderBaseExtensions
             importedMethod = moduleCache.Module.ImportReference(wrapRunnerMethod);
         }
 
-        // 4. Call WrapAsync and update the local variable with the new wrapped task
-        instructions.Add(processor.Create(OpCodes.Call, importedMethod));
-        instructions.Add(processor.Create(OpCodes.Stloc, returnValueVariableDefinition));
-
         return builder
             .AddInstructions(currentInstructionSet.Instructions
                 .SkipLastWhile(x => x.OpCode == OpCodes.Ret)
@@ -166,16 +162,17 @@ public static class InstructionSetBlockBuilderBaseExtensions
                 .ApplyPeepholeOptimization())
             .If(isInnermost,
                 ifBlockBuilder => ifBlockBuilder
-                    .AddInstanceVariable(variableBuilder => variableBuilder
+                    .SetVariable(variableBuilder => variableBuilder
                         .AssignResultToVariable(returnValueVariableDefinition)
                         .Build()
                     )
                     .Build()
             )
-            .LoadVariable(returnValueVariableDefinition)
-            .LoadVariable(contextVariableDefinition)
-            .LoadVariable(aspectVariableDefinition)
-            .AddInstructions(instructions);
+            .ExecuteStaticMethod(importedMethod, returnValueVariableDefinition, contextVariableDefinition, aspectVariableDefinition)
+            .SetVariable(variableBuilder => variableBuilder
+                .AssignResultToVariable(returnValueVariableDefinition)
+                .Build()
+            );
     }
 
     public static InstructionsSetBlockBuilder AddFinallyBlockForAsyncMethods(
@@ -223,17 +220,16 @@ public static class InstructionSetBlockBuilderBaseExtensions
             .AddInstructions(currentInstructionSet.Instructions.SkipLastWhile(x => x.OpCode == OpCodes.Ret))
             .If(returnValueVariableDefinition != null,
                 tryInstructionsBlockBuilder => tryInstructionsBlockBuilder
-                    // Only the innermost layer consumes the stack value left by the original code.
                     .If(isInnermost, innerInstructionsBlockBuilder =>
                         innerInstructionsBlockBuilder
-                            .AddInstanceVariable(tryReturnInstanceBlockBuilder =>
+                            .SetVariable(tryReturnInstanceBlockBuilder =>
                                 tryReturnInstanceBlockBuilder
                                     .AssignResultToVariable(returnValueVariableDefinition)
                                     .Build()
                             )
                             .Build()
                     )
-                    .AddInstanceVariable(assignReturnValueToContextBlockBuilder =>
+                    .SetVariable(assignReturnValueToContextBlockBuilder =>
                         assignReturnValueToContextBlockBuilder
                             .SetObjectProperty(
                                 contextVariableDefinition,
@@ -257,7 +253,6 @@ public static class InstructionSetBlockBuilderBaseExtensions
     {
         return blockBuilder
             .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnExit, contextVariableDefinition)
-            // Restore return value if modified by aspect
             .If(returnValueVariableDefinition != null, ifBuilder =>
                 ifBuilder.SetPropertyOrDefault(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference));
     }

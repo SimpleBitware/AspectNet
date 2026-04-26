@@ -111,7 +111,7 @@ public static class MethodDefinitionExtensions
                         .AddVariable(aspectVariableDefinition)
                         .AddVariable(exceptionVariableDefinition)
                         .Execute(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)), aspectVariableDefinition.VariableType)
-                        .AddInstanceVariable(instanceVariableBuilder => instanceVariableBuilder
+                        .SetVariable(instanceVariableBuilder => instanceVariableBuilder
                             .AssignResultToVariable(aspectVariableDefinition)
                             .SetIntProperty(
                                 aspectVariableDefinition,
@@ -146,7 +146,7 @@ public static class MethodDefinitionExtensions
                                 )
                                 .Build(),
                             catchBlockBuilder => catchBlockBuilder
-                                .AddInstanceVariable(assignExceptionToContextBlockBuilder =>
+                                .SetVariable(assignExceptionToContextBlockBuilder =>
                                     assignExceptionToContextBlockBuilder
                                         .AssignResultToVariable(exceptionVariableDefinition)
                                         .SetObjectProperty(contextVariableDefinition,
