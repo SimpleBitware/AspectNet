@@ -14,78 +14,8 @@ namespace SimpleBitware.AspectNet.Cecil.Builders;
 /// This builder extends <see cref="InstructionSetBlockBuilderBase{TBuilder}"/> and provides specialized
 /// methods for common IL patterns such as property assignment, value extraction, and exception handling.
 /// </remarks>
-public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache) : InstructionSetBlockBuilderBase<InstructionsBlockBuilder>(method, processor, moduleCache)
+public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache) : InstructionSetBlockBuilderBase<InstructionsSetBlockBuilder>(method, processor, moduleCache)
 {
-    /// <summary>
-    /// Iterates over items using an onion pattern, where each iteration wraps the previous instructions.
-    /// </summary>
-    /// <typeparam name="T">The type of items to iterate over.</typeparam>
-    /// <param name="items">The collection of items to iterate over.</param>
-    /// <param name="initialInstructionSet">The initial instruction set to start with.</param>
-    /// <param name="function">A function that produces an instruction set for each item, receiving the builder, item, and current instruction set.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// The onion pattern creates nested instruction blocks where each iteration's output becomes
-    /// the input for the next iteration, creating a layered structure.
-    /// </remarks>
-    public InstructionsBlockBuilder ForEachAsOnion<T>(IEnumerable<T> items, InstructionSet initialInstructionSet, Func<InstructionsBlockBuilder, T, InstructionSet, InstructionSet> function)
-    {
-        var currentInstructionSet = initialInstructionSet;
-        items
-            .ForEach(x =>
-            {
-                var blockBuilder = new InstructionsBlockBuilder(Method, Processor, ModuleCache);
-                currentInstructionSet = function(blockBuilder, x, currentInstructionSet);
-            });
-        Instructions.AddRange(currentInstructionSet.Instructions);
-        return this;
-    }
-    
-    /// <summary>
-    /// Adds an instance variable block with an instance of type T created by the provided function.
-    /// </summary>
-    /// <typeparam name="T">The type of instance to create.</typeparam>
-    /// <param name="function">A function that receives an <see cref="InstanceVariableBuilder"/> initialized with a new instance of T.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    public InstructionsBlockBuilder AddInstanceVariableBlock<T>(Func<InstanceVariableBuilder, InstructionSet> function)
-    {
-        var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache).Create<T>());
-        Instructions.AddRange(instructionSet.Instructions);
-        return this;
-    }
-    
-    /// <summary>
-    /// Adds an instance variable block built by the provided function.
-    /// </summary>
-    /// <param name="function">A function that receives an <see cref="InstanceVariableBuilder"/> and returns an instruction set.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    public InstructionsBlockBuilder AddInstanceVariableBlock(Func<InstanceVariableBuilder, InstructionSet> function)
-    {
-        var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
-        Instructions.AddRange(instructionSet.Instructions);
-        return this;
-    }
-    
-    /// <summary>
-    /// Adds a generic variable to the method body and initializes it with default value.
-    /// </summary>
-    /// <param name="variableDefinition">The variable to add, or null to skip addition.</param>
-    /// <param name="typeReference">The type reference for initialization.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// If <paramref name="variableDefinition"/> is null, this method has no effect.
-    /// Uses the <c>initobj</c> IL instruction to initialize value types to their default values.
-    /// </remarks>
-    public InstructionsBlockBuilder AddGenericVariable(VariableDefinition? variableDefinition, TypeReference typeReference)
-    {
-        if (variableDefinition == null) return this;
-
-        Method.Body.Variables.Add(variableDefinition);
-        Instructions.Add(Processor.Create(OpCodes.Ldloca, variableDefinition));
-        Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
-        return this;
-    }
-
     /// <summary>
     /// Loads a value from a variable and calls a method reference on it.
     /// </summary>
@@ -95,7 +25,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// <remarks>
     /// If <paramref name="methodReference"/> is null, this method has no effect.
     /// </remarks>
-    public InstructionsBlockBuilder GetValue(VariableDefinition parameter, MethodReference? methodReference)
+    public InstructionsSetBlockBuilder GetValue(VariableDefinition parameter, MethodReference? methodReference)
     {
         if (methodReference is not null)
         {
@@ -120,7 +50,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// This method generates IL that retrieves a value from an instance, checks if it is null,
     /// and either unboxes the value or creates a default value for the specified type.
     /// </remarks>
-    public InstructionsBlockBuilder SetPropertyOrDefault(
+    public InstructionsSetBlockBuilder SetPropertyOrDefault(
         VariableDefinition? variableDefinition,
         VariableDefinition instance,
         MethodReference? getMethod,
@@ -174,6 +104,43 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
         return this;
     }
     
+    public InstructionsSetBlockBuilder SetPropertyIfNotNull(
+        VariableDefinition? variableDefinition,
+        VariableDefinition instance,
+        MethodReference? getMethod,
+        TypeReference returnTypeReference)
+    {
+        if (variableDefinition is not null && getMethod is not null)
+        {
+            // 1. Load context.ReturnValue (or target property) onto stack
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, instance));
+            Instructions.Add(Processor.Create(OpCodes.Callvirt, getMethod));
+            Instructions.Add(Processor.Create(OpCodes.Dup)); // Dup for the null check
+
+            // 2. Prepare jump targets
+            var unboxAndStoreTarget = Processor.Create(OpCodes.Unbox_Any, returnTypeReference);
+            var endTarget = Processor.Create(OpCodes.Nop);
+
+            // 3. If the value on stack is NOT null, jump to unbox and store it
+            Instructions.Add(Processor.Create(OpCodes.Brtrue_S, unboxAndStoreTarget));
+
+            // 4. --- NULL PATH ---
+            // If it is null, we do NOTHING to the variable. 
+            // We just pop the duplicated null and jump to the end.
+            Instructions.Add(Processor.Create(OpCodes.Pop));
+            Instructions.Add(Processor.Create(OpCodes.Br_S, endTarget));
+
+            // 5. --- NOT NULL PATH ---
+            Instructions.Add(unboxAndStoreTarget);
+            Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
+
+            // 6. --- END ---
+            Instructions.Add(endTarget);
+        }
+
+        return this;
+    }
+    
     /// <summary>
     /// Executes a method with the specified return type.
     /// </summary>
@@ -183,7 +150,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// <remarks>
     /// If <paramref name="methodInfo"/> is null, this method has no effect.
     /// </remarks>
-    public InstructionsBlockBuilder Execute(MethodInfo? methodInfo, TypeReference returnType)
+    public InstructionsSetBlockBuilder Execute(MethodInfo? methodInfo, TypeReference returnType)
     {
         if (methodInfo is null) return this;
 
@@ -204,7 +171,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// <remarks>
     /// If <paramref name="methodReference"/> is null, this method has no effect.
     /// </remarks>
-    public InstructionsBlockBuilder Execute(
+    public InstructionsSetBlockBuilder Execute(
         VariableDefinition variable,
         VariableDefinition parameter,
         MethodReference? methodReference)
@@ -225,7 +192,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// <remarks>
     /// This method generates IL that branches away if values are not equal, otherwise rethrows the current exception.
     /// </remarks>
-    public InstructionsBlockBuilder RethrowWhenEqual()
+    public InstructionsSetBlockBuilder RethrowWhenEqual()
     {
         var skipToInstruction = Processor.Create(OpCodes.Nop);
         Instructions.AddRange([
@@ -246,7 +213,7 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
     /// <remarks>
     /// If the condition is false, execution branches around the throw instruction.
     /// </remarks>
-    public InstructionsBlockBuilder ThrowWhenDifferent(VariableDefinition variable, MethodReference? methodReference)
+    public InstructionsSetBlockBuilder ThrowWhenDifferent(VariableDefinition variable, MethodReference? methodReference)
     {
         var skipToInstruction = Processor.Create(OpCodes.Nop);
         Instructions.Add(Processor.Create(OpCodes.Brfalse_S, skipToInstruction));
@@ -255,26 +222,6 @@ public class InstructionsBlockBuilder(MethodDefinition method, ILProcessor proce
             Processor.Create(OpCodes.Throw),
             skipToInstruction
         ]);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Conditionally executes an action based on the provided condition delegate.
-    /// </summary>
-    /// <param name="condition">A delegate that returns a boolean condition to evaluate.</param>
-    /// <param name="action">The action to execute if the condition returns true.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method allows for conditional builder logic at configuration time,
-    /// evaluating the condition immediately rather than generating IL conditional code.
-    /// </remarks>
-    public InstructionsBlockBuilder ExecuteIf(Func<bool> condition, Action<InstructionsBlockBuilder> action)
-    {
-        if (condition())
-        {
-            action(this);
-        }
 
         return this;
     }

@@ -40,11 +40,8 @@ public static class AsyncAspectRunner
         {
             context.Exception = ex;
             aspect.OnException(context);
-            if (context.Exception == ex)
-                throw;
-
-            if (context.Exception != null)
-                throw context.Exception;
+            if (context.Exception == ex) throw;
+            if (context.Exception != null) throw context.Exception;
         }
         finally
         {
@@ -64,34 +61,80 @@ public static class AsyncAspectRunner
     /// If the task is null, only OnSuccess and OnExit aspect methods are called and default(T) is returned.
     /// Otherwise, the task is awaited, the result is processed through aspects, and the final result is returned.
     /// </remarks>
-    public static async Task<T?> WrapAsync<T>(Task<T>? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    public static async Task<T> WrapAsync<T>(Task<T>? task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
     {
         if (task == null) 
         {
             aspect.OnSuccess(context);
             aspect.OnExit(context);
-            return default;
+            return default!;
         }
-        
+
+        T result;
         try
         {
-            var result = await task;
+            result = await task;
             context.ReturnValue = result;
             aspect.OnSuccess(context);
-            return (T?)context.ReturnValue;
         }
         catch (Exception ex)
         {
             context.Exception = ex;
             aspect.OnException(context);
-            if (context.Exception == ex)
-                throw;
-            
-            return context.Exception != null ? throw context.Exception : default;
+            if (context.Exception == ex) throw;
+            if (context.Exception != null) throw context.Exception;
+        }
+        finally
+        {
+            aspect.OnExit(context);
+            var returnValue = context.ReturnValue;
+            result = returnValue != null ? (T)returnValue : default!;
+        }
+        
+        return result;
+    }
+    
+    public static async ValueTask WrapAsync(ValueTask task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    {
+        try
+        {
+            await task;
+            aspect.OnSuccess(context);
+        }
+        catch (Exception ex)
+        {
+            context.Exception = ex;
+            aspect.OnException(context);
+            if (context.Exception == ex) throw;
+            if (context.Exception != null) throw context.Exception;
         }
         finally
         {
             aspect.OnExit(context);
         }
+    }
+
+    public static async ValueTask<T> WrapAsync<T>(ValueTask<T> task, AspectNetAttributeContext context, IAspectNetAttribute aspect)
+    {
+        T result;
+        try
+        {
+            result = await task;
+            context.ReturnValue = result;
+            aspect.OnSuccess(context);
+        }
+        catch (Exception ex)
+        {
+            context.Exception = ex;
+            aspect.OnException(context);
+            if (context.Exception == ex) throw;
+            if (context.Exception != null) throw context.Exception;
+        }
+        finally
+        {
+            aspect.OnExit(context);
+            result = context.ReturnValue != null ? (T)context.ReturnValue : default!;
+        }
+        return result;
     }
 }

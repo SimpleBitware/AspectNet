@@ -1,4 +1,5 @@
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using MoreLinq;
 using SimpleBitware.AspectNet.Cecil.Builders;
 
@@ -16,10 +17,9 @@ public static class MethodBodyExtensions
     /// Applies an instruction set to a method definition, replacing its current body.
     /// </summary>
     /// <param name="instructionSet">The instruction set containing the IL instructions to apply.</param>
-    /// <param name="method">The method definition whose body will be replaced.</param>
-    public static void ApplyTo(this InstructionSet instructionSet, MethodDefinition method)
+    /// <param name="processor">The IL processor used to apply the instructions.</param>
+    public static void Apply(this InstructionSet instructionSet, ILProcessor processor)
     {
-        var processor =  method.Body.GetILProcessor();
         instructionSet.Instructions
             .ForEach(processor.Append);
     }
