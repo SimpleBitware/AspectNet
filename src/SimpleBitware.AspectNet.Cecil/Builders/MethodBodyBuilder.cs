@@ -1,5 +1,6 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using SimpleBitware.AspectNet.Cecil.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Builders;
@@ -39,12 +40,22 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
     /// before the return instruction is emitted. If null, a simple void return is performed.
     /// This method generates the final return sequence for a method body.
     /// </remarks>
-    public MethodBodyBuilder AddReturn(VariableDefinition? variableDefinition)
+    public MethodBodyBuilder AddReturn(VariableDefinition variableDefinition, TypeReference returnType, bool isAsync, ModuleDefinition module)
     {
-        if (variableDefinition is not null)
-            Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
-
-        Instructions.Add(Processor.Create(OpCodes.Ret));
+        if (isAsync && variableDefinition != null)
+        {
+            var safeInstructions = InstructionSetBlockBuilderBaseExtensions.CreateSafeAsyncReturnInstructions(Processor, module, variableDefinition, returnType);
+            Instructions.AddRange(safeInstructions);
+        }
+        else
+        {
+            // Fallback to standard sync return
+            if (variableDefinition != null)
+                Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
+            
+            Instructions.Add(Processor.Create(OpCodes.Ret));
+        }
+    
         return this;
     }
 }

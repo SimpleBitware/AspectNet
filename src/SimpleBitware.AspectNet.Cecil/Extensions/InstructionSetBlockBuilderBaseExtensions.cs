@@ -29,6 +29,109 @@ public static class InstructionSetBlockBuilderBaseExtensions
         }
     }
 
+    private static List<Instruction> CreateDefaultValueInstructions(ILProcessor processor, TypeReference type)
+    {
+        var instructions = new List<Instruction>();
+
+        if (type.IsValueType)
+        {
+            switch (type.MetadataType)
+            {
+                case MetadataType.Boolean:
+                case MetadataType.Int32:
+                case MetadataType.SByte:
+                case MetadataType.Int16:
+                case MetadataType.Byte:
+                case MetadataType.UInt16:
+                case MetadataType.Char:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
+                    break;
+                case MetadataType.Int64:
+                case MetadataType.UInt64:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I8, 0L));
+                    break;
+                case MetadataType.Single:
+                    instructions.Add(processor.Create(OpCodes.Ldc_R4, 0f));
+                    break;
+                case MetadataType.Double:
+                    instructions.Add(processor.Create(OpCodes.Ldc_R8, 0d));
+                    break;
+                case MetadataType.Pointer:
+                case MetadataType.FunctionPointer:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
+                    instructions.Add(processor.Create(OpCodes.Conv_I));
+                    break;
+                default:
+                    var tempVar = new VariableDefinition(type);
+                    processor.Body.Variables.Add(tempVar);
+                    instructions.Add(processor.Create(OpCodes.Ldloca, tempVar));
+                    instructions.Add(processor.Create(OpCodes.Initobj, type));
+                    instructions.Add(processor.Create(OpCodes.Ldloc, tempVar));
+                    break;
+            }
+        }
+        else
+        {
+            instructions.Add(processor.Create(OpCodes.Ldnull));
+        }
+
+        return instructions;
+    }
+
+    public static List<Instruction> CreateSafeAsyncReturnInstructions(
+        ILProcessor processor,
+        ModuleDefinition module,
+        VariableDefinition resultVar,
+        TypeReference returnType)
+    {
+        var instructions = new List<Instruction>();
+
+        // 1. Load the result onto the stack
+        instructions.Add(processor.Create(OpCodes.Ldloc, resultVar));
+
+        // 2. If it's a ValueTask, it's a struct (can't be null). Just return.
+        if (returnType.FullName.Contains("ValueTask"))
+        {
+            instructions.Add(processor.Create(OpCodes.Ret));
+            return instructions;
+        }
+
+        // 3. Setup null-check jump target
+        var skipFallback = processor.Create(OpCodes.Nop);
+
+        instructions.Add(processor.Create(OpCodes.Dup)); // Duplicate for null check
+        instructions.Add(processor.Create(OpCodes.Brtrue_S, skipFallback)); // If not null, skip fallback
+        instructions.Add(processor.Create(OpCodes.Pop)); // Pop the null
+
+        // 4. Fallback Logic
+        if (returnType.FullName == "System.Threading.Tasks.Task")
+        {
+            var taskType = module.ImportReference(typeof(Task)).Resolve();
+            var getter = module.ImportReference(taskType.Properties.First(p => p.Name == "CompletedTask").GetMethod);
+            instructions.Add(processor.Create(OpCodes.Call, getter));
+        }
+        else // Task<T>
+        {
+            var genericInstance = (GenericInstanceType)returnType;
+            var T = genericInstance.GenericArguments[0];
+
+            var taskType = module.ImportReference(typeof(Task)).Resolve();
+            var fromResult = taskType.Methods.First(m => m.Name == "FromResult" && m.HasGenericParameters);
+            var genericFromResult = new GenericInstanceMethod(module.ImportReference(fromResult));
+            genericFromResult.GenericArguments.Add(module.ImportReference(T));
+
+            // Load default(T) and call Task.FromResult
+            instructions.AddRange(CreateDefaultValueInstructions(processor, T));
+            instructions.Add(processor.Create(OpCodes.Call, genericFromResult));
+        }
+
+        // 5. Finalize
+        instructions.Add(skipFallback);
+        instructions.Add(processor.Create(OpCodes.Ret));
+
+        return instructions;
+    }
+
     public static InstructionsSetBlockBuilder AddTryBlockForAsyncMethods(
         this InstructionsSetBlockBuilder builder,
         ILProcessor processor,
@@ -46,7 +149,7 @@ public static class InstructionSetBlockBuilderBaseExtensions
         bool isValueTask = elementType.Namespace == "System.Threading.Tasks" &&
                            elementType.Name.StartsWith("ValueTask");
         Console.WriteLine($"[*******] Return Type: {returnTypeReference.FullName}, Element Type: {elementType.FullName}, Is ValueTask: {isValueTask}");
-        
+
         // --- PART A: SANITIZE INPUT ---
         var sanitizedInner = currentInstructionSet.Instructions.ToList();
 

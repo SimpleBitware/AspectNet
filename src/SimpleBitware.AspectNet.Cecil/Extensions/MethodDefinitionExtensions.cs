@@ -188,7 +188,7 @@ public static class MethodDefinitionExtensions
                     method.RemoveAttribute(customAttribute);
                     return builtInstructionSet;
                 })
-            .AddReturn(returnValueVariableDefinition)
+            .AddReturn(returnValueVariableDefinition, returnTypeReference, isAsyncMethod, method.Module)
             .Build()
             .Apply(processor);
 
