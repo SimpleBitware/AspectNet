@@ -2,7 +2,7 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.Weaving;
 
-[NewRecordActivity(Priority = 10)]
+[ExtendedRecordActivity(Priority = 10)]
 public class ClassWithMixMultipleAspectNetAttributeDecoratedMethods
 {
     [RecordActivity(Priority = 11)]
@@ -16,16 +16,16 @@ public class ClassWithMixMultipleAspectNetAttributeDecoratedMethods
     {
     }
     
-    [NewRecordActivity(Priority = 2)]
+    [ExtendedRecordActivity(Priority = 2)]
     public static void PublicStaticMethodWithSameAspectAsClass()
     {
     }
     
-    [NewRecordActivity(Priority = 3)]
+    [ExtendedRecordActivity(Priority = 3)]
     public static int PublicValue
     {
         [RecordActivity(Priority = 2)]
-        [NewRecordActivity(Priority = 1)]
+        [ExtendedRecordActivity(Priority = 1)]
         get;
         set;
     }

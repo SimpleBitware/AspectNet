@@ -32,11 +32,11 @@ public class ClassWithMultipleAspectNetAttributeDecoratedMethodsTests
             Assert.That(activities[0].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
             Assert.That(activities[0].Aspect, Is.InstanceOf<RecordActivityAttribute>());
             Assert.That(activities[1].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnEntry)));
-            Assert.That(activities[1].Aspect, Is.InstanceOf<NewRecordActivityAttribute>());
+            Assert.That(activities[1].Aspect, Is.InstanceOf<ExtendedRecordActivityAttribute>());
             Assert.That(activities[2].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
-            Assert.That(activities[2].Aspect, Is.InstanceOf<NewRecordActivityAttribute>());
+            Assert.That(activities[2].Aspect, Is.InstanceOf<ExtendedRecordActivityAttribute>());
             Assert.That(activities[3].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
-            Assert.That(activities[3].Aspect, Is.InstanceOf<NewRecordActivityAttribute>());
+            Assert.That(activities[3].Aspect, Is.InstanceOf<ExtendedRecordActivityAttribute>());
             Assert.That(activities[4].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnSuccess)));
             Assert.That(activities[4].Aspect, Is.InstanceOf<RecordActivityAttribute>());
             Assert.That(activities[5].AspectMethodName, Is.EqualTo(nameof(IAspectNetAttribute.OnExit)));
