@@ -95,7 +95,7 @@ public static class MethodDefinitionExtensions
                 .AssignResultToVariable(contextVariableDefinition)
                 .SetStringProperty(contextVariableDefinition, contextReferences.NameSetMethod, method.Name)
                 .SetObjectProperty(contextVariableDefinition, contextReferences.InstanceSetMethod, method.HasThis ? method.Body.ThisParameter : null)
-                .SetTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)), method.DeclaringType)
+                .SetTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)), method.DeclaringType.GetRuntimeTypeReference())
                 .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)
                 .Build()
             )

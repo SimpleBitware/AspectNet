@@ -10,6 +10,20 @@ namespace SimpleBitware.AspectNet.Cecil.Extensions;
 /// </summary>
 public static class TypeDefinitionExtensions
 {
+    public static TypeReference GetRuntimeTypeReference(this TypeDefinition typeDefinition)
+    {
+        if (!typeDefinition.HasGenericParameters)
+            return typeDefinition;
+
+        var genericInstance = new GenericInstanceType(typeDefinition);
+        foreach (var parameter in typeDefinition.GenericParameters)
+        {
+            genericInstance.GenericArguments.Add(parameter);
+        }
+
+        return genericInstance;
+    }
+    
     /// <summary>
     /// Gets a dictionary mapping methods to their associated aspect attributes from all types in the module.
     /// </summary>
