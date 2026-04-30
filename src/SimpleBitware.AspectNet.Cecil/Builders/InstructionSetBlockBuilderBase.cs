@@ -216,4 +216,9 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
 
         return (TBuilder)this;
     }
+
+    public Instruction CreateEmptyInstruction()
+    {
+        return Processor.Create(OpCodes.Nop);
+    }
 }

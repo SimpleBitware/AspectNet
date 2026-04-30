@@ -60,6 +60,8 @@ public static class MethodDefinitionExtensions
     public static MethodDefinition WeaveMethod(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
+        method.Body.SimplifyMacros();
+        
         var aspectAttributes = methodWithAspects.Value;
         var methodStartInstructions = method.GetStartInstructions();
         var innerInstructions = method.GetInnerInstructions();

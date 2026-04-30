@@ -9,55 +9,6 @@ namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
 public static class InstructionSetBlockBuilderBaseExtensions
 {
-    private static List<Instruction> CreateDefaultValueInstructions(ILProcessor processor, TypeReference type)
-    {
-        var instructions = new List<Instruction>();
-
-        if (type.IsValueType)
-        {
-            switch (type.MetadataType)
-            {
-                case MetadataType.Boolean:
-                case MetadataType.Int32:
-                case MetadataType.SByte:
-                case MetadataType.Int16:
-                case MetadataType.Byte:
-                case MetadataType.UInt16:
-                case MetadataType.Char:
-                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
-                    break;
-                case MetadataType.Int64:
-                case MetadataType.UInt64:
-                    instructions.Add(processor.Create(OpCodes.Ldc_I8, 0L));
-                    break;
-                case MetadataType.Single:
-                    instructions.Add(processor.Create(OpCodes.Ldc_R4, 0f));
-                    break;
-                case MetadataType.Double:
-                    instructions.Add(processor.Create(OpCodes.Ldc_R8, 0d));
-                    break;
-                case MetadataType.Pointer:
-                case MetadataType.FunctionPointer:
-                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
-                    instructions.Add(processor.Create(OpCodes.Conv_I));
-                    break;
-                default:
-                    var tempVar = new VariableDefinition(type);
-                    processor.Body.Variables.Add(tempVar);
-                    instructions.Add(processor.Create(OpCodes.Ldloca, tempVar));
-                    instructions.Add(processor.Create(OpCodes.Initobj, type));
-                    instructions.Add(processor.Create(OpCodes.Ldloc, tempVar));
-                    break;
-            }
-        }
-        else
-        {
-            instructions.Add(processor.Create(OpCodes.Ldnull));
-        }
-
-        return instructions;
-    }
-
     public static List<Instruction> CreateSafeAsyncReturnInstructions(
         ILProcessor processor,
         ModuleDefinition module,
@@ -178,8 +129,18 @@ public static class InstructionSetBlockBuilderBaseExtensions
         bool isInnermost,
         InstructionSet currentInstructionSet)
     {
+        var successLandingInstruction = blockBuilder.CreateEmptyInstruction();
+        var oldReturnInstruction = currentInstructionSet.Instructions.LastOrDefault(x => x.OpCode.Code == Code.Ret);
+        var sanitizedInnerInstructions = currentInstructionSet.Instructions
+            .SkipLastWhile(x => x.OpCode == OpCodes.Ret)
+            .ToList();
+
+        if (oldReturnInstruction != null)
+            RedirectLogicalBranches(sanitizedInnerInstructions, oldReturnInstruction, successLandingInstruction);
+
         return blockBuilder
-            .AddInstructions(currentInstructionSet.Instructions.SkipLastWhile(x => x.OpCode == OpCodes.Ret))
+            .AddInstructions(sanitizedInnerInstructions)
+            .AddInstructions([successLandingInstruction])
             .If(returnValueVariableDefinition != null,
                 tryInstructionsBlockBuilder => tryInstructionsBlockBuilder
                     .If(isInnermost, innerInstructionsBlockBuilder =>
@@ -202,5 +163,72 @@ public static class InstructionSetBlockBuilderBaseExtensions
                     .Build()
             )
             .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnSuccess, contextVariableDefinition);
+    }
+
+    private static List<Instruction> CreateDefaultValueInstructions(ILProcessor processor, TypeReference type)
+    {
+        var instructions = new List<Instruction>();
+
+        if (type.IsValueType)
+        {
+            switch (type.MetadataType)
+            {
+                case MetadataType.Boolean:
+                case MetadataType.Int32:
+                case MetadataType.SByte:
+                case MetadataType.Int16:
+                case MetadataType.Byte:
+                case MetadataType.UInt16:
+                case MetadataType.Char:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
+                    break;
+                case MetadataType.Int64:
+                case MetadataType.UInt64:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I8, 0L));
+                    break;
+                case MetadataType.Single:
+                    instructions.Add(processor.Create(OpCodes.Ldc_R4, 0f));
+                    break;
+                case MetadataType.Double:
+                    instructions.Add(processor.Create(OpCodes.Ldc_R8, 0d));
+                    break;
+                case MetadataType.Pointer:
+                case MetadataType.FunctionPointer:
+                    instructions.Add(processor.Create(OpCodes.Ldc_I4_0));
+                    instructions.Add(processor.Create(OpCodes.Conv_I));
+                    break;
+                default:
+                    var tempVar = new VariableDefinition(type);
+                    processor.Body.Variables.Add(tempVar);
+                    instructions.Add(processor.Create(OpCodes.Ldloca, tempVar));
+                    instructions.Add(processor.Create(OpCodes.Initobj, type));
+                    instructions.Add(processor.Create(OpCodes.Ldloc, tempVar));
+                    break;
+            }
+        }
+        else
+        {
+            instructions.Add(processor.Create(OpCodes.Ldnull));
+        }
+
+        return instructions;
+    }
+
+    private static void RedirectLogicalBranches(IEnumerable<Instruction> instructions, Instruction oldTarget, Instruction newTarget)
+    {
+        foreach (var instruction in instructions)
+        {
+            // Handle standard branches (br, brfalse, beq, etc.)
+            if (instruction.Operand is Instruction target && target == oldTarget)
+                instruction.Operand = newTarget;
+
+            // Handle switch statements
+            if (instruction.Operand is not Instruction[] targets) continue;
+            for (var i = 0; i < targets.Length; i++)
+            {
+                if (targets[i] == oldTarget)
+                    targets[i] = newTarget;
+            }
+        }
     }
 }
