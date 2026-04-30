@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SimpleBitware.AspectNet.Tests.Weaving.Serialization;
 
 namespace SimpleBitware.AspectNet.Tests.Weaving.Extensions;
 
@@ -9,6 +10,7 @@ public static class ObjectExtensions
     static ObjectExtensions()
     {
         JsonSerializerOptions.Converters.Add(new TypeJsonConverter());
+        JsonSerializerOptions.Converters.Add(new CancellationTokenJsonConverter());
     }
     
     public static T DeepCopy<T>(this T input)

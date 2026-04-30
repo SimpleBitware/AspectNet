@@ -7,17 +7,19 @@ using SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.TestClasses;
 
-public class StaticClassTests
+public class OverwriteBaseClassMembersClassTests
 {
+    private readonly OverwriteBaseClassMembersClass<int> testClass = new();
+    
     [Test]
-    public void Should_Weave_Static_Constructor()
+    public void Should_Use_The_Inherited_Weaved_Constructor()
     {
         //given
-        var classType = typeof(StaticClass<DateTime>);
-        const string methodName = Constants.StaticConstructorMethodName;
+        var classType = testClass.GetType();
+        const string methodName = Constants.InstanceConstructorMethodName;
         var context = new AspectNetAttributeContext
         {
-            Instance = null,
+            Instance = testClass,
             ClassType = classType,
             MemberName = methodName,
             Parameters = classType.GetMethodParameters(methodName)
@@ -25,48 +27,11 @@ public class StaticClassTests
         var activityKey = context.GetActivityKey();
         ExpectedAspectAttribute[] expectedAspectAttributes =
         [
-            new(typeof(RecordActivityAttribute), 5, context),
-            new(typeof(ExtendedRecordActivityAttribute), 7, context)
+            new(typeof(RecordActivityAttribute), 5, context)
         ];
         var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
 
         //when
-        _ = StaticClass<DateTime>.StaticNullableProperty;
-        var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
-
-        //then
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(hasActivities, Is.True);
-            Assert.That(activities, Is.Not.Null);
-            Assert.That(activities, Has.Count.EqualTo(expectedActivities.Length));
-            Assert.That(activities!.ToExpectedActivities(), Is.EqualTo(expectedActivities).Using<ExpectedActivity>(ActivityComparer.Instance));
-        }
-    }
-
-    [Test]
-    public void Should_Weave_StaticNullableProperty_Setter()
-    {
-        //given
-        var classType = typeof(StaticClass<string>);
-        var methodName = MemberNameHelper.PropertySetterName(nameof(StaticClass<>.StaticNullableProperty));
-        var context = new AspectNetAttributeContext
-        {
-            Instance = null,
-            ClassType = classType,
-            MemberName = methodName,
-            Parameters = classType.GetMethodParameters(methodName)
-        };
-        var activityKey = context.GetActivityKey();
-        ExpectedAspectAttribute[] expectedAspectAttributes =
-        [
-            new(typeof(RecordActivityAttribute), 10, context),
-            new(typeof(ExtendedRecordActivityAttribute), 7, context)
-        ];
-        var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
-
-        //when
-        StaticClass<string>.StaticNullableProperty = Guid.NewGuid().ToString();
         var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
 
         //then
@@ -80,16 +45,73 @@ public class StaticClassTests
     }
     
     [Test]
-    public void Should_NOT_Weave_Excluded_StaticNullableProperty_Getter()
+    public void Should_Weave_Overwritten_Method()
     {
         //given
-        var activityKey = new ActivityKey(typeof(StaticClass<int>), MemberNameHelper.PropertyGetterName(nameof(StaticClass<>.StaticNullableProperty)));
+        var classType = testClass.GetType();
+        const string methodName = nameof(OverwriteBaseClassMembersClass<>.VoidMethod);
+        var context = new AspectNetAttributeContext
+        {
+            Instance = testClass,
+            ClassType = classType,
+            MemberName = methodName,
+            Parameters = classType.GetMethodParameters(methodName)
+        };
+        var activityKey = context.GetActivityKey();
+        ExpectedAspectAttribute[] expectedAspectAttributes =
+        [
+            new(typeof(ExtendedRecordActivityAttribute), 3, context)
+        ];
+        var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
 
         //when
-        _ = StaticClass<int>.StaticNullableProperty;
-        var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out _);
+        testClass.VoidMethod();
+        var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
 
         //then
-        Assert.That(hasActivities, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(hasActivities, Is.True);
+            Assert.That(activities, Is.Not.Null);
+            Assert.That(activities, Has.Count.EqualTo(expectedActivities.Length));
+            Assert.That(activities!.ToExpectedActivities(), Is.EqualTo(expectedActivities).Using<ExpectedActivity>(ActivityComparer.Instance));
+        }
+    }
+    
+    [Test]
+    public async Task Should_Weave_Overwritten_AsyncMethod()
+    {
+        //given
+        const int inputParameter = 2;
+        var classType = testClass.GetType();
+        const string methodName = nameof(OverwriteBaseClassMembersClass<>.AsyncTaskMethod);
+        var context = new AspectNetAttributeContext
+        {
+            Instance = testClass,
+            ClassType = classType,
+            MemberName = methodName,
+            Parameters = classType.GetMethodParameters(methodName)
+        };
+        var activityKey = context.GetActivityKey();
+        ExpectedAspectAttribute[] expectedAspectAttributes =
+        [
+            new(typeof(ModifyStateAttribute), int.MaxValue, context)
+        ];
+        var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
+        expectedActivities[1].Context.ReturnValue = inputParameter;
+        expectedActivities[2].Context.ReturnValue = inputParameter;
+
+        //when
+        await testClass.AsyncTaskMethod(inputParameter, CancellationToken.None);
+        var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
+
+        //then
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(hasActivities, Is.True);
+            Assert.That(activities, Is.Not.Null);
+            Assert.That(activities, Has.Count.EqualTo(expectedActivities.Length));
+            Assert.That(activities!.ToExpectedActivities(), Is.EqualTo(expectedActivities).Using<ExpectedActivity>(ActivityComparer.Instance));
+        }
     }
 }

@@ -15,7 +15,7 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
 
         var activity = new Activity()
         {
-            Context = context.DeepCopy(),
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnEntry),
             Aspect = this
         };
@@ -27,7 +27,7 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var key = context.GetActivityKey();
         var activity = new Activity()
         {
-            Context = context.DeepCopy(),
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnSuccess),
             Aspect = this
         };
@@ -39,7 +39,7 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var key = context.GetActivityKey();
         var activity = new Activity()
         {
-            Context = context.DeepCopy(),
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnException),
             Aspect = this
         };
@@ -51,7 +51,7 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var key = context.GetActivityKey();
         var activity = new Activity()
         {
-            Context = context.DeepCopy(),
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnExit),
             Aspect = this
         };

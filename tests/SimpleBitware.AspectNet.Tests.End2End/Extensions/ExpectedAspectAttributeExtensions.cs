@@ -1,5 +1,6 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Tests.End2End.Helpers;
+using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.Extensions;
 
@@ -21,7 +22,7 @@ public static class ExpectedAspectAttributeExtensions
                 AspectType = aspect.Type,
                 AspectPriority = aspect.Priority,
                 AspectMethodName = nameof(IAspectNetAttribute.OnEntry),
-                Context = aspect.Context
+                Context = aspect.Context.PartialDeepCopy()
             };
         }
         
@@ -32,7 +33,7 @@ public static class ExpectedAspectAttributeExtensions
                 AspectType = aspect.Type,
                 AspectPriority = aspect.Priority,
                 AspectMethodName = aspect.Context.Exception == null ? nameof(IAspectNetAttribute.OnSuccess) : nameof(IAspectNetAttribute.OnException),
-                Context = aspect.Context
+                Context = aspect.Context.PartialDeepCopy()
             };
             
             yield return new ExpectedActivity()
@@ -40,7 +41,7 @@ public static class ExpectedAspectAttributeExtensions
                 AspectType = aspect.Type,
                 AspectPriority = aspect.Priority,
                 AspectMethodName = nameof(IAspectNetAttribute.OnExit),
-                Context = aspect.Context
+                Context = aspect.Context.PartialDeepCopy()
             };
         }
     } 

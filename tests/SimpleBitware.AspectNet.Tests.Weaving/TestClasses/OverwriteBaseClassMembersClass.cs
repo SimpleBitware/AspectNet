@@ -13,7 +13,7 @@ public class OverwriteBaseClassMembersClass<T> : TestClassBase<T>
     }
 
     [ModifyState]
-    public override async Task<T> AsyncTaskMethod(T? parameter, CancellationToken cancellationToken)
+    public sealed override async Task<T> AsyncTaskMethod(T? parameter, CancellationToken cancellationToken)
     {
         return await base.AsyncTaskMethod(parameter, cancellationToken);
     }

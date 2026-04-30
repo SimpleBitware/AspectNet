@@ -6,6 +6,7 @@ public class ActivityComparer : Comparer<ExpectedActivity>
 
     public override int Compare(ExpectedActivity? x, ExpectedActivity? y)
     {
+        
         return (x is not null &&
                 y is not null &&
                 x.AspectType == y.AspectType &&
@@ -17,7 +18,7 @@ public class ActivityComparer : Comparer<ExpectedActivity>
                    x.Context.Parameters.Keys.SequenceEqual(y.Context.Parameters.Keys) &&
                    ((x.Context.Instance is null && y.Context.Instance is null) || (x.Context.Instance == y.Context.Instance)) &&
                    ((x.Context.Exception is null && y.Context.Exception is null) || (x.Context.Exception?.GetType() == y.Context.Exception?.GetType())) &&
-                   ((x.Context.ReturnValue is null && y.Context.ReturnValue is null) || (x.Context.ReturnValue == y.Context.ReturnValue)) &&
+                   ((x.Context.ReturnValue is null && y.Context.ReturnValue is null) || (x.Context.ReturnValue?.ToString() == y.Context.ReturnValue?.ToString())) &&
                    ((x.Context.Data is null && y.Context.Data is null) || (x.Context.Data == y.Context.Data))
                )
             ? 0

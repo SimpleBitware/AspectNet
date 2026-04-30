@@ -76,9 +76,14 @@ public static class InstructionSetBlockBuilderBaseExtensions
         if (returnValueVariableDefinition is null)
             return builder;
 
+        // --- 1. Resolve and Import RunAsync Method ---
         var isGeneric = returnTypeReference.IsGenericInstance;
         var isValueTask = returnTypeReference.IsValueTaskType();
-        var runnerTypeDefinition = moduleCache.Resolve(moduleCache.ImportReference(typeof(AsyncAspectRunner)));
+
+        // Crucial: Use moduleCache to ensure we aren't mixing assembly references (e.g., netstandard vs System.Runtime)
+        var runnerTypeRef = moduleCache.ImportReference(typeof(AsyncAspectRunner));
+        var runnerTypeDefinition = moduleCache.Resolve(runnerTypeRef);
+
         var runAsyncRunnerMethodDefinition = runnerTypeDefinition.Methods
             .First(m =>
                 m.Name == nameof(AsyncAspectRunner.RunAsync) &&
@@ -89,9 +94,12 @@ public static class InstructionSetBlockBuilderBaseExtensions
         MethodReference importedMethod;
         if (isGeneric && returnTypeReference is GenericInstanceType genericVt)
         {
+            // Extract the T from Task<T> or ValueTask<T>
             var T = genericVt.GenericArguments[0];
             var methodRef = moduleCache.Module.ImportReference(runAsyncRunnerMethodDefinition);
             var closedMethod = new GenericInstanceMethod(methodRef);
+
+            // Ensure T is imported into the current module to avoid verification errors
             closedMethod.GenericArguments.Add(moduleCache.ImportReference(T));
             importedMethod = closedMethod;
         }
@@ -100,19 +108,36 @@ public static class InstructionSetBlockBuilderBaseExtensions
             importedMethod = moduleCache.Module.ImportReference(runAsyncRunnerMethodDefinition);
         }
 
+        // --- 2. Landing Pad & Branch Redirection ---
+        // This creates a 'nop' that acts as the label for all early returns/branches
+        var successLandingInstruction = builder.CreateEmptyInstruction();
+        var oldReturnInstruction = currentInstructionSet.Instructions.LastOrDefault(x => x.OpCode.Code == Code.Ret);
+
+        var sanitizedInnerInstructions = currentInstructionSet.Instructions
+            .SkipLastWhile(x => x.OpCode.Code == Code.Ret) // Use Code.Ret for safer comparison
+            .ToList()
+            .ApplyPeepholeOptimization();
+
+        // Redirect all internal logic that was heading for 'ret' to our wrapper entry point
+        if (oldReturnInstruction != null)
+        {
+            RedirectLogicalBranches(sanitizedInnerInstructions, oldReturnInstruction, successLandingInstruction);
+        }
+
+        // --- 3. Build the Async Wrapper Chain ---
         return builder
-            .AddInstructions(currentInstructionSet.Instructions
-                .SkipLastWhile(x => x.OpCode == OpCodes.Ret)
-                .ToList()
-                .ApplyPeepholeOptimization())
+            .AddInstructions(sanitizedInnerInstructions)
+            .AddInstructions([successLandingInstruction]) // The "Gate"
             .If(isInnermost,
                 ifBlockBuilder => ifBlockBuilder
                     .SetVariable(variableBuilder => variableBuilder
+                        // Innermost captures the Task from the state machine's .Task getter/stack
                         .AssignResultToVariable(returnValueVariableDefinition)
                         .Build()
                     )
                     .Build()
             )
+            // Wraps the task: task = AsyncAspectRunner.RunAsync(task, aspect, context)
             .ExecuteStaticMethod(importedMethod, returnValueVariableDefinition, aspectVariableDefinition, contextVariableDefinition)
             .SetVariable(variableBuilder => variableBuilder
                 .AssignResultToVariable(returnValueVariableDefinition)

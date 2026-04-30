@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Extensions;
+namespace SimpleBitware.AspectNet.Tests.Weaving.Serialization;
 
 public sealed class TypeJsonConverter : JsonConverter<Type?>
 {

@@ -18,7 +18,7 @@ public class TestClassBase<T>
     }
     
     [RecordActivity(Priority = 10)]
-    public required T PropertyWithLogic
+    public T? PropertyWithLogic
     {
         [ModifyState]
         get
