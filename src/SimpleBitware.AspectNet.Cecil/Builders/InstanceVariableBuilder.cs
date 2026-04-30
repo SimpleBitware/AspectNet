@@ -187,7 +187,7 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
     /// If either <paramref name="variableDefinition"/> or <paramref name="propertyInfo"/> is null, this method has no effect.
     /// Uses <c>ldtoken</c> and <see cref="Type.GetTypeFromHandle"/> to obtain the runtime type.
     /// </remarks>
-    public InstanceVariableBuilder SetTypeProperty(
+    public InstanceVariableBuilder SetStaticTypeProperty(
         VariableDefinition? variableDefinition,
         PropertyInfo? propertyInfo,
         TypeReference declaringType)
@@ -200,6 +200,25 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
                 Processor.Create(OpCodes.Ldloc, variableDefinition),
                 Processor.Create(OpCodes.Ldtoken, declaringType), // typeof(DeclaringClass)
                 Processor.Create(OpCodes.Call, getTypeFromHandleMethod),
+                Processor.Create(OpCodes.Callvirt, setMethodReference)
+            ]);
+        }
+
+        return this;
+    }
+    
+    public InstanceVariableBuilder SetRuntimeTypeProperty(
+        VariableDefinition? variableDefinition,
+        PropertyInfo? propertyInfo,
+        MethodReference? methodReference)
+    {
+        if (variableDefinition is not null && methodReference is not null && propertyInfo is not null)
+        {
+            var setMethodReference = ModuleCache.ImportReference(propertyInfo.SetMethod);
+            Instructions.AddRange([
+                Processor.Create(OpCodes.Ldloc, variableDefinition),
+                Processor.Create(OpCodes.Ldarg_0), // this
+                Processor.Create(OpCodes.Callvirt, methodReference),
                 Processor.Create(OpCodes.Callvirt, setMethodReference)
             ]);
         }

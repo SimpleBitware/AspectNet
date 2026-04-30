@@ -196,27 +196,6 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
         return (TBuilder)this;
     }
 
-    /// <summary>
-    /// Conditionally executes an action based on the provided condition.
-    /// </summary>
-    /// <param name="condition">The boolean condition to evaluate.</param>
-    /// <param name="ifAction">The action to execute if the condition is true.</param>
-    /// <param name="elseAction">Optional action to execute if the condition is false.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method allows for conditional builder logic at configuration time,
-    /// not to be confused with runtime IL conditions.
-    /// </remarks>
-    public TBuilder If(bool condition, Action<TBuilder> ifAction, Action<TBuilder>? elseAction = null)
-    {
-        if (condition)
-            ifAction((TBuilder)this);
-        else
-            elseAction?.Invoke((TBuilder)this);
-
-        return (TBuilder)this;
-    }
-
     public Instruction CreateEmptyInstruction()
     {
         return Processor.Create(OpCodes.Nop);

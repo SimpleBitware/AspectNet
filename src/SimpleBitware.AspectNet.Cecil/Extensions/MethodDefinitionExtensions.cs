@@ -61,7 +61,7 @@ public static class MethodDefinitionExtensions
     {
         var method = methodWithAspects.Key;
         method.Body.SimplifyMacros();
-        
+
         var aspectAttributes = methodWithAspects.Value;
         var methodStartInstructions = method.GetStartInstructions();
         var innerInstructions = method.GetInnerInstructions();
@@ -97,7 +97,18 @@ public static class MethodDefinitionExtensions
                 .AssignResultToVariable(contextVariableDefinition)
                 .SetStringProperty(contextVariableDefinition, contextReferences.NameSetMethod, method.Name)
                 .SetObjectProperty(contextVariableDefinition, contextReferences.InstanceSetMethod, method.HasThis ? method.Body.ThisParameter : null)
-                .SetTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)), method.DeclaringType.GetRuntimeTypeReference())
+                .If(method.IsStatic,
+                    staticBuilder => staticBuilder
+                        .SetStaticTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
+                            method.DeclaringType.GetRuntimeTypeReference())
+                        .Build(),
+                    instanceBuilder => instanceBuilder
+                        .SetRuntimeTypeProperty(
+                            contextVariableDefinition, 
+                            typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
+                            moduleCache.ImportReference(typeof(object).GetMethod("GetType")))
+                        .Build()
+                )
                 .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)
                 .Build()
             )
