@@ -6,7 +6,6 @@ public class ActivityComparer : Comparer<ExpectedActivity>
 
     public override int Compare(ExpectedActivity? x, ExpectedActivity? y)
     {
-        
         return (x is not null &&
                 y is not null &&
                 x.AspectType == y.AspectType &&

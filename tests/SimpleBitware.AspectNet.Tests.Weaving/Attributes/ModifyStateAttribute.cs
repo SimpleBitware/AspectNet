@@ -7,8 +7,8 @@ public class ModifyStateAttribute : RecordActivityAttribute
 {
     public override void OnException(AspectNetAttributeContext context)
     {
-        context.Exception = null;
         base.OnException(context);
+        context.Exception = null;
     }
     
     public override void OnExit(AspectNetAttributeContext context)

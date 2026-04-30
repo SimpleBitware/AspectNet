@@ -17,12 +17,14 @@ public static class ExpectedAspectAttributeExtensions
 
         foreach (var aspect in orderedAspects)
         {
+            var context = aspect.Context.PartialDeepCopy();
+            context.Exception = null;
             yield return new ExpectedActivity()
             {
                 AspectType = aspect.Type,
                 AspectPriority = aspect.Priority,
                 AspectMethodName = nameof(IAspectNetAttribute.OnEntry),
-                Context = aspect.Context.PartialDeepCopy()
+                Context = context
             };
         }
         
@@ -33,7 +35,7 @@ public static class ExpectedAspectAttributeExtensions
                 AspectType = aspect.Type,
                 AspectPriority = aspect.Priority,
                 AspectMethodName = aspect.Context.Exception == null ? nameof(IAspectNetAttribute.OnSuccess) : nameof(IAspectNetAttribute.OnException),
-                Context = aspect.Context.PartialDeepCopy()
+                Context = aspect.Context.PartialDeepCopy(),
             };
             
             yield return new ExpectedActivity()

@@ -93,7 +93,7 @@ public static class AsyncAspectRunner
         
         return result;
     }
-    
+
     /// <summary>
     /// Wraps a ValueTask with aspect processing.
     /// </summary>

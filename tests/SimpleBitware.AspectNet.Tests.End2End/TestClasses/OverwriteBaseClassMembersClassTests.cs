@@ -45,7 +45,7 @@ public class OverwriteBaseClassMembersClassTests
     }
     
     [Test]
-    public void Should_Weave_Overwritten_Method()
+    public void Should_Use_The_Overwritten_Method()
     {
         //given
         var classType = testClass.GetType();
@@ -79,10 +79,10 @@ public class OverwriteBaseClassMembersClassTests
     }
     
     [Test]
-    public async Task Should_Weave_Overwritten_AsyncMethod()
+    public async Task Should_Use_Overwritten_AsyncMethod_And_Throw_Exception()
     {
         //given
-        const int inputParameter = 2;
+        const int inputParameter = 0;
         var classType = testClass.GetType();
         const string methodName = nameof(OverwriteBaseClassMembersClass<>.AsyncTaskMethod);
         var context = new AspectNetAttributeContext
@@ -90,7 +90,8 @@ public class OverwriteBaseClassMembersClassTests
             Instance = testClass,
             ClassType = classType,
             MemberName = methodName,
-            Parameters = classType.GetMethodParameters(methodName)
+            Parameters = classType.GetMethodParameters(methodName),
+            Exception = new ArgumentException()
         };
         var activityKey = context.GetActivityKey();
         ExpectedAspectAttribute[] expectedAspectAttributes =
@@ -98,8 +99,7 @@ public class OverwriteBaseClassMembersClassTests
             new(typeof(ModifyStateAttribute), int.MaxValue, context)
         ];
         var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
-        expectedActivities[1].Context.ReturnValue = inputParameter;
-        expectedActivities[2].Context.ReturnValue = inputParameter;
+        expectedActivities[2].Context.Exception = null;
 
         //when
         await testClass.AsyncTaskMethod(inputParameter, CancellationToken.None);

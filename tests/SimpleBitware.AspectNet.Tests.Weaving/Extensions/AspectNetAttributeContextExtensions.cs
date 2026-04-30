@@ -15,7 +15,7 @@ public static class AspectNetAttributeContextExtensions
             MemberName = context.MemberName,
             Parameters = context.Parameters.DeepCopy(),
             ReturnValue = context.ReturnValue,
-            Exception = context.Exception?.DeepCopy(),
+            Exception = context.Exception?.NewInstance(),
             Instance = context.Instance,
             Data = context.Data?.DeepCopy()
         };
