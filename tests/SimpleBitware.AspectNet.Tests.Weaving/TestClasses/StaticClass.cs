@@ -4,7 +4,7 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
 [ExtendedRecordActivity(Priority = 7)]
-public class StaticClass<T>
+public static class StaticClass<T>
 {
     [RecordActivity(Priority = 10)]
     public static T? StaticNullableProperty
