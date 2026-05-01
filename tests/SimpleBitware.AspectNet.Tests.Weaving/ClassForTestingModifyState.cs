@@ -4,16 +4,16 @@ namespace SimpleBitware.AspectNet.Tests.Weaving;
 
 public class ClassForTestingModifyState
 {
-    [ModifyState]
+    [HideException]
     public static string Value { get; set; } = "Initial Value";
 
-    [ModifyState]
+    [HideException]
     public static string MethodWithException()
     {
         throw new NotImplementedException();
     }
     
-    [ModifyState]
+    [HideException]
     public static Task AsyncMethodWithSyncException()
     {
         throw new NotImplementedException();

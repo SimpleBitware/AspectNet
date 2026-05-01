@@ -3,7 +3,7 @@ using SimpleBitware.AspectNet.Abstractions.Attributes;
 namespace SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 [AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited =  false, AllowMultiple = true)]
-public class ModifyStateAttribute : RecordActivityAttribute
+public class HideExceptionAttribute : RecordActivityAttribute
 {
     public override void OnException(AspectNetAttributeContext context)
     {

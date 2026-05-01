@@ -3,7 +3,7 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
-public class TestClassBase<T>
+public class TestClassBase<T> : ITestClass<T>
 {
     [RecordActivity(Priority = 5)]
     protected TestClassBase()
@@ -20,7 +20,7 @@ public class TestClassBase<T>
     [RecordActivity(Priority = 10)]
     public T? PropertyWithLogic
     {
-        [ModifyState]
+        [HideException]
         get
         {
             Console.WriteLine("Property getter called");

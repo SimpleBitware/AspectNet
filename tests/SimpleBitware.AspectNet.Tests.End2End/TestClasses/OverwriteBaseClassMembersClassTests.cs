@@ -96,7 +96,7 @@ public class OverwriteBaseClassMembersClassTests
         var activityKey = context.GetActivityKey();
         ExpectedAspectAttribute[] expectedAspectAttributes =
         [
-            new(typeof(ModifyStateAttribute), int.MaxValue, context)
+            new(typeof(HideExceptionAttribute), int.MaxValue, context)
         ];
         var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
         expectedActivities[2].Context.Exception = null;

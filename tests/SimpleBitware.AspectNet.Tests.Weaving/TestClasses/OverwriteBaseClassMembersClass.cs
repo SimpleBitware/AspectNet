@@ -12,7 +12,7 @@ public class OverwriteBaseClassMembersClass<T> : TestClassBase<T>
             throw new Exception();
     }
 
-    [ModifyState]
+    [HideException]
     public sealed override async Task<T> AsyncTaskMethod(T? parameter, CancellationToken cancellationToken)
     {
         return await base.AsyncTaskMethod(parameter, cancellationToken);
