@@ -250,4 +250,14 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
 
         return this;
     }
+
+    public InstructionsSetBlockBuilder GoToWhenFalse(VariableDefinition condition, Instruction targetInstruction)
+    {
+        this.AddInstructions([
+            Processor.Create(OpCodes.Ldloc, condition),
+            Processor.Create(OpCodes.Brfalse_S, targetInstruction)
+        ]);
+
+        return this;
+    }
 }
