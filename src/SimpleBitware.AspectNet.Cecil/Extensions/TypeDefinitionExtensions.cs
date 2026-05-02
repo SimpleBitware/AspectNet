@@ -23,11 +23,12 @@ public static class TypeDefinitionExtensions
 
         return genericInstance;
     }
-    
+
     /// <summary>
     /// Gets a dictionary mapping methods to their associated aspect attributes from all types in the module.
     /// </summary>
-    /// <param name="moduleTypes">The collection of type definitions to search.</param>
+    /// <param name="type">The type definitions to search.</param>
+    /// <param name="classAspects"></param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type to check inheritance against.</param>
     /// <param name="filterAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
     /// <returns>An immutable dictionary mapping method definitions to arrays of aspect attributes.</returns>
@@ -36,7 +37,8 @@ public static class TypeDefinitionExtensions
     /// merging them appropriately and filtering out methods that should be excluded from weaving.
     /// </remarks>
     public static IReadOnlyDictionary<MethodDefinition, CustomAttribute[]> GetMethodsDecoratedWithAspectNetDerivedAttributes(
-        this IEnumerable<TypeDefinition> moduleTypes,
+        this TypeDefinition type,
+        CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
         Type[] filterAttributes)
     {
@@ -44,14 +46,11 @@ public static class TypeDefinitionExtensions
             .Select(t => t.FullName)
             .ToArray();
 
-        return moduleTypes
-            .SelectMany(type =>
-                {
-                    var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
-                    return type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames)
-                        .Concat(type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames));
-                }
-            )
+        var methodsAspects = type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
+        var propertiesAspects = type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
+
+        var memberAspects = methodsAspects.Concat(propertiesAspects);
+        return memberAspects
             .GroupBy(kvp => kvp.Key)
             .Select(group => new KeyValuePair<MethodDefinition, CustomAttribute[]>(
                 group.Key,
