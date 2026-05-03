@@ -45,6 +45,11 @@ public static class CecilWeaver
                 moduleTypes.ForEach(type =>
                 {
                     var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+                    if (classAspects.Any())
+                    {
+                        var memberToMaterialize = type.GetInheritedMembersToBridge();
+                        type.MaterializeInheritedBridges(memberToMaterialize);
+                    }
                     type
                         .GetMethodsDecoratedWithAspectNetDerivedAttributes(
                             classAspects,
