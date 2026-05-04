@@ -36,7 +36,7 @@ public static class CecilWeaver
         string? pdbFilePath,
         bool generateDebugFiles)
     {
-        return ProcessAssembly<IAspectNetAttribute, AspectNetWovenAttribute>(
+        return ProcessAssembly<IAspectNetAttribute, ProcessedByAspectNetAttribute>(
             targetAssemblyDirectory,
             references,
             assemblyPath,
@@ -54,7 +54,7 @@ public static class CecilWeaver
                         .GetMethodsDecoratedWithAspectNetDerivedAttributes(
                             classAspects,
                             baseAspectNetAttribute,
-                            [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
+                            [typeof(AspectNetExcludeAttribute), typeof(ProcessedByAspectNetAttribute)]
                         )
                         .ForEach(method => method
                             .WeaveMethod()
