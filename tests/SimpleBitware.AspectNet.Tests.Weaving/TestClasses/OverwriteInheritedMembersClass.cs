@@ -2,7 +2,7 @@ using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
-public class OverwriteBaseClassMembersClass<T> : TestClassBase<T>
+public class OverwriteInheritedMembersClass<T> : TestClassBase<T>
 {
     [ExtendedRecordActivity(Priority = 3)]
     public override void VoidMethod()

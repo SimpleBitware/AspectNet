@@ -7,9 +7,9 @@ using SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.TestClasses;
 
-public class OverwriteBaseClassMembersClassTests
+public class OverwriteInheritedMembersClassTests
 {
-    private readonly OverwriteBaseClassMembersClass<int> testClass = new();
+    private readonly OverwriteInheritedMembersClass<int> testClass = new();
     
     [Test]
     public void Should_Use_The_Inherited_Weaved_Constructor()
@@ -49,7 +49,7 @@ public class OverwriteBaseClassMembersClassTests
     {
         //given
         var classType = testClass.GetType();
-        const string methodName = nameof(OverwriteBaseClassMembersClass<>.VoidMethod);
+        const string methodName = nameof(OverwriteInheritedMembersClass<>.VoidMethod);
         var context = new AspectNetAttributeContext
         {
             Instance = testClass,
@@ -84,7 +84,7 @@ public class OverwriteBaseClassMembersClassTests
         //given
         const int inputParameter = 0;
         var classType = testClass.GetType();
-        const string methodName = nameof(OverwriteBaseClassMembersClass<>.AsyncTaskMethod);
+        const string methodName = nameof(OverwriteInheritedMembersClass<>.AsyncTaskMethod);
         var context = new AspectNetAttributeContext
         {
             Instance = testClass,
