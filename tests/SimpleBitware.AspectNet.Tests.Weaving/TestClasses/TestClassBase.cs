@@ -139,4 +139,15 @@ public class TestClassBase<T> : ITestClass<T>
                     .ContinueWith<T>(_ => parameter, cancellationToken);
             }, cancellationToken);
     }
+
+    public T Run(Func<T, T> func, T input)
+    {
+        return func(input);
+    }
+    
+    [RecordActivity(Priority = 12)]
+    public void Run(Action<T> action, T input)
+    {
+        action(input);
+    }
 }

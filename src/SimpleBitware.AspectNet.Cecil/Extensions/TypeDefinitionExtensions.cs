@@ -189,8 +189,18 @@ public static class TypeDefinitionExtensions
 
         foreach (var p in baseMethod.Parameters)
         {
-            var resolvedType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module);
-            bridge.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, resolvedType));
+            var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module);
+            var newParam = new ParameterDefinition(p.Name, p.Attributes, module.ImportReference(newType));
+
+            // Check for [ParamArray] to restore 'params'
+            if (p.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(ParamArrayAttribute).FullName))
+            {
+                var paramArrayAttr = new CustomAttribute(module.ImportReference(
+                    typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes)));
+                newParam.CustomAttributes.Add(paramArrayAttr);
+            }
+
+            bridge.Parameters.Add(newParam);
         }
 
         // 6. Build the Base Call Reference (Preserving raw !0/!!0 tokens)

@@ -42,55 +42,16 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
     /// </remarks>
     public MethodBodyBuilder AddReturn(VariableDefinition? variableDefinition, TypeReference returnType, bool isAsync, ModuleDefinition module)
     {
-        if (isAsync && variableDefinition != null)
+        // If we have a result to return, load it onto the stack
+        if (variableDefinition != null)
         {
-            // 1. Check if we are dealing with Task<T> or ValueTask<T>
-            var isGeneric = returnType.IsGenericInstance;
-
-            if (isGeneric && returnType is GenericInstanceType genericTask)
-            {
-                var innerT = genericTask.GenericArguments[0];
-                var endOfReturn = Processor.Create(OpCodes.Ret);
-
-                // 2. Load the task and check for null: task ?? Task.FromResult(default(T))
-                Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
-                Instructions.Add(Processor.Create(OpCodes.Dup));
-                Instructions.Add(Processor.Create(OpCodes.Brtrue_S, endOfReturn));
-
-                // --- Fallback Path (if task is null) ---
-                Instructions.Add(Processor.Create(OpCodes.Pop)); // Remove the null dup
-
-                // 3. Create 'default(T)' safely (Fixes the InvalidProgramException)
-                var tempVar = new VariableDefinition(innerT);
-                Method.Body.Variables.Add(tempVar);
-
-                Instructions.Add(Processor.Create(OpCodes.Ldloca, tempVar));
-                Instructions.Add(Processor.Create(OpCodes.Initobj, innerT));
-                Instructions.Add(Processor.Create(OpCodes.Ldloc, tempVar));
-
-                // 4. Call Task.FromResult<T>(T result)
-                var fromResultMethod = ImportTaskFromResult(module, innerT);
-                Instructions.Add(Processor.Create(OpCodes.Call, fromResultMethod));
-
-                Instructions.Add(endOfReturn);
-            }
-            else
-            {
-                // Non-generic Task or void-returning async
-                if (variableDefinition != null)
-                    Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
-
-                Instructions.Add(Processor.Create(OpCodes.Ret));
-            }
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
         }
-        else
-        {
-            // Standard Synchronous Return
-            if (variableDefinition != null)
-                Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
 
-            Instructions.Add(Processor.Create(OpCodes.Ret));
-        }
+        // Simply emit the return instruction.
+        // For both Async (Task/ValueTask) and Sync methods, the variableDefinition 
+        // already holds the final 'wrapped' result or the direct return value.
+        Instructions.Add(Processor.Create(OpCodes.Ret));
 
         return this;
     }
@@ -99,12 +60,12 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
     {
         // Use ImportReference directly—it handles System.Type naturally
         var taskType = ModuleCache.ImportReference(typeof(Task)).Resolve();
-    
+
         var method = taskType.Methods.First(m => m.Name == "FromResult" && m.HasGenericParameters);
-    
+
         var genericMethod = new GenericInstanceMethod(module.ImportReference(method));
         genericMethod.GenericArguments.Add(module.ImportReference(innerT));
-    
+
         return genericMethod;
     }
 }

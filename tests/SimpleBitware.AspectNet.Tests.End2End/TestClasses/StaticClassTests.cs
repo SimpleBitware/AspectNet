@@ -28,7 +28,7 @@ public class StaticClassTests
             new(typeof(RecordActivityAttribute), 5, context),
             new(typeof(ExtendedRecordActivityAttribute), 7, context)
         ];
-        var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
+        var expectedActivities = expectedAspectAttributes.GetExpectedActivitiesForConstructor([]).ToArray();
 
         //when
         _ = StaticClass<DateTime>.StaticNullableProperty;

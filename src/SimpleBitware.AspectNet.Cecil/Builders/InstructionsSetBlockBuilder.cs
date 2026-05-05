@@ -138,6 +138,20 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
         return this;
     }
 
+    public InstructionsSetBlockBuilder SetPropertyToCast(
+        VariableDefinition? variableDefinition,
+        VariableDefinition instance,
+        MethodReference? getMethod,
+        TypeReference returnTypeReference)
+    {
+        Instructions.Add(Processor.Create(OpCodes.Ldloc, instance));
+        Instructions.Add(Processor.Create(OpCodes.Callvirt, getMethod));
+        Instructions.Add(Processor.Create(OpCodes.Unbox_Any, returnTypeReference)); 
+        Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
+        
+        return this;
+    }
+
     public InstructionsSetBlockBuilder SetPropertyIfNotNull(
         VariableDefinition? variableDefinition,
         VariableDefinition instance,

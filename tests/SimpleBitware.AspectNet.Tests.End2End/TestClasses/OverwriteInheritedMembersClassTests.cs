@@ -29,7 +29,7 @@ public class OverwriteInheritedMembersClassTests
         [
             new(typeof(RecordActivityAttribute), 5, context)
         ];
-        var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
+        var expectedActivities = expectedAspectAttributes.GetExpectedActivitiesForConstructor([]).ToArray();
 
         //when
         var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);

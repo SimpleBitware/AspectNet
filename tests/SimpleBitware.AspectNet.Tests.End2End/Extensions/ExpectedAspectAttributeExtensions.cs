@@ -46,5 +46,12 @@ public static class ExpectedAspectAttributeExtensions
                 Context = aspect.Context.PartialDeepCopy()
             };
         }
-    } 
+    }
+
+    public static IEnumerable<ExpectedActivity> GetExpectedActivitiesForConstructor(this ExpectedAspectAttribute[] constructorAspectAttributes, ExpectedAspectAttribute[] inheritedAspectAttributes)
+    {
+        var constructorActivities = constructorAspectAttributes.GetActivities();
+        var inheritedActivities = inheritedAspectAttributes.GetActivities();
+        return inheritedActivities.Concat(constructorActivities);
+    }
 }

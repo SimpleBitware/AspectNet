@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
+using SimpleBitware.AspectNet.Cecil.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Builders;
@@ -81,8 +82,8 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     {
         if (variableDefinition is not null && !Method.Body.Variables.Contains(variableDefinition))
             Method.Body.Variables.Add(variableDefinition);
-        
-        if(function is not null)
+
+        if (function is not null)
         {
             var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
             Instructions.AddRange(instructionSet.Instructions);
@@ -106,8 +107,59 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
         if (variableDefinition == null)
             return (TBuilder)this;
 
-        Instructions.Add(Processor.Create(OpCodes.Ldloca, variableDefinition));
-        Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
+        // 1. Detection: Is this Task<T>?
+        if (typeReference.IsGenericInstance && typeReference.GetElementType().FullName == "System.Threading.Tasks.Task`1")
+        {
+            var genericTask = (GenericInstanceType)typeReference;
+            var baseInnerT = genericTask.GenericArguments[0];
+
+            // 2. Safe Generic Mapping
+            TypeReference innerT = baseInnerT;
+            if (baseInnerT.IsGenericParameter)
+            {
+                var gp = (GenericParameter)baseInnerT;
+
+                // Bounds check for Class-level generics (!0)
+                if (gp.Type == GenericParameterType.Type)
+                {
+                    if (gp.Position < Method.DeclaringType.GenericParameters.Count)
+                    {
+                        innerT = Method.DeclaringType.GenericParameters[gp.Position];
+                    }
+                }
+                // Bounds check for Method-level generics (!!0)
+                else if (gp.Type == GenericParameterType.Method)
+                {
+                    if (gp.Position < Method.GenericParameters.Count)
+                    {
+                        innerT = Method.GenericParameters[gp.Position];
+                    }
+                }
+            }
+
+            // 3. Create 'default(T)' on stack
+            var tempDefault = new VariableDefinition(innerT);
+            Method.Body.Variables.Add(tempDefault);
+
+            Instructions.Add(Processor.Create(OpCodes.Ldloca, tempDefault));
+            Instructions.Add(Processor.Create(OpCodes.Initobj, innerT));
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, tempDefault));
+
+            // 4. Call Task.FromResult<T>(innerT)
+            // Ensure you have the ImportTaskFromResult helper in your class!
+            var fromResultMethod = Method.Module.ImportTaskFromResult(innerT);
+            Instructions.Add(Processor.Create(OpCodes.Call, fromResultMethod));
+
+            // 5. Store the Task<T> object
+            Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
+        }
+        else
+        {
+            // Standard non-Task fallback (works for ValueTask, Task, and simple types)
+            Instructions.Add(Processor.Create(OpCodes.Ldloca, variableDefinition));
+            Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
+        }
+
         return (TBuilder)this;
     }
 
