@@ -11,6 +11,19 @@ namespace SimpleBitware.AspectNet.Cecil.Extensions;
 /// </summary>
 public static class TypeDefinitionExtensions
 {
+    // These attributes control how C# decompilers and compilers read the signature
+    // (Nullability, params, tuples, ref readonly, etc.)
+    private static readonly HashSet<string> SignatureAttributeNames = new HashSet<string>
+    {
+        "System.Runtime.CompilerServices.NullableAttribute",
+        "System.Runtime.CompilerServices.NullableContextAttribute",
+        "System.Runtime.CompilerServices.DynamicAttribute",
+        "System.Runtime.CompilerServices.TupleElementNamesAttribute",
+        "System.Runtime.CompilerServices.IsReadOnlyAttribute",
+        "System.Runtime.CompilerServices.IsByRefLikeAttribute",
+        "System.ParamArrayAttribute"
+    };
+    
     public static TypeReference GetRuntimeTypeReference(this TypeDefinition typeDefinition)
     {
         if (!typeDefinition.HasGenericParameters)
@@ -104,7 +117,7 @@ public static class TypeDefinitionExtensions
         return membersToBridge.ToArray();
     }
 
-    public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
+public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
     {
         if (targetType == null || members == null) return;
 
@@ -116,11 +129,9 @@ public static class TypeDefinitionExtensions
             }
             else if (member is PropertyDefinition prop)
             {
-                // Bridge the accessors first
                 MethodDefinition getMethod = prop.GetMethod != null ? MaterializeMethodBridge(targetType, prop.GetMethod) : null;
                 MethodDefinition setMethod = prop.SetMethod != null ? MaterializeMethodBridge(targetType, prop.SetMethod) : null;
 
-                // Determine the property type from whichever accessor we successfully bridged
                 TypeReference propType = getMethod?.ReturnType ?? setMethod?.Parameters.LastOrDefault()?.ParameterType;
 
                 if (propType != null)
@@ -143,12 +154,9 @@ public static class TypeDefinitionExtensions
         var module = targetType.Module;
         var baseType = targetType.BaseType;
 
-        // 1. Prepare and Sanitize Attributes
-        // We start with the base attributes but MUST remove 'Abstract' 
-        // because we are providing a concrete implementation (the bridge).
         MethodAttributes attrs = baseMethod.Attributes;
         attrs &= ~MethodAttributes.Abstract;
-        attrs |= MethodAttributes.HideBySig; // Standard for C# methods
+        attrs |= MethodAttributes.HideBySig;
 
         if (baseMethod.IsVirtual)
         {
@@ -162,48 +170,49 @@ public static class TypeDefinitionExtensions
             attrs &= ~MethodAttributes.Virtual;
         }
 
-        // 2. Create the bridge method
         var bridge = new MethodDefinition(baseMethod.Name, attrs, module.TypeSystem.Void);
 
-        // 3. CRITICAL: Ensure the Body is initialized
-        // If baseMethod was abstract, Cecil won't create a Body automatically.
         if (bridge.Body == null)
         {
             bridge.Body = new Mono.Cecil.Cil.MethodBody(bridge);
         }
 
-        // Add to targetType immediately to establish context
         targetType.Methods.Add(bridge);
 
-        // 4. Map Generics
+        // 1. Copy Method-Level Attributes (e.g., NullableContext)
+        CopySignatureAttributes(baseMethod, bridge, module);
+
+        // 2. Map Generics
         if (baseMethod.HasGenericParameters)
         {
-            foreach (var gp in baseMethod.GenericParameters)
-                bridge.GenericParameters.Add(new GenericParameter(gp.Name, bridge));
+            for (int i = 0; i < baseMethod.GenericParameters.Count; i++)
+            {
+                var gp = baseMethod.GenericParameters[i];
+                var newGp = new GenericParameter(gp.Name, bridge);
+                bridge.GenericParameters.Add(newGp);
+                
+                // Copy attributes on generic parameters (like constraints/nullability)
+                CopySignatureAttributes(gp, newGp, module);
+            }
         }
 
-        // 5. Resolve Signature Types
-        // (Using the SafeReplace helper from the previous response)
-        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module)
-                            ?? module.TypeSystem.Void;
+        // 3. Map Return Type and its Attributes (e.g., Nullable)
+        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module) ?? module.TypeSystem.Void;
+        CopySignatureAttributes(baseMethod.MethodReturnType, bridge.MethodReturnType, module);
 
+        // 4. Map Parameters and their Attributes (e.g., ParamArray, Nullable)
         foreach (var p in baseMethod.Parameters)
         {
             var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module);
             var newParam = new ParameterDefinition(p.Name, p.Attributes, module.ImportReference(newType));
 
-            // Check for [ParamArray] to restore 'params'
-            if (p.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(ParamArrayAttribute).FullName))
-            {
-                var paramArrayAttr = new CustomAttribute(module.ImportReference(
-                    typeof(ParamArrayAttribute).GetConstructor(Type.EmptyTypes)));
-                newParam.CustomAttributes.Add(paramArrayAttr);
-            }
+            // This replaces the manual ParamArray check and handles all NRT attributes automatically
+            CopySignatureAttributes(p, newParam, module);
 
             bridge.Parameters.Add(newParam);
         }
 
-        // 6. Build the Base Call Reference (Preserving raw !0/!!0 tokens)
+        // 5. Build Base Call Reference
         var baseMethodRef = new MethodReference(baseMethod.Name, CloneUnmapped(baseMethod.ReturnType, module), baseType)
         {
             HasThis = baseMethod.HasThis,
@@ -214,9 +223,9 @@ public static class TypeDefinitionExtensions
         foreach (var p in baseMethod.Parameters)
             baseMethodRef.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, CloneUnmapped(p.ParameterType, module)));
 
-        // 7. Generate IL
+        // 6. Generate IL
         var proc = bridge.Body.GetILProcessor();
-        proc.Emit(OpCodes.Ldarg_0); // 'this'
+        proc.Emit(OpCodes.Ldarg_0);
         for (int i = 0; i < bridge.Parameters.Count; i++)
             proc.Emit(OpCodes.Ldarg, i + 1);
 
@@ -234,7 +243,6 @@ public static class TypeDefinitionExtensions
         {
             var gp = (GenericParameter)type;
 
-            // !!0 - Method Level
             if (gp.Type == GenericParameterType.Method)
             {
                 return (bridge.HasGenericParameters && gp.Position < bridge.GenericParameters.Count)
@@ -242,16 +250,13 @@ public static class TypeDefinitionExtensions
                     : type;
             }
 
-            // !0 - Type Level
             if (gp.Type == GenericParameterType.Type)
             {
-                // Map from Base<T> arguments if the base is a generic instance
                 if (baseType is GenericInstanceType git1 && gp.Position < git1.GenericArguments.Count)
                 {
                     return module.ImportReference(git1.GenericArguments[gp.Position]);
                 }
 
-                // Map to Derived<T> parameters
                 if (targetType.HasGenericParameters && gp.Position < targetType.GenericParameters.Count)
                 {
                     return targetType.GenericParameters[gp.Position];
@@ -261,7 +266,6 @@ public static class TypeDefinitionExtensions
             return type;
         }
 
-        // Recursive resolution for complex types
         if (type is ArrayType at)
             return new ArrayType(SafeReplace(at.ElementType, baseType, targetType, bridge, module), at.Rank);
 
@@ -299,6 +303,45 @@ public static class TypeDefinitionExtensions
         return module.ImportReference(type);
     }
 
+    // --- NEW HELPER METHODS ---
+
+    private static void CopySignatureAttributes(ICustomAttributeProvider source, ICustomAttributeProvider target, ModuleDefinition module)
+    {
+        if (source == null || !source.HasCustomAttributes) return;
+
+        foreach (var attr in source.CustomAttributes)
+        {
+            // Only copy attributes that define the C# signature (prevents copying CompilerGenerated, AsyncStateMachine, etc.)
+            if (!SignatureAttributeNames.Contains(attr.AttributeType.FullName))
+                continue;
+
+            var newAttr = new CustomAttribute(module.ImportReference(attr.Constructor));
+            
+            foreach (var arg in attr.ConstructorArguments)
+            {
+                newAttr.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
+            }
+            
+            target.CustomAttributes.Add(newAttr);
+        }
+    }
+
+    private static CustomAttributeArgument ImportAttributeArgument(CustomAttributeArgument arg, ModuleDefinition module)
+    {
+        // Nullable attributes often use byte arrays (byte[]). We must recursively copy them.
+        if (arg.Value is CustomAttributeArgument[] array)
+        {
+            var newArray = new CustomAttributeArgument[array.Length];
+            for (int i = 0; i < array.Length; i++)
+            {
+                newArray[i] = ImportAttributeArgument(array[i], module);
+            }
+            return new CustomAttributeArgument(module.ImportReference(arg.Type), newArray);
+        }
+        
+        return new CustomAttributeArgument(module.ImportReference(arg.Type), arg.Value);
+    }
+    
     /// <summary>
     /// Collects attributes applied directly to methods or inherited from the class.
     /// </summary>
