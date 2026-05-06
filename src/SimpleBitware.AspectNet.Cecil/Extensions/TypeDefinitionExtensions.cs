@@ -153,6 +153,10 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
 
         var module = targetType.Module;
         var baseType = targetType.BaseType;
+        var declaringType = baseMethod.DeclaringType.Resolve();
+
+        // Build generic substitutions by navigating the inheritance chain
+        var substitutions = GetGenericSubstitutions(targetType, declaringType, module);
 
         MethodAttributes attrs = baseMethod.Attributes;
         attrs &= ~MethodAttributes.Abstract;
@@ -190,20 +194,20 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
                 var gp = baseMethod.GenericParameters[i];
                 var newGp = new GenericParameter(gp.Name, bridge);
                 bridge.GenericParameters.Add(newGp);
-                
+
                 // Copy attributes on generic parameters (like constraints/nullability)
                 CopySignatureAttributes(gp, newGp, module);
             }
         }
 
         // 3. Map Return Type and its Attributes (e.g., Nullable)
-        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module) ?? module.TypeSystem.Void;
+        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module, substitutions) ?? module.TypeSystem.Void;
         CopySignatureAttributes(baseMethod.MethodReturnType, bridge.MethodReturnType, module);
 
         // 4. Map Parameters and their Attributes (e.g., ParamArray, Nullable)
         foreach (var p in baseMethod.Parameters)
         {
-            var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module);
+            var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module, substitutions);
             var newParam = new ParameterDefinition(p.Name, p.Attributes, module.ImportReference(newType));
 
             // This replaces the manual ParamArray check and handles all NRT attributes automatically
@@ -213,7 +217,7 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
         }
 
         // 5. Build Base Call Reference
-        var baseMethodRef = new MethodReference(baseMethod.Name, CloneUnmapped(baseMethod.ReturnType, module), baseType)
+        var baseMethodRef = new MethodReference(baseMethod.Name, SubstituteType(CloneUnmapped(baseMethod.ReturnType, module), substitutions, module), baseType)
         {
             HasThis = baseMethod.HasThis,
             ExplicitThis = baseMethod.ExplicitThis,
@@ -221,7 +225,7 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
         };
 
         foreach (var p in baseMethod.Parameters)
-            baseMethodRef.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, CloneUnmapped(p.ParameterType, module)));
+            baseMethodRef.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, SubstituteType(CloneUnmapped(p.ParameterType, module), substitutions, module)));
 
         // 6. Generate IL
         var proc = bridge.Body.GetILProcessor();
@@ -235,13 +239,17 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
         return bridge;
     }
 
-    private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module)
+    private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module, Dictionary<GenericParameter, TypeReference> substitutions)
     {
         if (type == null) return module.TypeSystem.Void;
 
         if (type.IsGenericParameter)
         {
             var gp = (GenericParameter)type;
+
+            // First check substitutions from inheritance chain
+            if (substitutions.TryGetValue(gp, out var sub))
+                return sub;
 
             if (gp.Type == GenericParameterType.Method)
             {
@@ -267,16 +275,16 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
         }
 
         if (type is ArrayType at)
-            return new ArrayType(SafeReplace(at.ElementType, baseType, targetType, bridge, module), at.Rank);
+            return new ArrayType(SafeReplace(at.ElementType, baseType, targetType, bridge, module, substitutions), at.Rank);
 
         if (type is ByReferenceType brt)
-            return new ByReferenceType(SafeReplace(brt.ElementType, baseType, targetType, bridge, module));
+            return new ByReferenceType(SafeReplace(brt.ElementType, baseType, targetType, bridge, module, substitutions));
 
         if (type is GenericInstanceType git)
         {
             var instance = new GenericInstanceType(module.ImportReference(git.ElementType));
             foreach (var arg in git.GenericArguments)
-                instance.GenericArguments.Add(SafeReplace(arg, baseType, targetType, bridge, module));
+                instance.GenericArguments.Add(SafeReplace(arg, baseType, targetType, bridge, module, substitutions));
             return instance;
         }
 
@@ -305,6 +313,51 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
 
     // --- NEW HELPER METHODS ---
 
+    private static Dictionary<GenericParameter, TypeReference> GetGenericSubstitutions(TypeDefinition targetType, TypeDefinition declaringType, ModuleDefinition module)
+    {
+        var substitutions = new Dictionary<GenericParameter, TypeReference>();
+        var currentType = targetType;
+
+        while (currentType != null && currentType != declaringType)
+        {
+            if (currentType.BaseType is GenericInstanceType git)
+            {
+                var baseDef = git.ElementType.Resolve();
+                for (int i = 0; i < git.GenericArguments.Count; i++)
+                {
+                    var gp = baseDef.GenericParameters[i];
+                    if (!substitutions.ContainsKey(gp))
+                    {
+                        substitutions[gp] = module.ImportReference(git.GenericArguments[i]);
+                    }
+                }
+            }
+            currentType = currentType.BaseType?.Resolve();
+        }
+        return substitutions;
+    }
+
+    private static TypeReference SubstituteType(TypeReference type, Dictionary<GenericParameter, TypeReference> substitutions, ModuleDefinition module)
+    {
+        if (type == null) return null;
+        if (type is GenericParameter gp && substitutions.TryGetValue(gp, out var sub))
+            return sub;
+
+        if (type.IsArray) return new ArrayType(SubstituteType(type.GetElementType(), substitutions, module), ((ArrayType)type).Rank);
+        if (type.IsByReference) return new ByReferenceType(SubstituteType(type.GetElementType(), substitutions, module));
+
+        if (type.IsGenericInstance)
+        {
+            var git = (GenericInstanceType)type;
+            var newGit = new GenericInstanceType(module.ImportReference(git.ElementType));
+            foreach (var arg in git.GenericArguments)
+                newGit.GenericArguments.Add(SubstituteType(arg, substitutions, module));
+            return newGit;
+        }
+
+        return module.ImportReference(type);
+    }
+
     private static void CopySignatureAttributes(ICustomAttributeProvider source, ICustomAttributeProvider target, ModuleDefinition module)
     {
         if (source == null || !source.HasCustomAttributes) return;
@@ -316,12 +369,12 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
                 continue;
 
             var newAttr = new CustomAttribute(module.ImportReference(attr.Constructor));
-            
+
             foreach (var arg in attr.ConstructorArguments)
             {
                 newAttr.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
             }
-            
+
             target.CustomAttributes.Add(newAttr);
         }
     }
