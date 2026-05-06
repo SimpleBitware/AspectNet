@@ -2,7 +2,7 @@ namespace SimpleBitware.AspectNet.Tests.End2End.Helpers;
 
 public class ActivityComparer : Comparer<ExpectedActivity>
 {
-    public static ActivityComparer Instance { get; } = new ActivityComparer();
+    public static ActivityComparer Instance { get; } = new();
 
     public override int Compare(ExpectedActivity? x, ExpectedActivity? y)
     {

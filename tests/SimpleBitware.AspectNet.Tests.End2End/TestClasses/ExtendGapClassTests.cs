@@ -7,9 +7,9 @@ using SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.TestClasses;
 
-public class ExtendTestClassTests
+public class ExtendGapClassTests
 {
-    private readonly ExtendTestClass<string> testClass = new();
+    private readonly ExtendTestClass<long> testClass = new();
     
     [Test]
     public void Should_Weave_Constructor_With_Additional_Class_Aspect()
@@ -101,7 +101,7 @@ public class ExtendTestClassTests
     public void Should_Weave_Inherited_AsyncValueTaskMethod_With_Additional_Class_Aspect()
     {
         //given
-        var inputParameter = default(string);
+        var inputParameter = 0L;
         var classType = testClass.GetType();
         const string methodName = nameof(testClass.AsyncValueTaskMethod);
         var context = new AspectNetAttributeContext
