@@ -19,6 +19,7 @@ public static class ExpectedAspectAttributeExtensions
         {
             var context = aspect.Context.PartialDeepCopy();
             context.Exception = null;
+            context.ReturnValue = null;
             yield return new ExpectedActivity()
             {
                 AspectType = aspect.Type,

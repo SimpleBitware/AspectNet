@@ -166,7 +166,7 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
             else
             {
                 Instructions.Add(Processor.Create(OpCodes.Ldloc, valueVariable));
-                if (valueVariable.VariableType.IsValueType)
+                if (valueVariable.VariableType.IsValueType || valueVariable.VariableType is GenericParameter)
                     Instructions.Add(Processor.Create(OpCodes.Box, valueVariable.VariableType));
             }
 

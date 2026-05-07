@@ -59,7 +59,8 @@ public class ExtendGapClassTests
             Instance = testClass,
             ClassType = classType,
             MemberName = methodName,
-            Parameters = classType.GetMethodParameters(methodName)
+            Parameters = classType.GetMethodParameters(methodName),
+            ReturnValue = 0
         };
         var activityKey = context.GetActivityKey();
         ExpectedAspectAttribute[] expectedAspectAttributes =

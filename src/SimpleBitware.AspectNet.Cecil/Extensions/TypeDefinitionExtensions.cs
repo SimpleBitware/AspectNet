@@ -13,8 +13,8 @@ public static class TypeDefinitionExtensions
 {
     // These attributes control how C# decompilers and compilers read the signature
     // (Nullability, params, tuples, ref readonly, etc.)
-    private static readonly HashSet<string> SignatureAttributeNames = new HashSet<string>
-    {
+    private static readonly HashSet<string> SignatureAttributeNames =
+    [
         "System.Runtime.CompilerServices.NullableAttribute",
         "System.Runtime.CompilerServices.NullableContextAttribute",
         "System.Runtime.CompilerServices.DynamicAttribute",
@@ -22,8 +22,8 @@ public static class TypeDefinitionExtensions
         "System.Runtime.CompilerServices.IsReadOnlyAttribute",
         "System.Runtime.CompilerServices.IsByRefLikeAttribute",
         "System.ParamArrayAttribute"
-    };
-    
+    ];
+
     public static TypeReference GetRuntimeTypeReference(this TypeDefinition typeDefinition)
     {
         if (!typeDefinition.HasGenericParameters)
@@ -117,7 +117,7 @@ public static class TypeDefinitionExtensions
         return membersToBridge.ToArray();
     }
 
-public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
+    public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
     {
         if (targetType == null || members == null) return;
 
@@ -239,7 +239,8 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
         return bridge;
     }
 
-    private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module, Dictionary<GenericParameter, TypeReference> substitutions)
+    private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module,
+        Dictionary<GenericParameter, TypeReference> substitutions)
     {
         if (type == null) return module.TypeSystem.Void;
 
@@ -332,8 +333,10 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
                     }
                 }
             }
+
             currentType = currentType.BaseType?.Resolve();
         }
+
         return substitutions;
     }
 
@@ -389,12 +392,13 @@ public static void MaterializeInheritedBridges(this TypeDefinition targetType, I
             {
                 newArray[i] = ImportAttributeArgument(array[i], module);
             }
+
             return new CustomAttributeArgument(module.ImportReference(arg.Type), newArray);
         }
-        
+
         return new CustomAttributeArgument(module.ImportReference(arg.Type), arg.Value);
     }
-    
+
     /// <summary>
     /// Collects attributes applied directly to methods or inherited from the class.
     /// </summary>
