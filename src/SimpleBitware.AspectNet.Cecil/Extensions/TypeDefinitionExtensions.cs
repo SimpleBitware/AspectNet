@@ -91,9 +91,10 @@ public static class TypeDefinitionExtensions
 
         while (currentBase != null && currentBase.FullName != "System.Object")
         {
-            // 1. Collect Methods
+            // 1. Collect Methods (exclude property accessors — handled via inheritedProperties)
             var inheritedMethods = from method in currentBase.Methods
                 where !method.IsPrivate && !method.IsStatic && !method.IsConstructor
+                where !method.IsGetter && !method.IsSetter
                 // FILTER: Check if the method has the exclude attribute
                 where !method.CustomAttributes.Any(a => a.AttributeType.Name == ExcludeAttributeName)
                 let relativeSignature = method.FullName.Replace(currentBase.FullName, "")
