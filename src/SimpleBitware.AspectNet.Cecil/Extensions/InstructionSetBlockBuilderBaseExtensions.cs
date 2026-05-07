@@ -162,7 +162,7 @@ public static class InstructionSetBlockBuilderBaseExtensions
         return blockBuilder
             .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnExit, contextVariableDefinition)
             .If(returnValueVariableDefinition != null, ifBuilder =>
-                ifBuilder.SetPropertyToCast(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference));
+                ifBuilder.SetPropertyOrDefault(returnValueVariableDefinition, contextVariableDefinition, contextReferences.ReturnValueGetMethod, returnTypeReference));
     }
 
     private static void RedirectLogicalBranches(IEnumerable<Instruction> instructions, Instruction oldTarget, Instruction newTarget)
