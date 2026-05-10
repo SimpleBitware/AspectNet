@@ -5,8 +5,22 @@ using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Extensions;
 
+/// <summary>
+/// Provides extension methods for working with type definitions in Mono.Cecil.
+/// </summary>
 public static class TypeDefinitionExtensions
 {
+    /// <summary>
+    /// Gets a dictionary mapping methods to their associated aspect attributes from all types in the module.
+    /// </summary>
+    /// <param name="moduleTypes">The collection of type definitions to search.</param>
+    /// <param name="baseAspectNetAttribute">The base aspect attribute type to check inheritance against.</param>
+    /// <param name="filterAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
+    /// <returns>An immutable dictionary mapping method definitions to arrays of aspect attributes.</returns>
+    /// <remarks>
+    /// This method aggregates aspect attributes from class-level and method-level declarations,
+    /// merging them appropriately and filtering out methods that should be excluded from weaving.
+    /// </remarks>
     public static IReadOnlyDictionary<MethodDefinition, CustomAttribute[]> GetMethodsDecoratedWithAspectNetDerivedAttributes(
         this IEnumerable<TypeDefinition> moduleTypes,
         TypeDefinition baseAspectNetAttribute,
@@ -38,6 +52,15 @@ public static class TypeDefinitionExtensions
     /// <summary>
     /// Collects attributes applied directly to methods or inherited from the class.
     /// </summary>
+    /// <param name="methods">The collection of methods to analyze.</param>
+    /// <param name="classAspects">The aspect attributes defined at the class level.</param>
+    /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
+    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <returns>A collection of method-aspect attribute pairs.</returns>
+    /// <remarks>
+    /// This method processes each method, collecting both method-level and inherited class-level
+    /// aspect attributes, while filtering out methods that have exclusion attributes.
+    /// </remarks>
     private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetMethodLevelAttributes(
         this Collection<MethodDefinition> methods,
         CustomAttribute[] classAspects,
@@ -61,6 +84,15 @@ public static class TypeDefinitionExtensions
     /// <summary>
     /// Collects attributes applied to properties (and inherited class aspects) and maps them to accessors.
     /// </summary>
+    /// <param name="properties">The collection of properties to analyze.</param>
+    /// <param name="classAspects">The aspect attributes defined at the class level.</param>
+    /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
+    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <returns>A collection of method-aspect attribute pairs for property accessors.</returns>
+    /// <remarks>
+    /// This method processes property accessors (getters and setters), collecting property-level
+    /// and inherited class-level aspect attributes, while respecting exclusion filters.
+    /// </remarks>
     private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetPropertyLevelAttributes(
         this Collection<PropertyDefinition> properties,
         CustomAttribute[] classAspects,

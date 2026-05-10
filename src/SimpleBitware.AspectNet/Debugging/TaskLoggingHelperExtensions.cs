@@ -5,9 +5,16 @@ namespace SimpleBitware.AspectNet.Debugging;
 
 internal static class TaskLoggingHelperExtensions
 {
-    public static void LogWeavingMessage(this TaskLoggingHelper log,  bool debug, string message, params object[] messageArgs)
+    private const string MessagePrefix = "[AspectNet]";
+    
+    public static void LogDebugMessage(this TaskLoggingHelper log, bool debug, string message, params object[] messageArgs)
     {
-        if(debug)
-            log.LogMessage(MessageImportance.High, message, messageArgs);
+        if (debug)
+            log.LogMessage(MessageImportance.High, $"{MessagePrefix} {message}", messageArgs);
+    }
+
+    public static void LogErrorMessage(this TaskLoggingHelper log, string message, params object[] messageArgs)
+    {
+        log.LogError($"{MessagePrefix} {message}", messageArgs);
     }
 }

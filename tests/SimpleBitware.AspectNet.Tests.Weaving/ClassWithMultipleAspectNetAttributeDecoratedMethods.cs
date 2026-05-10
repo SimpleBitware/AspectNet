@@ -18,6 +18,12 @@ public class ClassWithMultipleAspectNetAttributeDecoratedMethods
         return value;
     }
     
+    [NewRecordActivity]
+    public Task PublicMethod2Async()
+    {
+        return Task.CompletedTask;
+    }
+    
     [RecordActivity(Priority = 2)]
     [NewRecordActivity(Priority = 1)]
     public Task<int> PublicAsyncMethodWithAsyncException(int value)
