@@ -3,7 +3,7 @@ using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
 
 namespace SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
-[AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited =  false, AllowMultiple = true)]
+[AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, AllowMultiple = true)]
 public class RecordActivityAttribute : AbstractAspectNetAttribute
 {
     public override void OnEntry(AspectNetAttributeContext context)
@@ -15,7 +15,7 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
 
         var activity = new Activity()
         {
-            Context = context,
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnEntry),
             Aspect = this
         };
@@ -27,8 +27,20 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var key = context.GetActivityKey();
         var activity = new Activity()
         {
-            Context = context,
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnSuccess),
+            Aspect = this
+        };
+        ActivitiesStorage.Activities[key].Add(activity);
+    }
+    
+    public override void OnException(AspectNetAttributeContext context)
+    {
+        var key = context.GetActivityKey();
+        var activity = new Activity()
+        {
+            Context = context.PartialDeepCopy(),
+            AspectMethodName = nameof(OnException),
             Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);
@@ -39,20 +51,8 @@ public class RecordActivityAttribute : AbstractAspectNetAttribute
         var key = context.GetActivityKey();
         var activity = new Activity()
         {
-            Context = context,
+            Context = context.PartialDeepCopy(),
             AspectMethodName = nameof(OnExit),
-            Aspect = this
-        };
-        ActivitiesStorage.Activities[key].Add(activity);
-    }
-
-    public override void OnException(AspectNetAttributeContext context)
-    {
-        var key = context.GetActivityKey();
-        var activity = new Activity()
-        {
-            Context = context,
-            AspectMethodName = nameof(OnException),
             Aspect = this
         };
         ActivitiesStorage.Activities[key].Add(activity);

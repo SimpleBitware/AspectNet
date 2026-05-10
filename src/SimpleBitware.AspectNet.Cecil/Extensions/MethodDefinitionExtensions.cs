@@ -60,10 +60,12 @@ public static class MethodDefinitionExtensions
     public static MethodDefinition WeaveMethod(this KeyValuePair<MethodDefinition, CustomAttribute[]> methodWithAspects)
     {
         var method = methodWithAspects.Key;
+        method.Body.SimplifyMacros();
+
         var aspectAttributes = methodWithAspects.Value;
         var methodStartInstructions = method.GetStartInstructions();
         var innerInstructions = method.GetInnerInstructions();
-        var isAsyncMethod = method.ReturnType.IsTaskType();
+        var isAsyncMethod = method.ReturnType.IsTaskOrValueTaskType();
 
         var moduleCache = method.Module.Cache();
         var processor = method.Body.GetILProcessor();
@@ -73,6 +75,7 @@ public static class MethodDefinitionExtensions
         var contextVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(AspectNetAttributeContext)));
         var returnValueVariableDefinition = method.FindOrCreateReturnVariable();
         var returnTypeReference = moduleCache.ImportReference(method.ReturnType);
+        var catchExecutedVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(bool)));
         var instructionSet = new InstructionSet()
         {
             Instructions = innerInstructions
@@ -95,7 +98,18 @@ public static class MethodDefinitionExtensions
                 .AssignResultToVariable(contextVariableDefinition)
                 .SetStringProperty(contextVariableDefinition, contextReferences.NameSetMethod, method.Name)
                 .SetObjectProperty(contextVariableDefinition, contextReferences.InstanceSetMethod, method.HasThis ? method.Body.ThisParameter : null)
-                .SetTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)), method.DeclaringType)
+                .If(method.IsStatic,
+                    staticBuilder => staticBuilder
+                        .SetStaticTypeProperty(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
+                            method.DeclaringType.GetRuntimeTypeReference())
+                        .Build(),
+                    instanceBuilder => instanceBuilder
+                        .SetRuntimeTypeProperty(
+                            contextVariableDefinition,
+                            typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
+                            moduleCache.ImportReference(typeof(object).GetMethod("GetType")))
+                        .Build()
+                )
                 .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)
                 .Build()
             )
@@ -108,10 +122,16 @@ public static class MethodDefinitionExtensions
                     var aspectVariableDefinition = new VariableDefinition(moduleCache.ImportReference(customAttribute.AttributeType));
                     var exceptionVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(Exception)));
                     var builtInstructionSet = builder
+                        .If(isAsyncMethod, ifBlockBuilder => ifBlockBuilder
+                            .AddVariable(catchExecutedVariableDefinition, addCatchExecutedBuilder =>
+                                addCatchExecutedBuilder.GetDefaultValue(catchExecutedVariableDefinition.VariableType)
+                                    .AssignResultToVariable(catchExecutedVariableDefinition)
+                                    .Build())
+                        )
                         .AddVariable(aspectVariableDefinition)
                         .AddVariable(exceptionVariableDefinition)
                         .Execute(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)), aspectVariableDefinition.VariableType)
-                        .AddInstanceVariable(instanceVariableBuilder => instanceVariableBuilder
+                        .SetVariable(instanceVariableBuilder => instanceVariableBuilder
                             .AssignResultToVariable(aspectVariableDefinition)
                             .SetIntProperty(
                                 aspectVariableDefinition,
@@ -121,18 +141,15 @@ public static class MethodDefinitionExtensions
                         )
                         .AddTryCatch(
                             tryBlockBuilder => tryBlockBuilder
-                                .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnEntry)
+                                .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnEntry, contextVariableDefinition)
                                 .If(isAsyncMethod,
                                     ifBlockBuilder => ifBlockBuilder
                                         .AddTryBlockForAsyncMethods(
-                                            processor,
-                                            method.Module,
                                             moduleCache,
                                             returnValueVariableDefinition,
                                             contextVariableDefinition,
                                             aspectVariableDefinition,
                                             returnTypeReference,
-                                            returnTypeReference.IsGenericInstance,
                                             isInnermost,
                                             currentInstructionSet)
                                         .Build(),
@@ -148,39 +165,40 @@ public static class MethodDefinitionExtensions
                                 )
                                 .Build(),
                             catchBlockBuilder => catchBlockBuilder
-                                .AddInstanceVariable(assignExceptionToContextBlockBuilder =>
+                                .SetVariable(assignExceptionToContextBlockBuilder =>
                                     assignExceptionToContextBlockBuilder
+                                        .If(isAsyncMethod, ifBlockBuilder => ifBlockBuilder
+                                            .GetTrue()
+                                            .AssignResultToVariable(catchExecutedVariableDefinition)
+                                        )
                                         .AssignResultToVariable(exceptionVariableDefinition)
                                         .SetObjectProperty(contextVariableDefinition,
                                             typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception)),
                                             exceptionVariableDefinition)
                                         .Build()
                                 )
-                                .Execute(aspectVariableDefinition, contextVariableDefinition, aspectReferences.OnException)
-                                .Execute(exceptionVariableDefinition, contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnException, contextVariableDefinition)
+                                .ExecuteInstanceMethod(exceptionVariableDefinition, contextReferences.ExceptionGetMethod, contextVariableDefinition)
                                 .RethrowWhenEqual()
-                                .GetValue(contextVariableDefinition, contextReferences.ExceptionGetMethod)
+                                .ExecuteInstanceMethod(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .ThrowWhenDifferent(contextVariableDefinition, contextReferences.ExceptionGetMethod)
                                 .Build(),
                             finallyBlockBuilder => finallyBlockBuilder
                                 .If(isAsyncMethod,
                                     ifBlockBuilder => ifBlockBuilder
                                         .AddFinallyBlockForAsyncMethods(
-                                            contextVariableDefinition,
                                             aspectVariableDefinition,
                                             aspectReferences,
-                                            contextReferences,
-                                            processor)
-                                        .Build(),
+                                            contextVariableDefinition,
+                                            catchExecutedVariableDefinition),
                                     elseBlockBuilder => elseBlockBuilder
                                         .AddFinallyBlockForSyncMethods(
-                                            returnValueVariableDefinition,
-                                            contextVariableDefinition,
                                             aspectVariableDefinition,
                                             aspectReferences,
+                                            contextVariableDefinition,
                                             contextReferences,
-                                            returnTypeReference)
-                                        .Build()
+                                            returnTypeReference,
+                                            returnValueVariableDefinition)
                                 )
                                 .Build()
                         )

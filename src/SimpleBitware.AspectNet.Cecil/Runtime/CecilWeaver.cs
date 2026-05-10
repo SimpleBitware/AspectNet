@@ -36,21 +36,33 @@ public static class CecilWeaver
         string? pdbFilePath,
         bool generateDebugFiles)
     {
-        return ProcessAssembly<IAspectNetAttribute, AspectNetWovenAttribute>(
+        return ProcessAssembly<IAspectNetAttribute, ProcessedByAspectNetAttribute>(
             targetAssemblyDirectory,
             references,
             assemblyPath,
             pdbFilePath,
             (moduleTypes, baseAspectNetAttribute, markerAttributeConstructor) =>
-                moduleTypes.GetMethodsDecoratedWithAspectNetDerivedAttributes(
-                        baseAspectNetAttribute,
-                        [typeof(AspectNetExcludeAttribute), typeof(AspectNetWovenAttribute)]
-                    )
-                    .ForEach(x => x
-                        .WeaveMethod()
-                        .OptimizeMacros()
-                        .ApplyMarkerAttribute(markerAttributeConstructor)
-                    ),
+                moduleTypes.ForEach(type =>
+                {
+                    var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+                    if (classAspects.Any())
+                    {
+                        var memberToMaterialize = type.GetInheritedMembersToBridge();
+                        type.MaterializeInheritedBridges(memberToMaterialize);
+                    }
+                    type
+                        .GetMethodsDecoratedWithAspectNetDerivedAttributes(
+                            classAspects,
+                            baseAspectNetAttribute,
+                            [typeof(AspectNetExcludeAttribute), typeof(ProcessedByAspectNetAttribute)]
+                        )
+                        .ForEach(method => method
+                            .WeaveMethod()
+                            .OptimizeMacros()
+                            .ApplyMarkerAttribute(markerAttributeConstructor)
+                        );
+                    classAspects.ForEach(attr => { type.CustomAttributes.Remove(attr); });
+                }),
             generateDebugFiles
         );
     }
@@ -93,17 +105,19 @@ public static class CecilWeaver
             if (module == null)
                 throw new ApplicationException($"Module {assemblyPath} could not be loaded. Check the assembly path and ensure it is a valid .NET assembly.");
 
-            if(generateDebugFiles)
+            if (generateDebugFiles)
                 File.WriteAllText("before.il", module.DumpModule());
-            
+
             var baseAspectNetAttribute = module.Cache().Resolve(module.ImportReference(typeof(TAttribute)))
-                ?? throw new SymbolsNotFoundException($"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
+                                         ?? throw new SymbolsNotFoundException(
+                                             $"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
             var markerAttributeConstructor = module.ImportReference(typeof(TMarker).GetConstructor(Type.EmptyTypes))
-                ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {nameof(TMarker)} has a parameterless constructor.");
+                                             ?? throw new SymbolsNotFoundException(
+                                                 $"Marker attribute constructor could not be resolved. Ensure that {nameof(TMarker)} has a parameterless constructor.");
 
             weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
 
-            if(generateDebugFiles)
+            if (generateDebugFiles)
                 File.WriteAllText("after.il", module.DumpModule());
 
             module.Write(assemblyStream, writerParameters);
@@ -117,7 +131,7 @@ public static class CecilWeaver
             CachedItems = cachedItems
         };
     }
-    
+
     /// <summary>
     /// Creates reader parameters for loading a module with symbols and assembly resolution.
     /// </summary>
@@ -132,7 +146,7 @@ public static class CecilWeaver
     {
         var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(targetAssemblyDirectory);
-        
+
         foreach (var reference in references)
         {
             if (File.Exists(reference))

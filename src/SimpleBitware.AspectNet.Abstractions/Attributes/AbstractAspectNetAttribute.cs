@@ -1,6 +1,6 @@
 ﻿namespace SimpleBitware.AspectNet.Abstractions.Attributes;
 
-[AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited =  false, AllowMultiple = true)]
+[AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, AllowMultiple = true)]
 public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
 {
     public int Priority { get; set; } = int.MaxValue;

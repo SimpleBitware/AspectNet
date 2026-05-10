@@ -29,7 +29,7 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
         Method.Body.ExceptionHandlers.Clear();
         return this;
     }
-    
+
     /// <summary>
     /// Adds a return instruction, optionally returning a value from the specified variable.
     /// </summary>
@@ -40,22 +40,32 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
     /// before the return instruction is emitted. If null, a simple void return is performed.
     /// This method generates the final return sequence for a method body.
     /// </remarks>
-    public MethodBodyBuilder AddReturn(VariableDefinition variableDefinition, TypeReference returnType, bool isAsync, ModuleDefinition module)
+    public MethodBodyBuilder AddReturn(VariableDefinition? variableDefinition, TypeReference returnType, bool isAsync, ModuleDefinition module)
     {
-        if (isAsync && variableDefinition != null)
+        // If we have a result to return, load it onto the stack
+        if (variableDefinition != null)
         {
-            var safeInstructions = InstructionSetBlockBuilderBaseExtensions.CreateSafeAsyncReturnInstructions(Processor, module, variableDefinition, returnType);
-            Instructions.AddRange(safeInstructions);
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
         }
-        else
-        {
-            // Fallback to standard sync return
-            if (variableDefinition != null)
-                Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
-            
-            Instructions.Add(Processor.Create(OpCodes.Ret));
-        }
-    
+
+        // Simply emit the return instruction.
+        // For both Async (Task/ValueTask) and Sync methods, the variableDefinition 
+        // already holds the final 'wrapped' result or the direct return value.
+        Instructions.Add(Processor.Create(OpCodes.Ret));
+
         return this;
+    }
+
+    private MethodReference ImportTaskFromResult(ModuleDefinition module, TypeReference innerT)
+    {
+        // Use ImportReference directly—it handles System.Type naturally
+        var taskType = ModuleCache.ImportReference(typeof(Task)).Resolve();
+
+        var method = taskType.Methods.First(m => m.Name == "FromResult" && m.HasGenericParameters);
+
+        var genericMethod = new GenericInstanceMethod(module.ImportReference(method));
+        genericMethod.GenericArguments.Add(module.ImportReference(innerT));
+
+        return genericMethod;
     }
 }

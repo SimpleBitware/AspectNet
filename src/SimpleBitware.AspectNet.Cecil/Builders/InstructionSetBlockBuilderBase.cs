@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
+using SimpleBitware.AspectNet.Cecil.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Builders;
@@ -61,7 +62,7 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// </summary>
     /// <param name="function">A function that receives an <see cref="InstanceVariableBuilder"/> and returns an instruction set.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    public TBuilder AddInstanceVariable(Func<InstanceVariableBuilder, InstructionSet> function)
+    public TBuilder SetVariable(Func<InstanceVariableBuilder, InstructionSet> function)
     {
         var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
         Instructions.AddRange(instructionSet.Instructions);
@@ -72,15 +73,21 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// Adds a variable definition to the method body.
     /// </summary>
     /// <param name="variableDefinition">The variable to add, or null to skip addition.</param>
+    /// <param name="function"></param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <remarks>
     /// If <paramref name="variableDefinition"/> is null, this method has no effect.
     /// </remarks>
-    public TBuilder AddVariable(VariableDefinition? variableDefinition)
+    public TBuilder AddVariable(VariableDefinition? variableDefinition, Func<InstanceVariableBuilder, InstructionSet>? function = null)
     {
-        if (variableDefinition is not null &&
-            !Method.Body.Variables.Contains(variableDefinition))
+        if (variableDefinition is not null && !Method.Body.Variables.Contains(variableDefinition))
             Method.Body.Variables.Add(variableDefinition);
+
+        if (function is not null)
+        {
+            var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache));
+            Instructions.AddRange(instructionSet.Instructions);
+        }
 
         return (TBuilder)this;
     }
@@ -100,8 +107,59 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
         if (variableDefinition == null)
             return (TBuilder)this;
 
-        Instructions.Add(Processor.Create(OpCodes.Ldloca, variableDefinition));
-        Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
+        // 1. Detection: Is this Task<T>?
+        if (typeReference.IsGenericInstance && typeReference.GetElementType().FullName == "System.Threading.Tasks.Task`1")
+        {
+            var genericTask = (GenericInstanceType)typeReference;
+            var baseInnerT = genericTask.GenericArguments[0];
+
+            // 2. Safe Generic Mapping
+            TypeReference innerT = baseInnerT;
+            if (baseInnerT.IsGenericParameter)
+            {
+                var gp = (GenericParameter)baseInnerT;
+
+                // Bounds check for Class-level generics (!0)
+                if (gp.Type == GenericParameterType.Type)
+                {
+                    if (gp.Position < Method.DeclaringType.GenericParameters.Count)
+                    {
+                        innerT = Method.DeclaringType.GenericParameters[gp.Position];
+                    }
+                }
+                // Bounds check for Method-level generics (!!0)
+                else if (gp.Type == GenericParameterType.Method)
+                {
+                    if (gp.Position < Method.GenericParameters.Count)
+                    {
+                        innerT = Method.GenericParameters[gp.Position];
+                    }
+                }
+            }
+
+            // 3. Create 'default(T)' on stack
+            var tempDefault = new VariableDefinition(innerT);
+            Method.Body.Variables.Add(tempDefault);
+
+            Instructions.Add(Processor.Create(OpCodes.Ldloca, tempDefault));
+            Instructions.Add(Processor.Create(OpCodes.Initobj, innerT));
+            Instructions.Add(Processor.Create(OpCodes.Ldloc, tempDefault));
+
+            // 4. Call Task.FromResult<T>(innerT)
+            // Ensure you have the ImportTaskFromResult helper in your class!
+            var fromResultMethod = Method.Module.ImportTaskFromResult(innerT);
+            Instructions.Add(Processor.Create(OpCodes.Call, fromResultMethod));
+
+            // 5. Store the Task<T> object
+            Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
+        }
+        else
+        {
+            // Standard non-Task fallback (works for ValueTask, Task, and simple types)
+            Instructions.Add(Processor.Create(OpCodes.Ldloca, variableDefinition));
+            Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
+        }
+
         return (TBuilder)this;
     }
 
@@ -190,42 +248,8 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
         return (TBuilder)this;
     }
 
-    /// <summary>
-    /// Conditionally executes an action based on the provided condition.
-    /// </summary>
-    /// <param name="condition">The boolean condition to evaluate.</param>
-    /// <param name="ifAction">The action to execute if the condition is true.</param>
-    /// <param name="elseAction">The action to execute if the condition is false.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method allows for conditional builder logic at configuration time,
-    /// not to be confused with runtime IL conditions.
-    /// </remarks>
-    public TBuilder If(bool condition, Action<TBuilder> ifAction, Action<TBuilder> elseAction)
+    public Instruction CreateEmptyInstruction()
     {
-        if (condition)
-            ifAction((TBuilder)this);
-        else
-            elseAction((TBuilder)this);
-
-        return (TBuilder)this;
-    }
-
-    /// <summary>
-    /// Conditionally executes an action based on the provided condition delegate.
-    /// </summary>
-    /// <param name="condition">The boolean condition to evaluate.</param>
-    /// <param name="action">The action to execute if the condition returns true.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method allows for conditional builder logic at configuration time,
-    /// evaluating the condition immediately rather than generating IL conditional code.
-    /// </remarks>
-    public TBuilder If(bool condition, Action<TBuilder> action)
-    {
-        if (condition)
-            action((TBuilder)this);
-
-        return (TBuilder)this;
+        return Processor.Create(OpCodes.Nop);
     }
 }

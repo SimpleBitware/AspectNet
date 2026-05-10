@@ -35,4 +35,30 @@ internal static class ModuleDefinitionExtensions
     {
         return ModulesCache.GetValue(module, m => new ModuleCache(m));
     }
+    
+    public static MethodReference ImportTaskFromResult(this ModuleDefinition module, TypeReference innerT)
+    {
+        // 1. Find the Task class (usually in System.Runtime or mscorlib)
+        // We search for Task instead of Task`1
+        var taskType = module.ImportReference(typeof(System.Threading.Tasks.Task)).Resolve();
+    
+        if (taskType == null)
+            throw new Exception("Could not resolve System.Threading.Tasks.Task");
+
+        // 2. Find the static FromResult<T> method
+        var fromResultDef = taskType.Methods
+            .FirstOrDefault(m => m.Name == "FromResult" && m.HasGenericParameters);
+
+        if (fromResultDef == null)
+            throw new Exception("Could not find Task.FromResult<T> method");
+
+        // 3. Import the method reference into the current module
+        var fromResultRef = module.ImportReference(fromResultDef);
+
+        // 4. Make it a Generic Instance Method: Task.FromResult<innerT>
+        var genericFromResult = new GenericInstanceMethod(fromResultRef);
+        genericFromResult.GenericArguments.Add(innerT);
+
+        return genericFromResult;
+    }
 }

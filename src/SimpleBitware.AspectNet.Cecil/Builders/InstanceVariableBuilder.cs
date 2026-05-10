@@ -166,7 +166,7 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
             else
             {
                 Instructions.Add(Processor.Create(OpCodes.Ldloc, valueVariable));
-                if (valueVariable.VariableType.IsValueType)
+                if (valueVariable.VariableType.IsValueType || valueVariable.VariableType is GenericParameter)
                     Instructions.Add(Processor.Create(OpCodes.Box, valueVariable.VariableType));
             }
 
@@ -187,7 +187,7 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
     /// If either <paramref name="variableDefinition"/> or <paramref name="propertyInfo"/> is null, this method has no effect.
     /// Uses <c>ldtoken</c> and <see cref="Type.GetTypeFromHandle"/> to obtain the runtime type.
     /// </remarks>
-    public InstanceVariableBuilder SetTypeProperty(
+    public InstanceVariableBuilder SetStaticTypeProperty(
         VariableDefinition? variableDefinition,
         PropertyInfo? propertyInfo,
         TypeReference declaringType)
@@ -200,6 +200,25 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
                 Processor.Create(OpCodes.Ldloc, variableDefinition),
                 Processor.Create(OpCodes.Ldtoken, declaringType), // typeof(DeclaringClass)
                 Processor.Create(OpCodes.Call, getTypeFromHandleMethod),
+                Processor.Create(OpCodes.Callvirt, setMethodReference)
+            ]);
+        }
+
+        return this;
+    }
+    
+    public InstanceVariableBuilder SetRuntimeTypeProperty(
+        VariableDefinition? variableDefinition,
+        PropertyInfo? propertyInfo,
+        MethodReference? methodReference)
+    {
+        if (variableDefinition is not null && methodReference is not null && propertyInfo is not null)
+        {
+            var setMethodReference = ModuleCache.ImportReference(propertyInfo.SetMethod);
+            Instructions.AddRange([
+                Processor.Create(OpCodes.Ldloc, variableDefinition),
+                Processor.Create(OpCodes.Ldarg_0), // this
+                Processor.Create(OpCodes.Callvirt, methodReference),
                 Processor.Create(OpCodes.Callvirt, setMethodReference)
             ]);
         }
@@ -246,6 +265,64 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
                 Instructions.Add(Processor.Create(OpCodes.Callvirt, addToDictionary));
             }
         }
+
+        return this;
+    }
+    
+    public InstanceVariableBuilder GetDefaultValue(TypeReference type)
+    {
+        var instructions = new List<Instruction>();
+
+        if (type.IsValueType)
+        {
+            switch (type.MetadataType)
+            {
+                case MetadataType.Boolean:
+                case MetadataType.Int32:
+                case MetadataType.SByte:
+                case MetadataType.Int16:
+                case MetadataType.Byte:
+                case MetadataType.UInt16:
+                case MetadataType.Char:
+                    instructions.Add(Processor.Create(OpCodes.Ldc_I4_0));
+                    break;
+                case MetadataType.Int64:
+                case MetadataType.UInt64:
+                    instructions.Add(Processor.Create(OpCodes.Ldc_I8, 0L));
+                    break;
+                case MetadataType.Single:
+                    instructions.Add(Processor.Create(OpCodes.Ldc_R4, 0f));
+                    break;
+                case MetadataType.Double:
+                    instructions.Add(Processor.Create(OpCodes.Ldc_R8, 0d));
+                    break;
+                case MetadataType.Pointer:
+                case MetadataType.FunctionPointer:
+                    instructions.Add(Processor.Create(OpCodes.Ldc_I4_0));
+                    instructions.Add(Processor.Create(OpCodes.Conv_I));
+                    break;
+                default:
+                    var tempVar = new VariableDefinition(type);
+                    Processor.Body.Variables.Add(tempVar);
+                    instructions.Add(Processor.Create(OpCodes.Ldloca, tempVar));
+                    instructions.Add(Processor.Create(OpCodes.Initobj, type));
+                    instructions.Add(Processor.Create(OpCodes.Ldloc, tempVar));
+                    break;
+            }
+        }
+        else
+        {
+            instructions.Add(Processor.Create(OpCodes.Ldnull));
+        }
+
+        Instructions.AddRange(instructions);
+        
+        return this;
+    }
+
+    public InstanceVariableBuilder GetTrue()
+    {
+        Instructions.Add(Processor.Create(OpCodes.Ldc_I4_1));
 
         return this;
     }

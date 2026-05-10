@@ -20,6 +20,8 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
+    public ModuleDefinition Module => module;
+
     public string[] GetCachedItems()
     {
         return typeDefinitions.Keys
@@ -119,7 +121,7 @@ public class ModuleCache(ModuleDefinition module)
     }
     
     /// <summary>
-    /// Imports a method reference from a type definition by name and parameter count, with caching.
+    /// Imports a method reference from a type definition by name and parameter count.
     /// </summary>
     /// <param name="typeDefinition">The type definition containing the method.</param>
     /// <param name="name">The name of the method.</param>
@@ -170,22 +172,18 @@ public class ModuleCache(ModuleDefinition module)
         if (type == null) 
             return false;
     
-        // 1. Quick identity check
         if (type.FullName == baseType.FullName) 
             return true;
 
-        // 2. Cache Lookup
         if (inheritanceCache.TryGetValue(type.FullName, out var result))
             return result;
 
-        // 3. Check Interfaces
         if (type.Interfaces.Any(i => i.InterfaceType.FullName == baseType.FullName || InheritsFrom(Resolve(i.InterfaceType), baseType)))
         {
             inheritanceCache.TryAdd(type.FullName, true);
             return true;
         }
 
-        // 4. Check Base Class (Recursive)
         try
         {
             var resolvedBase = Resolve(type.BaseType);
