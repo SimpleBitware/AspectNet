@@ -1,37 +1,41 @@
 namespace SimpleBitware.AspectNet.Abstractions.Attributes;
 
+/// <summary>
+/// Interface used by the weaver to identify AspectNet attributes.
+/// </summary>
 public interface IAspectNetAttribute
 {
     /// <summary>
-    /// Gets or sets the aspect priority.
-    /// Aspects with lower Priority values run first.
-    /// Aspects with equal priority runs in order or appearance, with aspects declared first being run first.
+    /// Gets or sets the execution priority of this aspect.
+    /// Lower values execute first; equal values execute in declaration order.
+    /// Defaults to <see cref="int.MaxValue"/>.
     /// </summary>
     int Priority { get; set; }
     
     /// <summary>
-    /// Executes before running the decorated method.
+    /// Called before the decorated method executes. Override to implement pre-execution logic.
     /// </summary>
-    /// <param name="context">The context within which the method runs.</param>
+    /// <param name="context">The context containing information about the method execution.</param>
     void OnEntry(AspectNetAttributeContext context);
     
     /// <summary>
-    /// Executes only when the decorated method runs successfully.
-    /// This method is not run if the decorated method throws an exception.
+    /// Called after the decorated method completes successfully without throwing an exception.
+    /// Override to implement post-success logic.
     /// </summary>
-    /// <param name="context">The context within which the method runs.</param>
+    /// <param name="context">The context containing information about the method execution.</param>
     void OnSuccess(AspectNetAttributeContext context);
     
     /// <summary>
-    /// Executes after the decorated method was run.
-    /// This method always runs, irrespective if the decorated method throws an exception or not.
+    /// Called after the decorated method completes, regardless of success or exception.
+    /// Override to implement cleanup or finalization logic.
     /// </summary>
-    /// <param name="context">The context within which the method runs.</param>
+    /// <param name="context">The context containing information about the method execution.</param>
     void OnExit(AspectNetAttributeContext context);
     
     /// <summary>
-    /// Executes only when the decorated method throws an exception.
+    /// Called when the decorated method throws an exception.
+    /// Override to implement exception handling logic.
     /// </summary>
-    /// <param name="context">The context within which the method runs.</param>
+    /// <param name="context">The context containing information about the method execution and the thrown exception.</param>
     void OnException(AspectNetAttributeContext context);
 }
