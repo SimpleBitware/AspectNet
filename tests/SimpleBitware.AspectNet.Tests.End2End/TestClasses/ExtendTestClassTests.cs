@@ -4,6 +4,7 @@ using SimpleBitware.AspectNet.Tests.End2End.Helpers;
 using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
 using SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
+using SimpleBitware.AspectNet.Cecil;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.TestClasses;
 

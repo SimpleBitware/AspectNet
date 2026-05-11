@@ -3,7 +3,7 @@ namespace SimpleBitware.AspectNet.Cecil.Helpers;
 /// <summary>
 /// Provides helper methods for generating standard .NET member names.
 /// </summary>
-internal static class MemberNameHelper
+public static class MemberNameHelper
 {
     /// <summary>
     /// Generates the getter method name for a property.

@@ -51,14 +51,14 @@ internal static class ModuleDefinitionExtensions
     /// </remarks>
     private static string DumpMethod(this MethodDefinition method)
     {
+        if (!method.HasBody)
+            return string.Empty;
+        
         var sb = new StringBuilder();
-
-        if (method.HasBody)
+        
+        foreach (var instr in method.Body.Instructions)
         {
-            foreach (var instr in method.Body.Instructions)
-            {
-                sb.AppendLine($"{instr.Offset:X4}: {instr.OpCode} {instr.Operand}");
-            }   
+            sb.AppendLine($"{instr.Offset:X4}: {instr.OpCode} {instr.Operand}");
         }
 
         return sb.ToString();

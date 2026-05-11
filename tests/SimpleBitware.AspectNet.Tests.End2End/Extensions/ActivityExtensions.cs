@@ -5,7 +5,7 @@ namespace SimpleBitware.AspectNet.Tests.End2End.Extensions;
 
 public static class ActivityExtensions
 {
-    public static ExpectedActivity ToExpectedActivity(this Activity activity)
+    private static ExpectedActivity ToExpectedActivity(this Activity activity)
     {
         return new ExpectedActivity()
         {
