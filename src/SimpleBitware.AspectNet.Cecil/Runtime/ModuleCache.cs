@@ -12,7 +12,6 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 /// </remarks>
 public class ModuleCache(ModuleDefinition module)
 {
-    private readonly ModuleDefinition module = module ?? throw new ArgumentNullException(nameof(module));
     private readonly ConcurrentDictionary<string, TypeDefinition> typeDefinitions = new();
     private readonly ConcurrentDictionary<string, TypeReference> typeReferences = new();
     private readonly ConcurrentDictionary<string, MethodReference> methodReferences = new();
@@ -20,8 +19,12 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
-    public ModuleDefinition Module => module;
+    public ModuleDefinition Module { get; } = module ?? throw new ArgumentNullException(nameof(module));
 
+    /// <summary>
+    /// Gets all cached items.
+    /// </summary>
+    /// <returns>An array containing all cached items.</returns>
     public string[] GetCachedItems()
     {
         return typeDefinitions.Keys
@@ -34,7 +37,7 @@ public class ModuleCache(ModuleDefinition module)
     }
     
     /// <summary>
-    /// Resolves a type reference to its type definition, with caching.
+    /// Resolves a type reference to its type definition with caching.
     /// </summary>
     /// <param name="typeReference">The type reference to resolve.</param>
     /// <returns>The resolved type definition.</returns>
@@ -62,7 +65,7 @@ public class ModuleCache(ModuleDefinition module)
         if (typeReferences.TryGetValue(type.FullName, out var cached))
             return cached;
         
-        var importedTypeReference = module.ImportReference(type);
+        var importedTypeReference = Module.ImportReference(type);
         if (importedTypeReference != null)
             typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
     
@@ -70,7 +73,7 @@ public class ModuleCache(ModuleDefinition module)
     }
 
     /// <summary>
-    /// Imports a type reference, with caching.
+    /// Imports a type reference with caching.
     /// </summary>
     /// <param name="typeReference">The type reference to import.</param>
     /// <returns>The imported type reference.</returns>
@@ -80,7 +83,7 @@ public class ModuleCache(ModuleDefinition module)
         if (typeReferences.TryGetValue(typeReference.FullName, out var cached))
             return cached;
         
-        var importedTypeReference = module.ImportReference(typeReference);
+        var importedTypeReference = Module.ImportReference(typeReference);
         if (importedTypeReference != null)
             typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
     
@@ -101,7 +104,7 @@ public class ModuleCache(ModuleDefinition module)
         if (methodBaseReferences.TryGetValue(method, out var cached))
             return cached;
         
-        var importedMethodReference = module.ImportReference(method);
+        var importedMethodReference = Module.ImportReference(method);
         if (importedMethodReference != null)
             methodBaseReferences.TryAdd(method, importedMethodReference);
     
@@ -137,7 +140,7 @@ public class ModuleCache(ModuleDefinition module)
         
         var methodReference = (method == null && typeDefinition.BaseType != null)
             ? ImportReference(Resolve(typeDefinition.BaseType), name, paramCount)
-            : module.ImportReference(method);
+            : Module.ImportReference(method);
         
         methodReferences.TryAdd(key, methodReference);
         return methodReference;
@@ -152,7 +155,7 @@ public class ModuleCache(ModuleDefinition module)
     public bool IsAspect(TypeReference typeReference, TypeDefinition baseType)
     {
         var fullName = typeReference.FullName;
-        if (aspectCache.TryGetValue(fullName, out bool result))
+        if (aspectCache.TryGetValue(fullName, out var result))
             return result;
 
         result = InheritsFrom(Resolve(typeReference), baseType);

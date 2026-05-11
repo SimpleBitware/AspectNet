@@ -7,7 +7,7 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 /// Provides method references for AspectNetAttributeContext properties.
 /// </summary>
 /// <remarks>
-/// This class pre-imports and caches method references for the getter and setter methods
+/// This class imports and caches method references for the getter and setter methods
 /// of AspectNetAttributeContext properties to avoid repeated imports during IL weaving.
 /// </remarks>
 public class AspectContextReferences(ModuleCache moduleCache)

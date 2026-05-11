@@ -16,7 +16,9 @@ namespace SimpleBitware.AspectNet.Build;
 public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 {
     private TaskLogger? logger;
-    
+    private readonly CecilWeaver cecilWeaver = new();
+    private LogLevel logLevel = Microsoft.Extensions.Logging.LogLevel.Error;
+
     /// <summary>
     /// Gets or sets the path to the assembly to be woven. This property is required.
     /// </summary>
@@ -33,7 +35,15 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     /// Gets or sets the logging level for diagnostic output. Valid values are Debug, Information, Warning, Error, None.
     /// Defaults to Error if not specified or invalid.
     /// </summary>
-    public string? LogLevel { get; set; }
+    public string? LogLevel
+    {
+        get => logLevel.ToString();
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && Enum.TryParse<LogLevel>(value, ignoreCase: true, out var parsed))
+                logLevel = parsed;
+        }
+    }
 
     /// <summary>
     /// Executes the weaving task on the specified assembly.
@@ -41,11 +51,8 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
     /// <returns>true if weaving completed successfully; false if an error occurred.</returns>
     public override bool Execute()
     {
-        if(!Enum.TryParse<LogLevel>(LogLevel, out var logLevel))
-            logLevel = Microsoft.Extensions.Logging.LogLevel.Error;
-        
-        Initialize(logLevel);
-        
+        Initialize();
+
         try
         {
             logger?.LogInformation("Starting to weave assembly {0}", AssemblyPath);
@@ -57,7 +64,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             var pdbFilePath = FileHelper.GetPdbFilePath(AssemblyPath);
             var references = GetReferences();
             var generateDebugFiles = logLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
-            var result = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, generateDebugFiles);
+            var result = cecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, generateDebugFiles);
 
             logger?.Log(result);
             logger?.LogInformation("Weaving completed.");
@@ -71,7 +78,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
         }
     }
 
-    private void Initialize(LogLevel logLevel)
+    private void Initialize()
     {
         logger = new TaskLogger(Log, logLevel);
     }
@@ -87,7 +94,7 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
         logger?.LogInformation("Using {0} external assemblies.", references.Length);
         references
             .ForEach(x => logger?.LogDebug("External assembly: {0}", x));
-        
+
         return references;
     }
 }
