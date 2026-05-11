@@ -91,7 +91,8 @@ public partial class OrderService
 Control weaving process can be controlled by changing configuration in `SimpleBitware.AspectNet.props` file. This file can be found in the local nuget repository folder, under `simplebitware.aspectnet\<version>\build` folder. </br>
 Set `DisableAspectNet` to `true` to disable weaving. </br>
 Set `LogLevel` to `Debug` to show weaving logs in the build window. </br>
-Exceptions thrown during weaving process are always logged in the build window.
+Set `LogLevel` to `Trace` to generate the before and after IL files. </br>
+By default, exceptions thrown during weaving process are logged in the build window.
 
 ## Would you like to contribute?
 
