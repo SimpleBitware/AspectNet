@@ -53,9 +53,12 @@ internal static class ModuleDefinitionExtensions
     {
         var sb = new StringBuilder();
 
-        foreach (var instr in method.Body.Instructions)
+        if (method.HasBody)
         {
-            sb.AppendLine($"{instr.Offset:X4}: {instr.OpCode} {instr.Operand}");
+            foreach (var instr in method.Body.Instructions)
+            {
+                sb.AppendLine($"{instr.Offset:X4}: {instr.OpCode} {instr.Operand}");
+            }   
         }
 
         return sb.ToString();

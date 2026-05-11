@@ -3,11 +3,11 @@
             TaskName="SimpleBitware.AspectNet.Build.AspectNetWeaverTask"
             AssemblyFile="$(MSBuildThisFileDirectory)..\tasks\$(WeaverFramework)\SimpleBitware.AspectNet.dll" />
 
-    <Target Name="AspectNetWeavingTarget" AfterTargets="CoreCompile" Condition="'$(SkipAspectNetWeaving)' != 'true'">
+    <Target Name="AspectNetWeavingTarget" AfterTargets="CoreCompile" Condition="'$(DisableAspectNet)' != 'true'">
         <SimpleBitware.AspectNet.Build.AspectNetWeaverTask
                 AssemblyPath="@(IntermediateAssembly->'%(FullPath)')"
                 References="@(ReferencePath)"
-                ShowWeavingLogs="$(ShowWeavingLogs)" />
+                LogLevel="$(LogLevel)" />
         <Touch Files="@(IntermediateAssembly)" />
     </Target>
 </Project>

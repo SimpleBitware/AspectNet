@@ -23,7 +23,7 @@ public static class CecilWeaver
     /// <param name="references">An array of reference assembly paths.</param>
     /// <param name="assemblyPath">The path to the assembly to process.</param>
     /// <param name="pdbFilePath">The path to the PDB file, or null if no symbols are available.</param>
-    /// <param name="generateDebugFiles">Whether to generate debug output files showing before/after IL.</param>
+    /// <param name="generateILFiles">Whether to generate debug output files showing before/after IL.</param>
     /// <returns>An array of file paths for the processed assembly and PDB files.</returns>
     /// <remarks>
     /// This method is the main entry point for aspect weaving. It loads the target assembly,
@@ -34,7 +34,7 @@ public static class CecilWeaver
         string[] references,
         string assemblyPath,
         string? pdbFilePath,
-        bool generateDebugFiles)
+        bool generateILFiles)
     {
         return ProcessAssembly<IAspectNetAttribute, ProcessedByAspectNetAttribute>(
             targetAssemblyDirectory,
@@ -63,7 +63,7 @@ public static class CecilWeaver
                         );
                     classAspects.ForEach(attr => { type.CustomAttributes.Remove(attr); });
                 }),
-            generateDebugFiles
+            generateILFiles
         );
     }
 
@@ -77,7 +77,7 @@ public static class CecilWeaver
     /// <param name="assemblyPath">The path to the assembly to process.</param>
     /// <param name="pdbFilePath">The path to the PDB file, or null if no symbols are available.</param>
     /// <param name="weaveAction">The action to perform weaving on discovered methods.</param>
-    /// <param name="generateDebugFiles">Whether to generate debug output files.</param>
+    /// <param name="generateILFiles">Whether to generate debug output files.</param>
     /// <returns>An array of file paths for the processed assembly and PDB files.</returns>
     /// <exception cref="ApplicationException">Thrown when the module cannot be loaded.</exception>
     /// <exception cref="SymbolsNotFoundException">Thrown when required types cannot be resolved.</exception>
@@ -91,11 +91,11 @@ public static class CecilWeaver
         string assemblyPath,
         string? pdbFilePath,
         Action<IEnumerable<TypeDefinition>, TypeDefinition, MethodReference> weaveAction,
-        bool generateDebugFiles)
+        bool generateILFiles)
         where TAttribute : class
         where TMarker : class
     {
-        string[] cachedItems = [];
+        string[] cachedItems;
         var readerParameters = GetReaderParameters(targetAssemblyDirectory, references, pdbFilePath);
         var writerParameters = GetWriteParameters(readerParameters);
 
@@ -105,7 +105,7 @@ public static class CecilWeaver
             if (module == null)
                 throw new ApplicationException($"Module {assemblyPath} could not be loaded. Check the assembly path and ensure it is a valid .NET assembly.");
 
-            if (generateDebugFiles)
+            if (generateILFiles)
                 File.WriteAllText("before.il", module.DumpModule());
 
             var baseAspectNetAttribute = module.Cache().Resolve(module.ImportReference(typeof(TAttribute)))
@@ -117,7 +117,7 @@ public static class CecilWeaver
 
             weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
 
-            if (generateDebugFiles)
+            if (generateILFiles)
                 File.WriteAllText("after.il", module.DumpModule());
 
             module.Write(assemblyStream, writerParameters);
