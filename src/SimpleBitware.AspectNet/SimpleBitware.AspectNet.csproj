@@ -26,16 +26,16 @@
     </PropertyGroup>
 
     <ItemGroup Condition="'$(Pack)' != 'true'">
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Cecil\SimpleBitware.AspectNet.Cecil.csproj" />
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Cecil\SimpleBitware.AspectNet.Cecil.csproj"/>
     </ItemGroup>
     <ItemGroup Condition="'$(Pack)' == 'true'">
-        <PackageReference Include="SimpleBitware.AspectNet.Cecil" Version="$(Version)" />
+        <PackageReference Include="SimpleBitware.AspectNet.Cecil" Version="$(Version)"/>
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0"/>
         <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.4.0"/>
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.7" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.7"/>
         <PackageReference Include="MinVer" Version="7.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -61,12 +61,12 @@
 
     <Target Name="AddTaskAssembliesToPack" AfterTargets="Build" BeforeTargets="GenerateNuspec">
         <ItemGroup>
-            <_CandidateDirs Include="$(TargetDir)" />
-            <_TaskAssemblies Include="$(TargetDir)*.dll" Condition="Exists('$(TargetDir)')" />
+            <_CandidateDirs Include="$(TargetDir)"/>
+            <_TaskAssemblies Include="$(TargetDir)*.dll" Condition="Exists('$(TargetDir)')"/>
         </ItemGroup>
         <ItemGroup>
-            <None Remove="@(_TaskAssemblies)" />
-            <Content Remove="@(_TaskAssemblies)" />
+            <None Remove="@(_TaskAssemblies)"/>
+            <Content Remove="@(_TaskAssemblies)"/>
         </ItemGroup>
         <ItemGroup>
             <Content Include="@(_TaskAssemblies)" Condition="Exists('%(Identity)')">
