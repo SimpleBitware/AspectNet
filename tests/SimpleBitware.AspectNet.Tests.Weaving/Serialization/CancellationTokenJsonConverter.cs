@@ -12,6 +12,6 @@ public sealed class CancellationTokenJsonConverter : JsonConverter<CancellationT
 
     public override void Write(Utf8JsonWriter writer, CancellationToken value, JsonSerializerOptions options)
     {
-            writer.WriteNullValue();
+        writer.WriteNullValue();
     }
 }
