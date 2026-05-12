@@ -88,26 +88,25 @@ public static class TypeDefinitionExtensions
         while (currentBase != null && currentBase.FullName != ObjectTypeFullName)
         {
             // 1. Collect Methods (exclude property accessors — handled via inheritedProperties)
-            var inheritedMethods = from method in currentBase.Methods
-                where !method.IsPrivate && !method.IsStatic && !method.IsConstructor
-                where !method.IsGetter && !method.IsSetter
-                // FILTER: Check if the method has the exclude attribute
-                where method.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName)
-                let relativeSignature = method.FullName.Replace(currentBase.FullName, "")
-                where existingSignatures.Add(relativeSignature)
-                select method;
+            var inheritedMethods = currentBase.Methods
+                .Where(method => !method.IsPrivate && method is { IsStatic: false, IsConstructor: false })
+                .Where(method => !method.IsGetter && !method.IsSetter)
+                .Where(method => method.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName))
+                .Where(method =>
+                {
+                    var relativeSignature = method.FullName.Replace(currentBase.FullName, "");
+                    return existingSignatures.Add(relativeSignature);
+                });
 
             membersToBridge.AddRange(inheritedMethods);
 
             // 2. Collect Properties
             var inheritedProperties = currentBase.Properties
                 .Where(p => (p.GetMethod?.IsPrivate == false) || (p.SetMethod?.IsPrivate == false))
-                // FILTER: Check if the property has the exclude attribute
                 .Where(p => p.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName))
                 .Where(prop => targetType.Properties.All(p => p.Name != prop.Name));
 
             membersToBridge.AddRange(inheritedProperties);
-
             currentBase = currentBase.BaseType?.Module.Cache().Resolve(currentBase.BaseType);
         }
 
