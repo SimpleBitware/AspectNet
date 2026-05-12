@@ -78,7 +78,7 @@ public static class TypeDefinitionExtensions
     {
         var aspectNetExcludeAttributeTypeReferenceFullName = aspectNetExcludeAttributeTypeReference.FullName;
         var membersToBridge = new List<IMemberDefinition>();
-        var currentBase = targetType.BaseType?.Resolve();
+        var currentBase = targetType.BaseType?.Module.Cache().Resolve(targetType.BaseType);
 
         // Set of signatures already defined in the targetType to avoid bridging what's already there
         var existingSignatures = new HashSet<string>(
@@ -146,7 +146,7 @@ public static class TypeDefinitionExtensions
     {
         var module = targetType.Module;
         var baseType = targetType.BaseType;
-        var declaringType = baseMethod.DeclaringType.Resolve();
+        var declaringType = module.Cache().Resolve(baseMethod.DeclaringType);
 
         // Build generic substitutions by navigating the inheritance chain
         var substitutions = GetGenericSubstitutions(targetType, declaringType, module);
@@ -197,7 +197,7 @@ public static class TypeDefinitionExtensions
         foreach (var p in baseMethod.Parameters)
         {
             var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module, substitutions);
-            var newParam = new ParameterDefinition(p.Name, p.Attributes, module.ImportReference(newType));
+            var newParam = new ParameterDefinition(p.Name, p.Attributes, module.Cache().ImportReference(newType));
 
             // This replaces the manual ParamArray check and handles all NRT attributes automatically
             CopySignatureAttributes(p, newParam, module);
@@ -250,7 +250,7 @@ public static class TypeDefinitionExtensions
             {
                 if (baseType is GenericInstanceType git1 && gp.Position < git1.GenericArguments.Count)
                 {
-                    return module.ImportReference(git1.GenericArguments[gp.Position]);
+                    return module.Cache().ImportReference(git1.GenericArguments[gp.Position]);
                 }
 
                 if (targetType.HasGenericParameters && gp.Position < targetType.GenericParameters.Count)
@@ -270,13 +270,13 @@ public static class TypeDefinitionExtensions
 
         if (type is GenericInstanceType git)
         {
-            var instance = new GenericInstanceType(module.ImportReference(git.ElementType));
+            var instance = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
             foreach (var arg in git.GenericArguments)
                 instance.GenericArguments.Add(SafeReplace(arg, baseType, targetType, bridge, module, substitutions));
             return instance;
         }
 
-        return module.ImportReference(type);
+        return module.Cache().ImportReference(type);
     }
 
     private static TypeReference CloneUnmapped(TypeReference type, ModuleDefinition module)
@@ -286,19 +286,16 @@ public static class TypeDefinitionExtensions
         if (type.IsArray) return new ArrayType(CloneUnmapped(type.GetElementType(), module), ((ArrayType)type).Rank);
         if (type.IsByReference) return new ByReferenceType(CloneUnmapped(type.GetElementType(), module));
 
-        if (type.IsGenericInstance)
-        {
-            var git = (GenericInstanceType)type;
-            var newGit = new GenericInstanceType(module.ImportReference(git.ElementType));
-            foreach (var arg in git.GenericArguments)
-                newGit.GenericArguments.Add(CloneUnmapped(arg, module));
-            return newGit;
-        }
+        if (!type.IsGenericInstance) 
+            return module.Cache().ImportReference(type);
+        
+        var git = (GenericInstanceType)type;
+        var newGit = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
+        foreach (var arg in git.GenericArguments)
+            newGit.GenericArguments.Add(CloneUnmapped(arg, module));
+        return newGit;
 
-        return module.ImportReference(type);
     }
-
-    // --- NEW HELPER METHODS ---
 
     private static Dictionary<GenericParameter, TypeReference> GetGenericSubstitutions(TypeDefinition targetType, TypeDefinition declaringType, ModuleDefinition module)
     {
@@ -309,18 +306,18 @@ public static class TypeDefinitionExtensions
         {
             if (currentType.BaseType is GenericInstanceType git)
             {
-                var baseDef = git.ElementType.Resolve();
-                for (int i = 0; i < git.GenericArguments.Count; i++)
+                var baseDef = git.ElementType.Module.Cache().Resolve(git.ElementType);
+                for (var i = 0; i < git.GenericArguments.Count; i++)
                 {
                     var gp = baseDef.GenericParameters[i];
                     if (!substitutions.ContainsKey(gp))
                     {
-                        substitutions[gp] = module.ImportReference(git.GenericArguments[i]);
+                        substitutions[gp] = module.Cache().ImportReference(git.GenericArguments[i]);
                     }
                 }
             }
 
-            currentType = currentType.BaseType?.Resolve();
+            currentType = currentType.BaseType?.Module.Cache().Resolve(currentType.BaseType);
         }
 
         return substitutions;
@@ -337,13 +334,13 @@ public static class TypeDefinitionExtensions
         if (type.IsGenericInstance)
         {
             var git = (GenericInstanceType)type;
-            var newGit = new GenericInstanceType(module.ImportReference(git.ElementType));
+            var newGit = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
             foreach (var arg in git.GenericArguments)
                 newGit.GenericArguments.Add(SubstituteType(arg, substitutions, module));
             return newGit;
         }
 
-        return module.ImportReference(type);
+        return module.Cache().ImportReference(type);
     }
 
     private static void CopySignatureAttributes(ICustomAttributeProvider source, ICustomAttributeProvider target, ModuleDefinition module)
@@ -356,32 +353,30 @@ public static class TypeDefinitionExtensions
             if (!SignatureAttributeNames.Contains(attr.AttributeType.FullName))
                 continue;
 
-            var newAttr = new CustomAttribute(module.ImportReference(attr.Constructor));
+            var customAttribute = new CustomAttribute(module.ImportReference(attr.Constructor));
 
             foreach (var arg in attr.ConstructorArguments)
             {
-                newAttr.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
+                customAttribute.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
             }
 
-            target.CustomAttributes.Add(newAttr);
+            target.CustomAttributes.Add(customAttribute);
         }
     }
 
     private static CustomAttributeArgument ImportAttributeArgument(CustomAttributeArgument arg, ModuleDefinition module)
     {
+        if (arg.Value is not CustomAttributeArgument[] array) 
+            return new CustomAttributeArgument(module.Cache().ImportReference(arg.Type), arg.Value);
+        
         // Nullable attributes often use byte arrays (byte[]). We must recursively copy them.
-        if (arg.Value is CustomAttributeArgument[] array)
+        var newArray = new CustomAttributeArgument[array.Length];
+        for (var i = 0; i < array.Length; i++)
         {
-            var newArray = new CustomAttributeArgument[array.Length];
-            for (int i = 0; i < array.Length; i++)
-            {
-                newArray[i] = ImportAttributeArgument(array[i], module);
-            }
-
-            return new CustomAttributeArgument(module.ImportReference(arg.Type), newArray);
+            newArray[i] = ImportAttributeArgument(array[i], module);
         }
 
-        return new CustomAttributeArgument(module.ImportReference(arg.Type), arg.Value);
+        return new CustomAttributeArgument(module.Cache().ImportReference(arg.Type), newArray);
     }
 
     /// <summary>
@@ -394,7 +389,7 @@ public static class TypeDefinitionExtensions
     /// <returns>A collection of method-aspect attribute pairs.</returns>
     /// <remarks>
     /// This method processes each method, collecting both method-level and inherited class-level
-    /// aspect attributes, while filtering out methods that have exclusion attributes.
+    /// aspect attributes while filtering out methods that have exclusion attributes.
     /// </remarks>
     private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetMethodLevelAttributes(
         this Collection<MethodDefinition> methods,

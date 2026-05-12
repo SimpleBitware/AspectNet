@@ -15,7 +15,7 @@ public class ModuleCache(ModuleDefinition module)
     private readonly ConcurrentDictionary<string, TypeDefinition> typeDefinitions = new();
     private readonly ConcurrentDictionary<string, TypeReference> typeReferences = new();
     private readonly ConcurrentDictionary<string, MethodReference> methodReferences = new();
-    private readonly ConcurrentDictionary<MethodBase, MethodReference> methodBaseReferences = new();
+    private readonly ConcurrentDictionary<RuntimeMethodHandle, MethodReference> methodBaseReferences = new();
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
@@ -30,7 +30,7 @@ public class ModuleCache(ModuleDefinition module)
         return typeDefinitions.Keys
             .Concat(typeReferences.Keys)
             .Concat(methodReferences.Keys)
-            .Concat(methodBaseReferences.Keys.Select(k => k.DeclaringType?.FullName + "." + k.Name))
+            .Concat(methodBaseReferences.Values.Select(x=>x.FullName))
             .Concat(aspectCache.Keys)
             .Concat(inheritanceCache.Keys)
             .ToArray();
@@ -98,12 +98,12 @@ public class ModuleCache(ModuleDefinition module)
     /// <exception cref="ArgumentException">Thrown when the method reference cannot be imported.</exception>
     public MethodReference ImportReference(MethodBase method)
     {
-        if (methodBaseReferences.TryGetValue(method, out var cached))
+        if (methodBaseReferences.TryGetValue(method.MethodHandle, out var cached))
             return cached;
         
         var importedMethodReference = Module.ImportReference(method);
         if (importedMethodReference != null)
-            methodBaseReferences.TryAdd(method, importedMethodReference);
+            methodBaseReferences.TryAdd(method.MethodHandle, importedMethodReference);
 
         return importedMethodReference ?? throw new ArgumentException($"MethodReference not found for {method.Name} in class {method.DeclaringType?.FullName ?? "unknown"}");
     }
