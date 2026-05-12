@@ -1,7 +1,7 @@
 using System.Text.Json;
-using SimpleBitware.AspectNet.Tests.Weaving.Serialization;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Serialization;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Extensions;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 
 public static class ObjectExtensions
 {

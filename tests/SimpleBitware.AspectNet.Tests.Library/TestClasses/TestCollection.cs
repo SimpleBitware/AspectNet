@@ -1,7 +1,8 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
+using SimpleBitware.AspectNet.Tests.Library.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
+namespace SimpleBitware.AspectNet.Tests.Library.TestClasses;
 
 [RecordActivity]
 public class TestCollection<T>

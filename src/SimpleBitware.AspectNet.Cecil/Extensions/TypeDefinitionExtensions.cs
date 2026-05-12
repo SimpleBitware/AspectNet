@@ -39,12 +39,12 @@ public static class TypeDefinitionExtensions
     }
 
     /// <summary>
-    /// Gets a dictionary mapping methods to their associated aspect attributes from all types in the module.
+    /// Gets a dictionary mapping method to their associated aspect attributes from all types in the module.
     /// </summary>
     /// <param name="type">The type definitions to search.</param>
     /// <param name="classAspects"></param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type to check inheritance against.</param>
-    /// <param name="filterAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
+    /// <param name="excludeFromWeavingAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
     /// <returns>An immutable dictionary mapping method definitions to arrays of aspect attributes.</returns>
     /// <remarks>
     /// This method aggregates aspect attributes from class-level and method-level declarations,
@@ -54,14 +54,10 @@ public static class TypeDefinitionExtensions
         this TypeDefinition type,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        Type[] filterAttributes)
+        TypeReference[] excludeFromWeavingAttributes)
     {
-        var filterAttributeFullNames = filterAttributes
-            .Select(t => t.FullName)
-            .ToArray();
-
-        var methodsAspects = type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
-        var propertiesAspects = type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
+        var methodsAspects = type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, excludeFromWeavingAttributes);
+        var propertiesAspects = type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, excludeFromWeavingAttributes);
 
         var memberAspects = methodsAspects.Concat(propertiesAspects);
         return memberAspects
@@ -76,13 +72,11 @@ public static class TypeDefinitionExtensions
             .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
-    public static IMemberDefinition[] GetInheritedMembersToBridge(this TypeDefinition targetType)
+    public static IMemberDefinition[] GetInheritedMembersToBridge(this TypeDefinition targetType, TypeReference aspectNetExcludeAttributeTypeReference)
     {
+        var aspectNetExcludeAttributeTypeReferenceFullName = aspectNetExcludeAttributeTypeReference.FullName;
         var membersToBridge = new List<IMemberDefinition>();
         var currentBase = targetType.BaseType?.Resolve();
-
-        // Constant for the attribute name to avoid magic strings
-        const string ExcludeAttributeName = "AspectNetExcludeAttribute";
 
         // Set of signatures already defined in the targetType to avoid bridging what's already there
         var existingSignatures = new HashSet<string>(
@@ -96,7 +90,7 @@ public static class TypeDefinitionExtensions
                 where !method.IsPrivate && !method.IsStatic && !method.IsConstructor
                 where !method.IsGetter && !method.IsSetter
                 // FILTER: Check if the method has the exclude attribute
-                where !method.CustomAttributes.Any(a => a.AttributeType.Name == ExcludeAttributeName)
+                where !method.CustomAttributes.Any(a => a.AttributeType.FullName == aspectNetExcludeAttributeTypeReferenceFullName)
                 let relativeSignature = method.FullName.Replace(currentBase.FullName, "")
                 where existingSignatures.Add(relativeSignature)
                 select method;
@@ -107,7 +101,7 @@ public static class TypeDefinitionExtensions
             var inheritedProperties = currentBase.Properties
                 .Where(p => (p.GetMethod?.IsPrivate == false) || (p.SetMethod?.IsPrivate == false))
                 // FILTER: Check if the property has the exclude attribute
-                .Where(p => !p.CustomAttributes.Any(a => a.AttributeType.Name == ExcludeAttributeName))
+                .Where(p => !p.CustomAttributes.Any(a => a.AttributeType.FullName == aspectNetExcludeAttributeTypeReferenceFullName))
                 .Where(prop => !targetType.Properties.Any(p => p.Name == prop.Name));
 
             membersToBridge.AddRange(inheritedProperties.Cast<IMemberDefinition>());
@@ -406,7 +400,7 @@ public static class TypeDefinitionExtensions
     /// <param name="methods">The collection of methods to analyze.</param>
     /// <param name="classAspects">The aspect attributes defined at the class level.</param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <param name="attributesWhichExcludeMembersFromWeaving">The full names of attributes to filter out.</param>
     /// <returns>A collection of method-aspect attribute pairs.</returns>
     /// <remarks>
     /// This method processes each method, collecting both method-level and inherited class-level
@@ -416,10 +410,10 @@ public static class TypeDefinitionExtensions
         this Collection<MethodDefinition> methods,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        string[] filterAttributeFullNames)
+        TypeReference[] attributesWhichExcludeMembersFromWeaving)
     {
         return methods
-            .Where(m => m.HasBody && !m.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .Where(m => m.HasBody && !m.CustomAttributes.ContainsFilterAttributes(attributesWhichExcludeMembersFromWeaving))
             .Select(m =>
             {
                 var methodAspects = m.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
@@ -438,7 +432,7 @@ public static class TypeDefinitionExtensions
     /// <param name="properties">The collection of properties to analyze.</param>
     /// <param name="classAspects">The aspect attributes defined at the class level.</param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <param name="excludeFromWeavingAttributes">The full names of attributes to filter out.</param>
     /// <returns>A collection of method-aspect attribute pairs for property accessors.</returns>
     /// <remarks>
     /// This method processes property accessors (getters and setters), collecting property-level
@@ -448,10 +442,10 @@ public static class TypeDefinitionExtensions
         this Collection<PropertyDefinition> properties,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        string[] filterAttributeFullNames)
+        TypeReference[] excludeFromWeavingAttributes)
     {
         return properties
-            .Where(p => !p.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .Where(p => !p.CustomAttributes.ContainsFilterAttributes(excludeFromWeavingAttributes))
             .SelectMany(p =>
             {
                 var propertyAspects = p.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
@@ -462,7 +456,7 @@ public static class TypeDefinitionExtensions
 
                 return accessors.Select(method =>
                 {
-                    if (method.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+                    if (method.CustomAttributes.ContainsFilterAttributes(excludeFromWeavingAttributes))
                         return new KeyValuePair<MethodDefinition, CustomAttribute[]>(method, []);
 
                     var methodAspects = method.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);

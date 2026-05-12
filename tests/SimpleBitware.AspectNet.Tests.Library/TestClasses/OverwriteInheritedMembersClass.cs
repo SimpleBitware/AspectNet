@@ -1,6 +1,8 @@
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.TestClasses;
+using SimpleBitware.AspectNet.Tests.Library.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
+namespace SimpleBitware.AspectNet.Tests.Library.TestClasses;
 
 public class OverwriteInheritedMembersClass<T> : TestClassBase<T>
 {

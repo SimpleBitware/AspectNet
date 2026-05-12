@@ -16,7 +16,7 @@ public class AspectContextReferences(ModuleCache moduleCache)
     /// Gets the method reference for the MemberName property getter.
     /// </summary>
     public MethodReference? NameGetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.MemberName))?.GetMethod);
-    
+
     /// <summary>
     /// Gets the method reference for the MemberName property setter.
     /// </summary>
@@ -26,7 +26,7 @@ public class AspectContextReferences(ModuleCache moduleCache)
     /// Gets the method reference for the Instance property getter.
     /// </summary>
     public MethodReference? InstanceGetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Instance))!.GetMethod);
-    
+
     /// <summary>
     /// Gets the method reference for the Instance property setter.
     /// </summary>
@@ -41,12 +41,12 @@ public class AspectContextReferences(ModuleCache moduleCache)
     /// Gets the method reference for the Exception property setter.
     /// </summary>
     public MethodReference? ExceptionSetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Exception))!.SetMethod);
-    
+
     /// <summary>
     /// Gets the method reference for the ReturnValue property getter.
     /// </summary>
     public MethodReference? ReturnValueGetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ReturnValue))!.GetMethod);
-    
+
     /// <summary>
     /// Gets the method reference for the ReturnValue property setter.
     /// </summary>

@@ -1,7 +1,7 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.TestClasses;
 
 public class TestClassBase<T> : ITestClass<T>
 {
@@ -16,7 +16,8 @@ public class TestClassBase<T> : ITestClass<T>
         Console.WriteLine("TestClassBase<T> Constructor with initialValue called");
         NullablePropertyWithExcludedSet = initialValue;
     }
-    
+
+    private T? field;
     [RecordActivity(Priority = 10)]
     public T? PropertyWithLogic
     {

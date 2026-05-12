@@ -1,5 +1,5 @@
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 using SimpleBitware.AspectNet.Tests.End2End.Helpers;
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.Extensions;
 

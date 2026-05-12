@@ -36,15 +36,15 @@ public static class CustomAttributeExtensions
     /// Determines whether a collection of custom attributes contains any attributes with the specified full names.
     /// </summary>
     /// <param name="customAttributes">The collection of custom attributes to search.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter by.</param>
+    /// <param name="excludeFromWeavingAttributes">The full names of attributes to filter by.</param>
     /// <returns><c>true</c> if any of the specified attributes are found; otherwise, <c>false</c>.</returns>
     /// <remarks>
     /// This method is used to check if certain attributes (like exclusion attributes) are present
     /// before applying aspect weaving logic.
     /// </remarks>
-    public static bool ContainsFilterAttributes(this IList<CustomAttribute> customAttributes, string[] filterAttributeFullNames)
+    public static bool ContainsFilterAttributes(this IList<CustomAttribute> customAttributes, TypeReference[] excludeFromWeavingAttributes)
     {
-        return customAttributes.Any(a => filterAttributeFullNames.Any(f => f == a.AttributeType.FullName));
+        return customAttributes.Any(x => excludeFromWeavingAttributes.Any(a => a.FullName == x.AttributeType.FullName));
     }
 
     /// <summary>

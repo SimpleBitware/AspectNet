@@ -1,7 +1,6 @@
 using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using MoreLinq.Extensions;
 using SimpleBitware.AspectNet.Cecil.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
@@ -18,7 +17,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
     : InstructionSetBlockBuilderBase<InstructionsSetBlockBuilder>(method, processor, moduleCache)
 {
     /// <summary>
-    /// Executes instance method with specified parameters.
+    /// Executes an instance method with specified parameters.
     /// </summary>
     /// <param name="instanceVariableDefinition">The object which has the method to be executed.</param>
     /// <param name="methodReference">The method to call on the loaded value, or null to skip the operation.</param>
@@ -47,7 +46,7 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
     }
     
     /// <summary>
-    /// Executes static method with specified parameters.
+    /// Executes a static method with specified parameters.
     /// </summary>
     /// <param name="methodReference">The method to call on the loaded value, or null to skip the operation.</param>
     /// <param name="parameters">The parameters passed to the method to be executed</param>
@@ -138,66 +137,6 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
         return this;
     }
 
-    public InstructionsSetBlockBuilder SetPropertyToCast(
-        VariableDefinition? variableDefinition,
-        VariableDefinition instance,
-        MethodReference? getMethod,
-        TypeReference returnTypeReference)
-    {
-        Instructions.Add(Processor.Create(OpCodes.Ldloc, instance));
-        Instructions.Add(Processor.Create(OpCodes.Callvirt, getMethod));
-        Instructions.Add(Processor.Create(OpCodes.Unbox_Any, returnTypeReference)); 
-        Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
-        
-        return this;
-    }
-
-    public InstructionsSetBlockBuilder SetPropertyIfNotNull(
-        VariableDefinition? variableDefinition,
-        VariableDefinition instance,
-        MethodReference? getMethod,
-        TypeReference returnTypeReference)
-    {
-        if (variableDefinition is not null && getMethod is not null)
-        {
-            // 1. Load context.ReturnValue (or target property) onto stack
-            Instructions.Add(Processor.Create(OpCodes.Ldloc, instance));
-            Instructions.Add(Processor.Create(OpCodes.Callvirt, getMethod));
-            Instructions.Add(Processor.Create(OpCodes.Dup)); // Dup for the null check
-
-            // 2. Prepare jump targets
-            var unboxAndStoreTarget = Processor.Create(OpCodes.Unbox_Any, returnTypeReference);
-            var endTarget = Processor.Create(OpCodes.Nop);
-
-            // 3. If the value on stack is NOT null, jump to unbox and store it
-            Instructions.Add(Processor.Create(OpCodes.Brtrue_S, unboxAndStoreTarget));
-
-            // 4. --- NULL PATH ---
-            // If it is null, we do NOTHING to the variable. 
-            // We just pop the duplicated null and jump to the end.
-            Instructions.Add(Processor.Create(OpCodes.Pop));
-            Instructions.Add(Processor.Create(OpCodes.Br_S, endTarget));
-
-            // 5. --- NOT NULL PATH ---
-            Instructions.Add(unboxAndStoreTarget);
-            Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
-
-            // 6. --- END ---
-            Instructions.Add(endTarget);
-        }
-
-        return this;
-    }
-
-    /// <summary>
-    /// Executes a method with the specified return type.
-    /// </summary>
-    /// <param name="methodInfo">The method to execute, or null to skip operation.</param>
-    /// <param name="returnType">The return type reference for generic method instantiation.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// If <paramref name="methodInfo"/> is null, this method has no effect.
-    /// </remarks>
     public InstructionsSetBlockBuilder Execute(MethodInfo? methodInfo, TypeReference returnType)
     {
         if (methodInfo is null) return this;
@@ -206,18 +145,6 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
         if (methodReference is not null)
             ExecuteStaticMethod(methodReference);
 
-        return this;
-    }
-
-    /// <summary>
-    /// Loads variables to be available for future use.
-    /// </summary>
-    /// <param name="variable">The variable to load.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    public InstructionsSetBlockBuilder LoadVariable(VariableDefinition? variable)
-    {
-        if(variable is not null)
-            Instructions.Add(Processor.Create(OpCodes.Ldloc, variable));
 
         return this;
     }

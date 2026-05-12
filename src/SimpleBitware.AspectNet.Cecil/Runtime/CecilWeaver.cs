@@ -1,3 +1,4 @@
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
@@ -18,7 +19,7 @@ public class CecilWeaver
 {
     private static readonly Type BaseAspectNetAttributeType = typeof(IAspectNetAttribute);
     private static readonly Type ProcessedByAspectNetAttributeType = typeof(ProcessedByAspectNetAttribute);
-    private static readonly Type[] AttributesToExcludeMembersFromWeaving = [typeof(AspectNetExcludeAttribute), typeof(ProcessedByAspectNetAttribute)];
+    private static readonly Type AspectNetExcludeAttributeType = typeof(AspectNetExcludeAttribute);
     
     /// <summary>
     /// Processes an assembly.
@@ -54,13 +55,20 @@ public class CecilWeaver
             if (generateDebugFiles)
                 File.WriteAllText("before.il", module.DumpModule());
 
-            var baseAspectNetAttribute = module.Cache().Resolve(module.ImportReference(BaseAspectNetAttributeType))
-                                         ?? throw new SymbolsNotFoundException(
-                                             $"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {BaseAspectNetAttributeType} is accessible.");
-            var markerAttributeConstructor = module.ImportReference(ProcessedByAspectNetAttributeType.GetConstructor(Type.EmptyTypes))
-                                             ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {ProcessedByAspectNetAttributeType} has a parameterless constructor.");
+            var baseAspectNetAttributeTypeDefinition = module.Cache().Resolve(module.ImportReference(BaseAspectNetAttributeType));
+            var aspectNetExcludeAttributeTypeReference = module.Cache().ImportReference(AspectNetExcludeAttributeType);
+            var processedByAspectNetAttributeTypeReference = module.Cache().ImportReference(ProcessedByAspectNetAttributeType);
 
-            WeaveModuleTypes(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
+            var processedByAspectNetAttributeDefaultConstructor = ProcessedByAspectNetAttributeType.GetConstructor(Type.EmptyTypes)
+                ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {ProcessedByAspectNetAttributeType} has a parameterless constructor.");
+            var processedByAspectNetAttributeDefaultConstructorMethodReference = module.Cache().ImportReference(processedByAspectNetAttributeDefaultConstructor);
+
+            WeaveModuleTypes(
+                module.GetTypes(), 
+                baseAspectNetAttributeTypeDefinition, 
+                aspectNetExcludeAttributeTypeReference,
+                processedByAspectNetAttributeTypeReference,
+                processedByAspectNetAttributeDefaultConstructorMethodReference);
 
             if (generateDebugFiles)
                 File.WriteAllText("after.il", module.DumpModule());
@@ -77,27 +85,32 @@ public class CecilWeaver
         };
     }
 
-    private static void WeaveModuleTypes(IEnumerable<TypeDefinition> moduleTypes, TypeDefinition baseAspectNetAttribute, MethodReference markerAttributeConstructor)
+    private static void WeaveModuleTypes(
+        IEnumerable<TypeDefinition> moduleTypes, 
+        TypeDefinition baseAspectNetAttributeTypeDefinition,
+        TypeReference aspectNetExcludeAttributeTypeReference,
+        TypeReference processedByAspectNetAttributeTypeReference,
+        MethodReference processedByAspectNetAttributeDefaultConstructorMethodReference)
     {
         moduleTypes.ForEach(type =>
         {
-            var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
+            var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttributeTypeDefinition);
             if (classAspects.Any())
             {
-                var memberToMaterialize = type.GetInheritedMembersToBridge();
+                var memberToMaterialize = type.GetInheritedMembersToBridge(aspectNetExcludeAttributeTypeReference);
                 type.MaterializeInheritedBridges(memberToMaterialize);
             }
 
             type
                 .GetMethodsDecoratedWithAspectNetDerivedAttributes(
                     classAspects,
-                    baseAspectNetAttribute,
-                    AttributesToExcludeMembersFromWeaving
+                    baseAspectNetAttributeTypeDefinition,
+                    [aspectNetExcludeAttributeTypeReference, processedByAspectNetAttributeTypeReference]
                 )
                 .ForEach(method => method
                     .WeaveMethod()
                     .OptimizeMacros()
-                    .ApplyMarkerAttribute(markerAttributeConstructor)
+                    .ApplyMarkerAttribute(processedByAspectNetAttributeDefaultConstructorMethodReference)
                 );
             classAspects.ForEach(attr => { type.CustomAttributes.Remove(attr); });
         });

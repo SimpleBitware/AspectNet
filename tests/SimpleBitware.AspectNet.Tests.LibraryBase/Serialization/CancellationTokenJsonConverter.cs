@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Serialization;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Serialization;
 
 public sealed class CancellationTokenJsonConverter : JsonConverter<CancellationToken>
 {

@@ -1,6 +1,6 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 
 public record Activity
 {

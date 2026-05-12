@@ -1,7 +1,7 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 
 [AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, AllowMultiple = true)]
 public class RecordActivityAttribute : AbstractAspectNetAttribute

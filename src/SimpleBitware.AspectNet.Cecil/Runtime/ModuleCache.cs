@@ -91,23 +91,20 @@ public class ModuleCache(ModuleDefinition module)
     }
     
     /// <summary>
-    /// Imports a method base as a method reference, with caching.
+    /// Imports a method base as a method reference.
     /// </summary>
     /// <param name="method">The method base to import, or null.</param>
-    /// <returns>The imported method reference, or null if the input was null.</returns>
+    /// <returns>The imported method reference</returns>
     /// <exception cref="ArgumentException">Thrown when the method reference cannot be imported.</exception>
-    public MethodReference? ImportReference(MethodBase? method)
+    public MethodReference ImportReference(MethodBase method)
     {
-        if (method is null)
-            return null;
-        
         if (methodBaseReferences.TryGetValue(method, out var cached))
             return cached;
         
         var importedMethodReference = Module.ImportReference(method);
         if (importedMethodReference != null)
             methodBaseReferences.TryAdd(method, importedMethodReference);
-    
+
         return importedMethodReference ?? throw new ArgumentException($"MethodReference not found for {method.Name} in class {method.DeclaringType?.FullName ?? "unknown"}");
     }
 

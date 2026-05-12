@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 
 public static class ActivitiesStorage
 {

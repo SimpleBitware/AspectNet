@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\SimpleBitware.AspectNet.Tests.Weaving\SimpleBitware.AspectNet.Tests.Weaving.csproj" />
+      <ProjectReference Include="..\SimpleBitware.AspectNet.Tests.Library\SimpleBitware.AspectNet.Tests.Library.csproj" />
     </ItemGroup>
 
 </Project>

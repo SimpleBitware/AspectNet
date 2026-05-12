@@ -1,7 +1,7 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 
-namespace SimpleBitware.AspectNet.Tests.Weaving.Extensions;
+namespace SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 
 public static class AspectNetAttributeContextExtensions
 {
