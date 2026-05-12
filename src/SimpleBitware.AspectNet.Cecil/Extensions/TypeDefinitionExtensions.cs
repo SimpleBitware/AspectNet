@@ -24,6 +24,8 @@ public static class TypeDefinitionExtensions
         "System.ParamArrayAttribute"
     ];
 
+    private static readonly string ObjectTypeFullName = typeof(object).FullName!;
+
     public static TypeReference GetRuntimeTypeReference(this TypeDefinition typeDefinition)
     {
         if (!typeDefinition.HasGenericParameters)
@@ -83,30 +85,30 @@ public static class TypeDefinitionExtensions
             targetType.Methods.Select(m => m.FullName.Replace(targetType.FullName, ""))
         );
 
-        while (currentBase != null && currentBase.FullName != "System.Object")
+        while (currentBase != null && currentBase.FullName != ObjectTypeFullName)
         {
             // 1. Collect Methods (exclude property accessors — handled via inheritedProperties)
             var inheritedMethods = from method in currentBase.Methods
                 where !method.IsPrivate && !method.IsStatic && !method.IsConstructor
                 where !method.IsGetter && !method.IsSetter
                 // FILTER: Check if the method has the exclude attribute
-                where !method.CustomAttributes.Any(a => a.AttributeType.FullName == aspectNetExcludeAttributeTypeReferenceFullName)
+                where method.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName)
                 let relativeSignature = method.FullName.Replace(currentBase.FullName, "")
                 where existingSignatures.Add(relativeSignature)
                 select method;
 
-            membersToBridge.AddRange(inheritedMethods.Cast<IMemberDefinition>());
+            membersToBridge.AddRange(inheritedMethods);
 
             // 2. Collect Properties
             var inheritedProperties = currentBase.Properties
                 .Where(p => (p.GetMethod?.IsPrivate == false) || (p.SetMethod?.IsPrivate == false))
                 // FILTER: Check if the property has the exclude attribute
-                .Where(p => !p.CustomAttributes.Any(a => a.AttributeType.FullName == aspectNetExcludeAttributeTypeReferenceFullName))
-                .Where(prop => !targetType.Properties.Any(p => p.Name == prop.Name));
+                .Where(p => p.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName))
+                .Where(prop => targetType.Properties.All(p => p.Name != prop.Name));
 
-            membersToBridge.AddRange(inheritedProperties.Cast<IMemberDefinition>());
+            membersToBridge.AddRange(inheritedProperties);
 
-            currentBase = currentBase.BaseType?.Resolve();
+            currentBase = currentBase.BaseType?.Module.Cache().Resolve(currentBase.BaseType);
         }
 
         return membersToBridge.ToArray();
@@ -114,29 +116,28 @@ public static class TypeDefinitionExtensions
 
     public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
     {
-        if (targetType == null || members == null) return;
-
         foreach (var member in members)
         {
-            if (member is MethodDefinition method)
+            switch (member)
             {
-                MaterializeMethodBridge(targetType, method);
-            }
-            else if (member is PropertyDefinition prop)
-            {
-                MethodDefinition getMethod = prop.GetMethod != null ? MaterializeMethodBridge(targetType, prop.GetMethod) : null;
-                MethodDefinition setMethod = prop.SetMethod != null ? MaterializeMethodBridge(targetType, prop.SetMethod) : null;
-
-                TypeReference propType = getMethod?.ReturnType ?? setMethod?.Parameters.LastOrDefault()?.ParameterType;
-
-                if (propType != null)
+                case MethodDefinition method:
+                    MaterializeMethodBridge(targetType, method);
+                    break;
+                case PropertyDefinition prop:
                 {
+                    var getMethod = prop.GetMethod != null ? MaterializeMethodBridge(targetType, prop.GetMethod) : null;
+                    var setMethod = prop.SetMethod != null ? MaterializeMethodBridge(targetType, prop.SetMethod) : null;
+
+                    var propType = getMethod?.ReturnType ?? setMethod?.Parameters.LastOrDefault()?.ParameterType;
+                    if (propType == null) continue;
+                
                     var newProp = new PropertyDefinition(prop.Name, prop.Attributes, propType)
                     {
                         GetMethod = getMethod,
                         SetMethod = setMethod
                     };
                     targetType.Properties.Add(newProp);
+                    break;
                 }
             }
         }
@@ -144,8 +145,6 @@ public static class TypeDefinitionExtensions
 
     private static MethodDefinition MaterializeMethodBridge(TypeDefinition targetType, MethodDefinition baseMethod)
     {
-        if (targetType?.Module == null || baseMethod == null) return null;
-
         var module = targetType.Module;
         var baseType = targetType.BaseType;
         var declaringType = baseMethod.DeclaringType.Resolve();
@@ -170,11 +169,7 @@ public static class TypeDefinitionExtensions
         }
 
         var bridge = new MethodDefinition(baseMethod.Name, attrs, module.TypeSystem.Void);
-
-        if (bridge.Body == null)
-        {
-            bridge.Body = new Mono.Cecil.Cil.MethodBody(bridge);
-        }
+        bridge.Body ??= new MethodBody(bridge);
 
         targetType.Methods.Add(bridge);
 
@@ -196,7 +191,7 @@ public static class TypeDefinitionExtensions
         }
 
         // 3. Map Return Type and its Attributes (e.g., Nullable)
-        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module, substitutions) ?? module.TypeSystem.Void;
+        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module, substitutions);
         CopySignatureAttributes(baseMethod.MethodReturnType, bridge.MethodReturnType, module);
 
         // 4. Map Parameters and their Attributes (e.g., ParamArray, Nullable)
@@ -237,8 +232,6 @@ public static class TypeDefinitionExtensions
     private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module,
         Dictionary<GenericParameter, TypeReference> substitutions)
     {
-        if (type == null) return module.TypeSystem.Void;
-
         if (type.IsGenericParameter)
         {
             var gp = (GenericParameter)type;
@@ -289,7 +282,6 @@ public static class TypeDefinitionExtensions
 
     private static TypeReference CloneUnmapped(TypeReference type, ModuleDefinition module)
     {
-        if (type == null) return null;
         if (type.IsGenericParameter) return type;
 
         if (type.IsArray) return new ArrayType(CloneUnmapped(type.GetElementType(), module), ((ArrayType)type).Rank);
@@ -337,7 +329,6 @@ public static class TypeDefinitionExtensions
 
     private static TypeReference SubstituteType(TypeReference type, Dictionary<GenericParameter, TypeReference> substitutions, ModuleDefinition module)
     {
-        if (type == null) return null;
         if (type is GenericParameter gp && substitutions.TryGetValue(gp, out var sub))
             return sub;
 
@@ -358,7 +349,7 @@ public static class TypeDefinitionExtensions
 
     private static void CopySignatureAttributes(ICustomAttributeProvider source, ICustomAttributeProvider target, ModuleDefinition module)
     {
-        if (source == null || !source.HasCustomAttributes) return;
+        if (!source.HasCustomAttributes) return;
 
         foreach (var attr in source.CustomAttributes)
         {

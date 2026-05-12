@@ -15,12 +15,12 @@ public class AspectContextReferences(ModuleCache moduleCache)
     /// <summary>
     /// Gets the method reference for the MemberName property getter.
     /// </summary>
-    public MethodReference? NameGetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.MemberName))?.GetMethod);
+    public MethodReference? NameGetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.MemberName))!.GetMethod);
 
     /// <summary>
     /// Gets the method reference for the MemberName property setter.
     /// </summary>
-    public MethodReference? NameSetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.MemberName))?.SetMethod);
+    public MethodReference? NameSetMethod { get; } = moduleCache.ImportReference(typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.MemberName))!.SetMethod);
     
     /// <summary>
     /// Gets the method reference for the Instance property getter.
