@@ -107,37 +107,44 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
         if (variableDefinition == null)
             return (TBuilder)this;
 
-        // 1. Detection: Is this Task<T>?
-        if (typeReference.IsGenericInstance && typeReference.GetElementType().FullName == "System.Threading.Tasks.Task`1")
+        if (typeReference.GetElementType().IsGenericTask())
         {
             var genericTask = (GenericInstanceType)typeReference;
             var baseInnerT = genericTask.GenericArguments[0];
 
-            // 2. Safe Generic Mapping
-            TypeReference innerT = baseInnerT;
+            var innerT = baseInnerT;
             if (baseInnerT.IsGenericParameter)
             {
                 var gp = (GenericParameter)baseInnerT;
 
-                // Bounds check for Class-level generics (!0)
-                if (gp.Type == GenericParameterType.Type)
+                switch (gp.Type)
                 {
-                    if (gp.Position < Method.DeclaringType.GenericParameters.Count)
+                    // Bounds check for Class-level generics (!0)
+                    case GenericParameterType.Type:
                     {
-                        innerT = Method.DeclaringType.GenericParameters[gp.Position];
+                        if (gp.Position < Method.DeclaringType.GenericParameters.Count)
+                        {
+                            innerT = Method.DeclaringType.GenericParameters[gp.Position];
+                        }
+
+                        break;
                     }
-                }
-                // Bounds check for Method-level generics (!!0)
-                else if (gp.Type == GenericParameterType.Method)
-                {
-                    if (gp.Position < Method.GenericParameters.Count)
+                    // Bounds check for Method-level generics (!!0)
+                    case GenericParameterType.Method:
                     {
-                        innerT = Method.GenericParameters[gp.Position];
+                        if (gp.Position < Method.GenericParameters.Count)
+                        {
+                            innerT = Method.GenericParameters[gp.Position];
+                        }
+
+                        break;
                     }
+                    default:
+                        throw new ArgumentOutOfRangeException();
                 }
             }
 
-            // 3. Create 'default(T)' on stack
+            // Create 'default(T)' on stack
             var tempDefault = new VariableDefinition(innerT);
             Method.Body.Variables.Add(tempDefault);
 
@@ -145,12 +152,12 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
             Instructions.Add(Processor.Create(OpCodes.Initobj, innerT));
             Instructions.Add(Processor.Create(OpCodes.Ldloc, tempDefault));
 
-            // 4. Call Task.FromResult<T>(innerT)
+            // Call Task.FromResult<T>(innerT)
             // Ensure you have the ImportTaskFromResult helper in your class!
             var fromResultMethod = Method.Module.ImportTaskFromResult(innerT);
             Instructions.Add(Processor.Create(OpCodes.Call, fromResultMethod));
 
-            // 5. Store the Task<T> object
+            // Store the Task<T> object
             Instructions.Add(Processor.Create(OpCodes.Stloc, variableDefinition));
         }
         else
@@ -160,17 +167,6 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
             Instructions.Add(Processor.Create(OpCodes.Initobj, typeReference));
         }
 
-        return (TBuilder)this;
-    }
-
-    /// <summary>
-    /// Adds an exception handler to the method body.
-    /// </summary>
-    /// <param name="exceptionHandler">The exception handler to add.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    public TBuilder AddExceptionHandler(ExceptionHandler exceptionHandler)
-    {
-        Method.Body.ExceptionHandlers.Add(exceptionHandler);
         return (TBuilder)this;
     }
 
@@ -190,25 +186,8 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// </summary>
     /// <param name="instructionSet">The instruction set containing instructions to add.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    public TBuilder AddInstructions(InstructionSet instructionSet)
+    private TBuilder AddInstructions(InstructionSet instructionSet)
     {
-        Instructions.AddRange(instructionSet.Instructions);
-        return (TBuilder)this;
-    }
-
-    /// <summary>
-    /// Creates and adds an instruction block built by the provided function.
-    /// </summary>
-    /// <param name="function">A delegate that receives an <see cref="InstructionsSetBlockBuilder"/> and returns an <see cref="InstructionSet"/>.</param>
-    /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// This method enables nested building patterns where instructions can be constructed
-    /// in isolated blocks and then merged into the current builder.
-    /// </remarks>
-    public TBuilder AddInstructionsBlock(Func<InstructionsSetBlockBuilder, InstructionSet> function)
-    {
-        var blockBuilder = new InstructionsSetBlockBuilder(Method, Processor, ModuleCache);
-        var instructionSet = function(blockBuilder);
         Instructions.AddRange(instructionSet.Instructions);
         return (TBuilder)this;
     }
