@@ -145,7 +145,6 @@ public class InstructionsSetBlockBuilder(MethodDefinition method, ILProcessor pr
         if (methodReference is not null)
             ExecuteStaticMethod(methodReference);
 
-
         return this;
     }
 

@@ -79,7 +79,7 @@ public static class TypeReferenceExtensions
     /// <remarks>
     /// This method checks if the type is a generic instance.
     /// </remarks>
-    private static bool IsGenericTask(this TypeReference type)
+    public static bool IsGenericTask(this TypeReference type)
     {
         return type.IsGenericInstance && 
                type is GenericInstanceType genericType && 
