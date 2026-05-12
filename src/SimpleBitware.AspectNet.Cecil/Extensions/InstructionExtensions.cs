@@ -6,41 +6,32 @@ public static class InstructionExtensions
 {
     public static List<Instruction> ApplyPeepholeOptimization(this List<Instruction> instructions)
     {
-        if (instructions.Count >= 3)
-        {
-            var last = instructions[instructions.Count - 1];   // ldloc
-            var prev1 = instructions[instructions.Count - 2];  // br
-            var prev2 = instructions[instructions.Count - 3];  // stloc
+        if (instructions.Count < 3) return instructions;
+        
+        var last = instructions[instructions.Count - 1];   // ldloc
+        var prev1 = instructions[instructions.Count - 2];  // br
+        var prev2 = instructions[instructions.Count - 3];  // stloc
 
-            // Check if we have the pattern: Store to X -> Jump -> Load from X
-            if (GetVariableIndex(last) != -1 && 
-                GetVariableIndex(last) == GetVariableIndex(prev2) &&
-                prev1.OpCode.FlowControl == FlowControl.Branch)
-            {
-                instructions.RemoveRange(instructions.Count - 3, 3);
-            }
+        // Check if we have the pattern: Store to X -> Jump -> Load from X
+        if (GetVariableIndex(last) != -1 && 
+            GetVariableIndex(last) == GetVariableIndex(prev2) &&
+            prev1.OpCode.FlowControl == FlowControl.Branch)
+        {
+            instructions.RemoveRange(instructions.Count - 3, 3);
         }
         return instructions;
     }
     
     private static int GetVariableIndex(Instruction instruction)
     {
-        switch (instruction.OpCode.Code)
+        return instruction.OpCode.Code switch
         {
-            case Code.Ldloc_0:
-            case Code.Stloc_0: return 0;
-            case Code.Ldloc_1:
-            case Code.Stloc_1: return 1;
-            case Code.Ldloc_2:
-            case Code.Stloc_2: return 2;
-            case Code.Ldloc_3:
-            case Code.Stloc_3: return 3;
-            case Code.Ldloc_S:
-            case Code.Stloc_S:
-            case Code.Ldloc:
-            case Code.Stloc:
-                return (instruction.Operand as VariableDefinition)?.Index ?? -1;
-            default: return -1;
-        }
+            Code.Ldloc_0 or Code.Stloc_0 => 0,
+            Code.Ldloc_1 or Code.Stloc_1 => 1,
+            Code.Ldloc_2 or Code.Stloc_2 => 2,
+            Code.Ldloc_3 or Code.Stloc_3 => 3,
+            Code.Ldloc_S or Code.Stloc_S or Code.Ldloc or Code.Stloc => (instruction.Operand as VariableDefinition)?.Index ?? -1,
+            _ => -1
+        };
     }
 }

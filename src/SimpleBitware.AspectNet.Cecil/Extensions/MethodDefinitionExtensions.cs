@@ -107,7 +107,7 @@ public static class MethodDefinitionExtensions
                         .SetRuntimeTypeProperty(
                             contextVariableDefinition,
                             typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
-                            moduleCache.ImportReference(typeof(object).GetMethod("GetType")))
+                            moduleCache.ImportReference(typeof(object).GetMethod(nameof(GetType))!))
                         .Build()
                 )
                 .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)

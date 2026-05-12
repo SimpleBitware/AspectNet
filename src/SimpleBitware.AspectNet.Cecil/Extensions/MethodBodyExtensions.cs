@@ -1,4 +1,3 @@
-using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
 using SimpleBitware.AspectNet.Cecil.Builders;

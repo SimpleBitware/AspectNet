@@ -26,7 +26,6 @@ public static class InstructionSetBlockBuilderBaseExtensions
         var isGeneric = returnTypeReference.IsGenericInstance;
         var isValueTask = returnTypeReference.IsValueTaskType();
 
-        // Crucial: Use moduleCache to ensure we aren't mixing assembly references (e.g., netstandard vs System.Runtime)
         var runnerTypeRef = moduleCache.ImportReference(typeof(AsyncAspectRunner));
         var runnerTypeDefinition = moduleCache.Resolve(runnerTypeRef);
 
@@ -54,23 +53,17 @@ public static class InstructionSetBlockBuilderBaseExtensions
             importedMethod = moduleCache.Module.ImportReference(runAsyncRunnerMethodDefinition);
         }
 
-        // --- 2. Landing Pad & Branch Redirection ---
-        // This creates a 'nop' that acts as the label for all early returns/branches
         var successLandingInstruction = builder.CreateEmptyInstruction();
         var oldReturnInstruction = currentInstructionSet.Instructions.LastOrDefault(x => x.OpCode.Code == Code.Ret);
 
         var sanitizedInnerInstructions = currentInstructionSet.Instructions
-            .SkipLastWhile(x => x.OpCode.Code == Code.Ret) // Use Code.Ret for safer comparison
+            .SkipLastWhile(x => x.OpCode.Code == Code.Ret)
             .ToList()
             .ApplyPeepholeOptimization();
 
-        // Redirect all internal logic that was heading for 'ret' to our wrapper entry point
         if (oldReturnInstruction != null)
-        {
             RedirectLogicalBranches(sanitizedInnerInstructions, oldReturnInstruction, successLandingInstruction);
-        }
 
-        // --- 3. Build the Async Wrapper Chain ---
         return builder
             .AddInstructions(sanitizedInnerInstructions)
             .AddInstructions([successLandingInstruction]) // The "Gate"
@@ -83,7 +76,6 @@ public static class InstructionSetBlockBuilderBaseExtensions
                     )
                     .Build()
             )
-            // Wraps the task: task = AsyncAspectRunner.RunAsync(task, aspect, context)
             .ExecuteStaticMethod(importedMethod, returnValueVariableDefinition, aspectVariableDefinition, contextVariableDefinition)
             .SetVariable(variableBuilder => variableBuilder
                 .AssignResultToVariable(returnValueVariableDefinition)
@@ -169,7 +161,7 @@ public static class InstructionSetBlockBuilderBaseExtensions
     {
         foreach (var instruction in instructions)
         {
-            // Handle standard branches (br, brfalse, beq, etc.)
+            // Handle standard branches (br, br_false, beq, etc.)
             if (instruction.Operand is Instruction target && target == oldTarget)
                 instruction.Operand = newTarget;
 
