@@ -10,4 +10,10 @@ public static class IoCAspectClass
         await Task.Delay(100);
         return parameter;
     }
+    
+    [Benchmark]
+    public static string Method(string parameter)
+    {
+        return parameter;
+    }
 }

@@ -12,12 +12,19 @@ public partial class IoCAspectClassTests
 {
     private readonly Mock<ILogger<BenchmarkAttribute>> loggerMock = new();
     private readonly List<string> capturedMessages = [];
-    private const string BenchmarkLogPattern =
+    private const string BenchmarkDefaultLogPattern =
+        @"^SimpleBitware\.AspectNet\.Tests\.Library\.TestClasses\.IoCAspectClass\.Method run for " +
+        @"(?<days>\d{2}):(?<hours>(?:[01]\d|2[0-3])):(?<minutes>[0-5]\d):(?<seconds>[0-5]\d)\.(?<micro>\d{6})$";
+    
+    private const string BenchmarkModifiedLogPattern =
         @"^SimpleBitware\.AspectNet\.Tests\.Library\.TestClasses\.IoCAspectClass\.MethodAsync run for " +
         @"(?<days>\d{2}):(?<hours>(?:[01]\d|2[0-3])):(?<minutes>[0-5]\d):(?<seconds>[0-5]\d)\.(?<micro>\d{2})$";
     
-    [GeneratedRegex(BenchmarkLogPattern)]
-    private static partial Regex BenchmarkLogRegex();
+    [GeneratedRegex(BenchmarkDefaultLogPattern)]
+    private static partial Regex BenchmarkDefaultLogRegex();
+    
+    [GeneratedRegex(BenchmarkModifiedLogPattern)]
+    private static partial Regex BenchmarkModifiedLogRegex();
     
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -42,14 +49,24 @@ public partial class IoCAspectClassTests
         serviceCollection.AddSingleton(loggerMock.Object);
         serviceCollection.BuildServiceProvider().UseAspectNet();
     }
-
+    
     [Test]
-    public async Task Should_Log_Benchmark_Using_ILogger()
+    public void Should_Log_Benchmark_Using_Default_Format()
+    {
+        //when
+        IoCAspectClass.Method(Guid.NewGuid().ToString());
+
+        //then
+        Assert.That(capturedMessages.Any(x => BenchmarkDefaultLogRegex().IsMatch(x)), Is.True);
+    }
+    
+    [Test]
+    public async Task Should_Log_Benchmark_Using_Specified_Format()
     {
         //when
         await IoCAspectClass.MethodAsync(Guid.NewGuid().ToString());
 
         //then
-        Assert.That(capturedMessages.Any(x => BenchmarkLogRegex().IsMatch(x)), Is.True);
+        Assert.That(capturedMessages.Any(x => BenchmarkModifiedLogRegex().IsMatch(x)), Is.True);
     }
 }
