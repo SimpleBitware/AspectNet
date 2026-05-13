@@ -8,8 +8,10 @@
 /// <remarks>
 /// Aspect attributes must have a public default constructor. Only the public default constructor is used by AspectNet.
 /// To configure the aspect when applied to a class or member, use public properties.
-/// Example `Priority` property.
 /// </remarks>
+/// <example>
+/// `Priority` property.
+/// </example>
 [AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, AllowMultiple = true)]
 public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
 {
