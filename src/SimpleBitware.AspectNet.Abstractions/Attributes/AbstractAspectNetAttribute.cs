@@ -6,7 +6,7 @@
 /// Can be applied to classes, methods, properties, and constructors.
 /// </summary>
 /// <remarks>
-/// Aspect attributes must have a public default constructor. Only the public default constructor is used by AspectNet.
+/// Aspect attributes must have a public parameterless constructor. Only the public parameterless constructor is used by AspectNet.
 /// To configure the aspect when applied to a class or member, use public properties.
 /// </remarks>
 /// <example>
