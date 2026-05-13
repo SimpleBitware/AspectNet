@@ -9,6 +9,11 @@
 public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
 {
     /// <summary>
+    /// Gets the ServiceProvider registered with UseAspectNet ServiceProvider extension.
+    /// </summary>
+    protected readonly IServiceProvider? ServiceProvider = AspectNetDependencyInjection.ServiceProvider;
+    
+    /// <summary>
     /// Gets or sets the execution priority of this aspect.
     /// Lower values execute first; equal values execute in declaration order.
     /// Defaults to <see cref="int.MaxValue"/>.

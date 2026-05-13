@@ -16,6 +16,7 @@
     <!--    </ItemGroup>-->
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" />
         <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj"/>
         <ProjectReference Include="..\SimpleBitware.AspectNet.Tests.LibraryBase\SimpleBitware.AspectNet.Tests.LibraryBase.csproj" />
     </ItemGroup>
