@@ -121,7 +121,7 @@ public static class MethodDefinitionExtensions
                     var isInnermost = (currentInstructionSet == instructionSet);
                     var aspectVariableDefinition = new VariableDefinition(moduleCache.ImportReference(customAttribute.AttributeType));
                     var exceptionVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(Exception)));
-                    var builtInstructionSet = builder
+                    var buildInstructionSet = builder
                         .If(isAsyncMethod, ifBlockBuilder => ifBlockBuilder
                             .AddVariable(catchExecutedVariableDefinition, addCatchExecutedBuilder =>
                                 addCatchExecutedBuilder.GetDefaultValue(catchExecutedVariableDefinition.VariableType)
@@ -130,8 +130,8 @@ public static class MethodDefinitionExtensions
                         )
                         .AddVariable(aspectVariableDefinition)
                         .AddVariable(exceptionVariableDefinition)
-                        .Execute(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)), aspectVariableDefinition.VariableType)
                         .SetVariable(instanceVariableBuilder => instanceVariableBuilder
+                            .CreateInstance(customAttribute.AttributeType)
                             .AssignResultToVariable(aspectVariableDefinition)
                             .SetIntProperty(
                                 aspectVariableDefinition,
@@ -204,7 +204,7 @@ public static class MethodDefinitionExtensions
                         )
                         .Build();
                     method.RemoveAttribute(customAttribute);
-                    return builtInstructionSet;
+                    return buildInstructionSet;
                 })
             .AddReturn(returnValueVariableDefinition)
             .Build()

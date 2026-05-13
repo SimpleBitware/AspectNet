@@ -24,9 +24,34 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
     /// <remarks>
     /// This method generates a <c>newobj</c> IL instruction for the specified type's default constructor.
     /// </remarks>
-    public InstanceVariableBuilder Create<T>()
+    public InstanceVariableBuilder CreateInstance<T>()
     {
-        var instruction = Processor.Create(OpCodes.Newobj, ModuleCache.ImportReference(typeof(T).GetConstructor(Type.EmptyTypes)));
+        var instruction = Processor.Create(OpCodes.Newobj, ModuleCache.ImportReference(typeof(T).GetConstructor(Type.EmptyTypes) 
+                                                                                       ?? throw new SymbolsNotFoundException($"The default constructor of type {typeof(T)} not found.")));
+        Instructions.Add(instruction);
+        return this;
+    }
+    
+    /// <summary>
+    /// Creates a new instance of specified TypeReference using its parameterless constructor.
+    /// </summary>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <remarks>
+    /// This method generates a <c>newobj</c> IL instruction for the specified type's default constructor.
+    /// </remarks>
+    public InstanceVariableBuilder CreateInstance(TypeReference typeReference)
+    {
+        var typeDefinition = ModuleCache.Resolve(typeReference);
+        var ctorDefinition = typeDefinition.Methods
+            .FirstOrDefault(m => 
+            m.IsConstructor && 
+            m is { IsStatic: false, HasParameters: false });
+        
+        if (ctorDefinition == null)
+            throw new Exception($"Type {typeReference.FullName} has no default constructor!");
+        
+        var ctorReference = ModuleCache.ImportReference(ctorDefinition);
+        var instruction = Processor.Create(OpCodes.Newobj, ctorReference);
         Instructions.Add(instruction);
         return this;
     }

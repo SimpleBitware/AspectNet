@@ -107,6 +107,23 @@ public class ModuleCache(ModuleDefinition module)
 
         return importedMethodReference ?? throw new ArgumentException($"MethodReference not found for {method.Name} in class {method.DeclaringType?.FullName ?? "unknown"}");
     }
+    
+    /// <summary>
+    /// Imports a method definition into the target module.
+    /// </summary>
+    /// <param name="methodDefinition">The method definition.</param>
+    /// <returns>The imported method reference.</returns>
+    public MethodReference ImportReference(MethodDefinition methodDefinition)
+    {
+        var key = methodDefinition.FullName;
+        if(methodReferences.TryGetValue(key, out var cachedMethodReference))
+            return cachedMethodReference;
+        
+        var methodReference = Module.ImportReference(methodDefinition);
+        methodReferences.TryAdd(key, methodReference);
+        
+        return methodReference;
+    }
 
     /// <summary>
     /// Imports a method reference from a type definition by name and parameter count.

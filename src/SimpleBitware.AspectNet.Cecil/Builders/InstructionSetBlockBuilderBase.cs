@@ -52,7 +52,7 @@ public abstract class InstructionSetBlockBuilderBase<TBuilder>(MethodDefinition 
     /// <returns>The current builder instance for method chaining.</returns>
     public TBuilder AddInstanceVariable<T>(Func<InstanceVariableBuilder, InstructionSet> function)
     {
-        var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache).Create<T>());
+        var instructionSet = function(new InstanceVariableBuilder(Method, Processor, ModuleCache).CreateInstance<T>());
         Instructions.AddRange(instructionSet.Instructions);
         return (TBuilder)this;
     }
