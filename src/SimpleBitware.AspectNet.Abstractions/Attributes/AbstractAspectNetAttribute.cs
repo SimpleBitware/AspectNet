@@ -5,6 +5,11 @@
 /// Provides virtual methods that can be overridden to implement aspect behavior at different stages of method execution.
 /// Can be applied to classes, methods, properties, and constructors.
 /// </summary>
+/// <remarks>
+/// Aspect attributes must have a public default constructor. Only the public default constructor is used by AspectNet.
+/// To configure the aspect when applied to a class or member, use public properties.
+/// Example `Priority` property.
+/// </remarks>
 [AttributeUsage( AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, AllowMultiple = true)]
 public abstract class AbstractAspectNetAttribute : Attribute, IAspectNetAttribute
 {
