@@ -293,6 +293,18 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
 
         return this;
     }
+
+    public InstanceVariableBuilder SetProperty(
+        VariableDefinition instanceVariableDefinition,
+        MethodReference propertySetter,
+        object value)
+    {
+        Instructions.Add(Processor.Create(OpCodes.Ldloc, instanceVariableDefinition));
+        GetValue(value);
+        Instructions.Add(Processor.Create(OpCodes.Callvirt, propertySetter));
+        
+        return this;
+    }
     
     public InstanceVariableBuilder GetDefaultValue(TypeReference type)
     {
@@ -326,6 +338,24 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
                     instructions.Add(Processor.Create(OpCodes.Ldc_I4_0));
                     instructions.Add(Processor.Create(OpCodes.Conv_I));
                     break;
+                case MetadataType.Void:
+                case MetadataType.UInt32:
+                case MetadataType.String:
+                case MetadataType.ByReference:
+                case MetadataType.ValueType:
+                case MetadataType.Class:
+                case MetadataType.Var:
+                case MetadataType.Array:
+                case MetadataType.GenericInstance:
+                case MetadataType.TypedByReference:
+                case MetadataType.IntPtr:
+                case MetadataType.UIntPtr:
+                case MetadataType.Object:
+                case MetadataType.MVar:
+                case MetadataType.RequiredModifier:
+                case MetadataType.OptionalModifier:
+                case MetadataType.Sentinel:
+                case MetadataType.Pinned:
                 default:
                     var tempVar = new VariableDefinition(type);
                     Processor.Body.Variables.Add(tempVar);
@@ -345,6 +375,42 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
         return this;
     }
 
+    private InstanceVariableBuilder GetValue(object value)
+    {
+        var instructions = new List<Instruction>();
+        
+        switch (value)
+        {
+            case int i:
+                instructions.Add(processor.Create(OpCodes.Ldc_I4, i));
+                break;
+            case long l:
+                instructions.Add(processor.Create(OpCodes.Ldc_I8, l));
+                break;
+            case float f:
+                instructions.Add(processor.Create(OpCodes.Ldc_R4, f));
+                break;
+            case double d:
+                instructions.Add(processor.Create(OpCodes.Ldc_R8, d));
+                break;
+            case string s:
+                instructions.Add(processor.Create(OpCodes.Ldstr, s));
+                break;
+            case bool b:
+                instructions.Add(processor.Create(b ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0));
+                break;
+            case null:
+                processor.Emit(OpCodes.Ldnull);
+                break;
+            default:
+                throw new NotSupportedException($"Type {value.GetType()} is not supported as a constant.");
+        }
+        
+        Instructions.AddRange(instructions);
+        
+        return this;
+    }
+    
     public InstanceVariableBuilder GetTrue()
     {
         Instructions.Add(Processor.Create(OpCodes.Ldc_I4_1));

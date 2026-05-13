@@ -14,7 +14,7 @@ public partial class IoCAspectClassTests
     private readonly List<string> capturedMessages = [];
     private const string BenchmarkLogPattern =
         @"^SimpleBitware\.AspectNet\.Tests\.Library\.TestClasses\.IoCAspectClass\.MethodAsync run for " +
-        @"(?<days>\d{2}):(?<hours>(?:[01]\d|2[0-3])):(?<minutes>[0-5]\d):(?<seconds>[0-5]\d)\.(?<micro>\d{6})$";
+        @"(?<days>\d{2}):(?<hours>(?:[01]\d|2[0-3])):(?<minutes>[0-5]\d):(?<seconds>[0-5]\d)\.(?<micro>\d{2})$";
     
     [GeneratedRegex(BenchmarkLogPattern)]
     private static partial Regex BenchmarkLogRegex();

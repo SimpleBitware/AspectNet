@@ -1,6 +1,8 @@
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Cecil.Builders;
@@ -130,15 +132,24 @@ public static class MethodDefinitionExtensions
                         )
                         .AddVariable(aspectVariableDefinition)
                         .AddVariable(exceptionVariableDefinition)
-                        .SetVariable(instanceVariableBuilder => instanceVariableBuilder
-                            .CreateInstance(customAttribute.AttributeType)
-                            .AssignResultToVariable(aspectVariableDefinition)
-                            .SetIntProperty(
-                                aspectVariableDefinition,
-                                moduleCache.ImportReference(customAttribute.AttributeType, MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1),
-                                customAttribute.GetPriorityValue())
-                            .Build()
-                        )
+                        .SetVariable(instanceVariableBuilder =>
+                        {
+                            instanceVariableBuilder
+                                .CreateInstance(customAttribute.AttributeType)
+                                .AssignResultToVariable(aspectVariableDefinition);
+
+                            customAttribute.GetAttributePropertyAssignments().ForEach(x =>
+                            {
+                                instanceVariableBuilder
+                                    .SetProperty(
+                                        aspectVariableDefinition,
+                                        x.Setter,
+                                        x.Value);
+                            });
+
+                            return instanceVariableBuilder
+                                .Build();
+                        })
                         .AddTryCatch(
                             tryBlockBuilder => tryBlockBuilder
                                 .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnEntry, contextVariableDefinition)
