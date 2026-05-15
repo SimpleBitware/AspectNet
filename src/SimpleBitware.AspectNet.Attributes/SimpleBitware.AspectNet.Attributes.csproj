@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>SimpleBitware.AspectNet.Attributes</PackageId>
+        <Authors>Lucian Bornaz</Authors>
+        <Company>Simple Bitware</Company>
+        <Description>Commonly used aspects for AspectNet</Description>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet/tree/main/src/SimpleBitware.AspectNet.Attributes</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageIcon>logo.png</PackageIcon>
+
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <MinVerTagPrefix>v</MinVerTagPrefix>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+        <PackageReference Include="MinVer" Version="7.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md"
+              Pack="true"
+              PackagePath=""
+              Visible="false"/>
+        <None Include="..\..\resources\logo.png"
+              Pack="true"
+              PackagePath=""
+              Visible="false"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
+    </ItemGroup>
+
+</Project>

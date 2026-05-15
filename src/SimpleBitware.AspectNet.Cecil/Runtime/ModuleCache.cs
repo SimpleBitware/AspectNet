@@ -12,29 +12,32 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 /// </remarks>
 public class ModuleCache(ModuleDefinition module)
 {
-    private readonly ModuleDefinition module = module ?? throw new ArgumentNullException(nameof(module));
     private readonly ConcurrentDictionary<string, TypeDefinition> typeDefinitions = new();
     private readonly ConcurrentDictionary<string, TypeReference> typeReferences = new();
     private readonly ConcurrentDictionary<string, MethodReference> methodReferences = new();
-    private readonly ConcurrentDictionary<MethodBase, MethodReference> methodBaseReferences = new();
+    private readonly ConcurrentDictionary<RuntimeMethodHandle, MethodReference> methodBaseReferences = new();
     private readonly ConcurrentDictionary<string, bool> aspectCache = new();
     private readonly ConcurrentDictionary<string, bool> inheritanceCache = new();
 
-    public ModuleDefinition Module => module;
+    public ModuleDefinition Module { get; } = module ?? throw new ArgumentNullException(nameof(module));
 
+    /// <summary>
+    /// Gets all cached items.
+    /// </summary>
+    /// <returns>An array containing all cached items.</returns>
     public string[] GetCachedItems()
     {
         return typeDefinitions.Keys
             .Concat(typeReferences.Keys)
             .Concat(methodReferences.Keys)
-            .Concat(methodBaseReferences.Keys.Select(k => k.DeclaringType?.FullName + "." + k.Name))
+            .Concat(methodBaseReferences.Values.Select(x=>x.FullName))
             .Concat(aspectCache.Keys)
             .Concat(inheritanceCache.Keys)
             .ToArray();
     }
     
     /// <summary>
-    /// Resolves a type reference to its type definition, with caching.
+    /// Resolves a type reference to its type definition with caching.
     /// </summary>
     /// <param name="typeReference">The type reference to resolve.</param>
     /// <returns>The resolved type definition.</returns>
@@ -62,7 +65,7 @@ public class ModuleCache(ModuleDefinition module)
         if (typeReferences.TryGetValue(type.FullName, out var cached))
             return cached;
         
-        var importedTypeReference = module.ImportReference(type);
+        var importedTypeReference = Module.ImportReference(type);
         if (importedTypeReference != null)
             typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
     
@@ -70,7 +73,7 @@ public class ModuleCache(ModuleDefinition module)
     }
 
     /// <summary>
-    /// Imports a type reference, with caching.
+    /// Imports a type reference with caching.
     /// </summary>
     /// <param name="typeReference">The type reference to import.</param>
     /// <returns>The imported type reference.</returns>
@@ -80,7 +83,7 @@ public class ModuleCache(ModuleDefinition module)
         if (typeReferences.TryGetValue(typeReference.FullName, out var cached))
             return cached;
         
-        var importedTypeReference = module.ImportReference(typeReference);
+        var importedTypeReference = Module.ImportReference(typeReference);
         if (importedTypeReference != null)
             typeReferences.TryAdd(importedTypeReference.FullName, importedTypeReference);
     
@@ -88,24 +91,38 @@ public class ModuleCache(ModuleDefinition module)
     }
     
     /// <summary>
-    /// Imports a method base as a method reference, with caching.
+    /// Imports a method base as a method reference.
     /// </summary>
     /// <param name="method">The method base to import, or null.</param>
-    /// <returns>The imported method reference, or null if the input was null.</returns>
+    /// <returns>The imported method reference</returns>
     /// <exception cref="ArgumentException">Thrown when the method reference cannot be imported.</exception>
-    public MethodReference? ImportReference(MethodBase? method)
+    public MethodReference ImportReference(MethodBase method)
     {
-        if (method is null)
-            return null;
-        
-        if (methodBaseReferences.TryGetValue(method, out var cached))
+        if (methodBaseReferences.TryGetValue(method.MethodHandle, out var cached))
             return cached;
         
-        var importedMethodReference = module.ImportReference(method);
+        var importedMethodReference = Module.ImportReference(method);
         if (importedMethodReference != null)
-            methodBaseReferences.TryAdd(method, importedMethodReference);
-    
+            methodBaseReferences.TryAdd(method.MethodHandle, importedMethodReference);
+
         return importedMethodReference ?? throw new ArgumentException($"MethodReference not found for {method.Name} in class {method.DeclaringType?.FullName ?? "unknown"}");
+    }
+    
+    /// <summary>
+    /// Imports a method definition into the target module.
+    /// </summary>
+    /// <param name="methodDefinition">The method definition.</param>
+    /// <returns>The imported method reference.</returns>
+    public MethodReference ImportReference(MethodDefinition methodDefinition)
+    {
+        var key = methodDefinition.FullName;
+        if(methodReferences.TryGetValue(key, out var cachedMethodReference))
+            return cachedMethodReference;
+        
+        var methodReference = Module.ImportReference(methodDefinition);
+        methodReferences.TryAdd(key, methodReference);
+        
+        return methodReference;
     }
 
     /// <summary>
@@ -137,7 +154,7 @@ public class ModuleCache(ModuleDefinition module)
         
         var methodReference = (method == null && typeDefinition.BaseType != null)
             ? ImportReference(Resolve(typeDefinition.BaseType), name, paramCount)
-            : module.ImportReference(method);
+            : Module.ImportReference(method);
         
         methodReferences.TryAdd(key, methodReference);
         return methodReference;
@@ -152,7 +169,7 @@ public class ModuleCache(ModuleDefinition module)
     public bool IsAspect(TypeReference typeReference, TypeDefinition baseType)
     {
         var fullName = typeReference.FullName;
-        if (aspectCache.TryGetValue(fullName, out bool result))
+        if (aspectCache.TryGetValue(fullName, out var result))
             return result;
 
         result = InheritsFrom(Resolve(typeReference), baseType);

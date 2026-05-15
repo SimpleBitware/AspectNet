@@ -1,3 +1,4 @@
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MoreLinq;
@@ -14,88 +15,34 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 /// This class orchestrates the entire aspect weaving process, from loading assemblies
 /// to applying aspect transformations and saving the modified assemblies.
 /// </remarks>
-public static class CecilWeaver
+public class CecilWeaver
 {
+    private static readonly Type BaseAspectNetAttributeType = typeof(IAspectNetAttribute);
+    private static readonly Type ProcessedByAspectNetAttributeType = typeof(ProcessedByAspectNetAttribute);
+    private static readonly Type AspectNetExcludeAttributeType = typeof(AspectNetExcludeAttribute);
+    
     /// <summary>
-    /// Processes an assembly by weaving aspect attributes into the target methods.
+    /// Processes an assembly.
     /// </summary>
     /// <param name="targetAssemblyDirectory">The directory containing the target assembly and its dependencies.</param>
     /// <param name="references">An array of reference assembly paths.</param>
     /// <param name="assemblyPath">The path to the assembly to process.</param>
     /// <param name="pdbFilePath">The path to the PDB file, or null if no symbols are available.</param>
-    /// <param name="generateDebugFiles">Whether to generate debug output files showing before/after IL.</param>
-    /// <returns>An array of file paths for the processed assembly and PDB files.</returns>
-    /// <remarks>
-    /// This method is the main entry point for aspect weaving. It loads the target assembly,
-    /// discovers methods with aspect attributes, weaves the aspects, and saves the modified assembly.
-    /// </remarks>
-    public static WeavingResult ProcessAssembly(
-        string targetAssemblyDirectory,
-        string[] references,
-        string assemblyPath,
-        string? pdbFilePath,
-        bool generateDebugFiles)
-    {
-        return ProcessAssembly<IAspectNetAttribute, ProcessedByAspectNetAttribute>(
-            targetAssemblyDirectory,
-            references,
-            assemblyPath,
-            pdbFilePath,
-            (moduleTypes, baseAspectNetAttribute, markerAttributeConstructor) =>
-                moduleTypes.ForEach(type =>
-                {
-                    var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
-                    if (classAspects.Any())
-                    {
-                        var memberToMaterialize = type.GetInheritedMembersToBridge();
-                        type.MaterializeInheritedBridges(memberToMaterialize);
-                    }
-                    type
-                        .GetMethodsDecoratedWithAspectNetDerivedAttributes(
-                            classAspects,
-                            baseAspectNetAttribute,
-                            [typeof(AspectNetExcludeAttribute), typeof(ProcessedByAspectNetAttribute)]
-                        )
-                        .ForEach(method => method
-                            .WeaveMethod()
-                            .OptimizeMacros()
-                            .ApplyMarkerAttribute(markerAttributeConstructor)
-                        );
-                    classAspects.ForEach(attr => { type.CustomAttributes.Remove(attr); });
-                }),
-            generateDebugFiles
-        );
-    }
-
-    /// <summary>
-    /// Processes an assembly with generic type parameters for aspect and marker attributes.
-    /// </summary>
-    /// <typeparam name="TAttribute">The base aspect attribute type.</typeparam>
-    /// <typeparam name="TMarker">The marker attribute type to apply after weaving.</typeparam>
-    /// <param name="targetAssemblyDirectory">The directory containing the target assembly and its dependencies.</param>
-    /// <param name="references">An array of reference assembly paths.</param>
-    /// <param name="assemblyPath">The path to the assembly to process.</param>
-    /// <param name="pdbFilePath">The path to the PDB file, or null if no symbols are available.</param>
-    /// <param name="weaveAction">The action to perform weaving on discovered methods.</param>
-    /// <param name="generateDebugFiles">Whether to generate debug output files.</param>
+    /// <param name="generateDebugFiles">Whether to generate IL output files for debugging.</param>
     /// <returns>An array of file paths for the processed assembly and PDB files.</returns>
     /// <exception cref="ApplicationException">Thrown when the module cannot be loaded.</exception>
     /// <exception cref="SymbolsNotFoundException">Thrown when required types cannot be resolved.</exception>
     /// <remarks>
-    /// This generic method provides the core weaving logic, allowing for different aspect
-    /// and marker attribute types to be used in the weaving process.
+    /// This generic method provides the core weaving logic.
     /// </remarks>
-    private static WeavingResult ProcessAssembly<TAttribute, TMarker>(
+    public WeavingResult ProcessAssembly(
         string targetAssemblyDirectory,
         string[] references,
         string assemblyPath,
         string? pdbFilePath,
-        Action<IEnumerable<TypeDefinition>, TypeDefinition, MethodReference> weaveAction,
         bool generateDebugFiles)
-        where TAttribute : class
-        where TMarker : class
     {
-        string[] cachedItems = [];
+        string[] cachedItems;
         var readerParameters = GetReaderParameters(targetAssemblyDirectory, references, pdbFilePath);
         var writerParameters = GetWriteParameters(readerParameters);
 
@@ -108,14 +55,20 @@ public static class CecilWeaver
             if (generateDebugFiles)
                 File.WriteAllText("before.il", module.DumpModule());
 
-            var baseAspectNetAttribute = module.Cache().Resolve(module.ImportReference(typeof(TAttribute)))
-                                         ?? throw new SymbolsNotFoundException(
-                                             $"Base aspect attribute type could not be resolved. Ensure that the assembly references are correct and that the {nameof(TAttribute)} is accessible.");
-            var markerAttributeConstructor = module.ImportReference(typeof(TMarker).GetConstructor(Type.EmptyTypes))
-                                             ?? throw new SymbolsNotFoundException(
-                                                 $"Marker attribute constructor could not be resolved. Ensure that {nameof(TMarker)} has a parameterless constructor.");
+            var baseAspectNetAttributeTypeDefinition = module.Cache().Resolve(module.ImportReference(BaseAspectNetAttributeType));
+            var aspectNetExcludeAttributeTypeReference = module.Cache().ImportReference(AspectNetExcludeAttributeType);
+            var processedByAspectNetAttributeTypeReference = module.Cache().ImportReference(ProcessedByAspectNetAttributeType);
 
-            weaveAction(module.GetTypes(), baseAspectNetAttribute, markerAttributeConstructor);
+            var processedByAspectNetAttributeDefaultConstructor = ProcessedByAspectNetAttributeType.GetConstructor(Type.EmptyTypes)
+                ?? throw new SymbolsNotFoundException($"Marker attribute constructor could not be resolved. Ensure that {ProcessedByAspectNetAttributeType} has a parameterless constructor.");
+            var processedByAspectNetAttributeDefaultConstructorMethodReference = module.Cache().ImportReference(processedByAspectNetAttributeDefaultConstructor);
+
+            WeaveModuleTypes(
+                module.GetTypes(), 
+                baseAspectNetAttributeTypeDefinition, 
+                aspectNetExcludeAttributeTypeReference,
+                processedByAspectNetAttributeTypeReference,
+                processedByAspectNetAttributeDefaultConstructorMethodReference);
 
             if (generateDebugFiles)
                 File.WriteAllText("after.il", module.DumpModule());
@@ -132,16 +85,37 @@ public static class CecilWeaver
         };
     }
 
-    /// <summary>
-    /// Creates reader parameters for loading a module with symbols and assembly resolution.
-    /// </summary>
-    /// <param name="targetAssemblyDirectory">The directory to search for assemblies.</param>
-    /// <param name="references">Additional reference assembly paths.</param>
-    /// <param name="pdbFilePath">The path to the PDB file, or null.</param>
-    /// <returns>The configured reader parameters.</returns>
-    /// <remarks>
-    /// This method sets up assembly resolution and symbol reading for the Mono.Cecil module reader.
-    /// </remarks>
+    private static void WeaveModuleTypes(
+        IEnumerable<TypeDefinition> moduleTypes, 
+        TypeDefinition baseAspectNetAttributeTypeDefinition,
+        TypeReference aspectNetExcludeAttributeTypeReference,
+        TypeReference processedByAspectNetAttributeTypeReference,
+        MethodReference processedByAspectNetAttributeDefaultConstructorMethodReference)
+    {
+        moduleTypes.ForEach(type =>
+        {
+            var classAspects = type.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttributeTypeDefinition);
+            if (classAspects.Any())
+            {
+                var memberToMaterialize = type.GetInheritedMembersToBridge(aspectNetExcludeAttributeTypeReference);
+                type.MaterializeInheritedBridges(memberToMaterialize);
+            }
+
+            type
+                .GetMethodsDecoratedWithAspectNetDerivedAttributes(
+                    classAspects,
+                    baseAspectNetAttributeTypeDefinition,
+                    [aspectNetExcludeAttributeTypeReference, processedByAspectNetAttributeTypeReference]
+                )
+                .ForEach(method => method
+                    .WeaveMethod()
+                    .OptimizeMacros()
+                    .ApplyMarkerAttribute(processedByAspectNetAttributeDefaultConstructorMethodReference)
+                );
+            classAspects.ForEach(attr => { type.CustomAttributes.Remove(attr); });
+        });
+    }
+    
     private static ReaderParameters GetReaderParameters(string targetAssemblyDirectory, string[] references, string? pdbFilePath)
     {
         var resolver = new DefaultAssemblyResolver();
@@ -160,16 +134,7 @@ public static class CecilWeaver
             AssemblyResolver = resolver
         };
     }
-
-    /// <summary>
-    /// Creates writer parameters for saving a module with symbols.
-    /// </summary>
-    /// <param name="readerParameters">The reader parameters to base the writer parameters on.</param>
-    /// <returns>The configured writer parameters.</returns>
-    /// <remarks>
-    /// This method configures the module writer to include symbols if they were read,
-    /// and sets up a memory stream for PDB data.
-    /// </remarks>
+    
     private static WriterParameters GetWriteParameters(ReaderParameters readerParameters)
     {
         return new WriterParameters

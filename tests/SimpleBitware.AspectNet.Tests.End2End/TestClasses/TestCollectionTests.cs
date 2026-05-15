@@ -1,9 +1,11 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Tests.End2End.Extensions;
 using SimpleBitware.AspectNet.Tests.End2End.Helpers;
-using SimpleBitware.AspectNet.Tests.Weaving.Attributes;
-using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
-using SimpleBitware.AspectNet.Tests.Weaving.TestClasses;
+using SimpleBitware.AspectNet.Tests.Library.Attributes;
+using SimpleBitware.AspectNet.Tests.Library.TestClasses;
+using SimpleBitware.AspectNet.Cecil;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.TestClasses;
 
@@ -22,7 +24,7 @@ public class TestCollectionTests
     {
         //given
         var classType = testClass.GetType();
-        var methodName = MemberNameHelper.IndexerGetterName;
+        var methodName = Constants.IndexerGetterName;
         var context = new AspectNetAttributeContext
         {
             Instance = testClass,
@@ -58,7 +60,7 @@ public class TestCollectionTests
     {
         //given
         var classType = testClass.GetType();
-        var methodName = MemberNameHelper.IndexerSetterName;
+        var methodName = Constants.IndexerSetterName;
         var context = new AspectNetAttributeContext
         {
             Instance = testClass,

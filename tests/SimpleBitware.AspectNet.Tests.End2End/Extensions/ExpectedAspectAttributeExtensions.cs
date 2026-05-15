@@ -1,6 +1,6 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
+using SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 using SimpleBitware.AspectNet.Tests.End2End.Helpers;
-using SimpleBitware.AspectNet.Tests.Weaving.Extensions;
 
 namespace SimpleBitware.AspectNet.Tests.End2End.Extensions;
 

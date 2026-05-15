@@ -1,6 +1,5 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using SimpleBitware.AspectNet.Cecil.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
 
 namespace SimpleBitware.AspectNet.Cecil.Builders;
@@ -35,37 +34,12 @@ public class MethodBodyBuilder(MethodDefinition method, ILProcessor processor, M
     /// </summary>
     /// <param name="variableDefinition">The variable to return, or null to return void.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    /// <remarks>
-    /// If <paramref name="variableDefinition"/> is provided, its value is loaded onto the stack
-    /// before the return instruction is emitted. If null, a simple void return is performed.
-    /// This method generates the final return sequence for a method body.
-    /// </remarks>
-    public MethodBodyBuilder AddReturn(VariableDefinition? variableDefinition, TypeReference returnType, bool isAsync, ModuleDefinition module)
+    public MethodBodyBuilder AddReturn(VariableDefinition? variableDefinition)
     {
-        // If we have a result to return, load it onto the stack
         if (variableDefinition != null)
-        {
             Instructions.Add(Processor.Create(OpCodes.Ldloc, variableDefinition));
-        }
 
-        // Simply emit the return instruction.
-        // For both Async (Task/ValueTask) and Sync methods, the variableDefinition 
-        // already holds the final 'wrapped' result or the direct return value.
         Instructions.Add(Processor.Create(OpCodes.Ret));
-
         return this;
-    }
-
-    private MethodReference ImportTaskFromResult(ModuleDefinition module, TypeReference innerT)
-    {
-        // Use ImportReference directly—it handles System.Type naturally
-        var taskType = ModuleCache.ImportReference(typeof(Task)).Resolve();
-
-        var method = taskType.Methods.First(m => m.Name == "FromResult" && m.HasGenericParameters);
-
-        var genericMethod = new GenericInstanceMethod(module.ImportReference(method));
-        genericMethod.GenericArguments.Add(module.ImportReference(innerT));
-
-        return genericMethod;
     }
 }

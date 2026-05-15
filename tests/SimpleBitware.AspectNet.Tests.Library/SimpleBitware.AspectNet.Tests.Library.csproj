@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+
+        <!-- Required for MSBuild tasks -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
+    <!--    <ItemGroup>-->
+    <!--      <PackageReference Include="SimpleBitware.AspectNet" Version="0.0.0-alpha.0.124" />-->
+    <!--    </ItemGroup>-->
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Attributes\SimpleBitware.AspectNet.Attributes.csproj" />
+        <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj"/>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Tests.LibraryBase\SimpleBitware.AspectNet.Tests.LibraryBase.csproj" />
+    </ItemGroup>
+
+    <UsingTask
+            TaskName="AspectNetWeaverTask"
+            AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll"/>
+
+    <Target Name="RunAspectNetWeaver" AfterTargets="Build">
+        <AspectNetWeaverTask
+                AssemblyPath="$(TargetPath)"
+                References="@(ReferencePath)"
+                LogLevel="Debug"/>
+    </Target>
+
+</Project>

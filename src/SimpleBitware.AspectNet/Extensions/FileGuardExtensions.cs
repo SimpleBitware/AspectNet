@@ -2,7 +2,7 @@ using Ardalis.GuardClauses;
 
 namespace SimpleBitware.AspectNet.Extensions;
 
-public static class FileGuardExtensions
+internal static class FileGuardExtensions
 {
     public static string FileDoesNotExists(this IGuardClause guard, string path)
     {

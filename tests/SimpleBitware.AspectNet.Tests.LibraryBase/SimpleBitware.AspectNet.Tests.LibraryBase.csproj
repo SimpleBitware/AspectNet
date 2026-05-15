@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj"/>
+    </ItemGroup>
+
+    <UsingTask
+            TaskName="AspectNetWeaverTask"
+            AssemblyFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\SimpleBitware.AspectNet.dll"/>
+
+    <Target Name="RunAspectNetWeaver" AfterTargets="Build">
+        <AspectNetWeaverTask
+                AssemblyPath="$(TargetPath)"
+                References="@(ReferencePath)"
+                LogLevel="Debug"/>
+    </Target>
+
+</Project>

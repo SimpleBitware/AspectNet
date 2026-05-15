@@ -7,7 +7,7 @@ namespace SimpleBitware.AspectNet.Cecil;
 /// This class contains string constants that represent standard .NET naming conventions
 /// and method names used during IL weaving operations.
 /// </remarks>
-internal static class Constants
+public static class Constants
 {
     /// <summary>
     /// The standard parameter name used for property setter methods.
@@ -27,4 +27,14 @@ internal static class Constants
     /// The name of static constructor methods in .NET.
     /// </summary>
     public const string StaticConstructorMethodName = ".cctor";
+    
+    /// <summary>
+    /// The name of the indexer property getter.
+    /// </summary>
+    public const string IndexerGetterName = "get_Item";
+    
+    /// <summary>
+    /// The name of the indexer property setter.
+    /// </summary>
+    public const string IndexerSetterName = "set_Item";
 }

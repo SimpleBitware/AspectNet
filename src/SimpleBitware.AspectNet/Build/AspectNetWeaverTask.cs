@@ -1,76 +1,86 @@
-using System.Reflection;
 using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
+using Microsoft.Extensions.Logging;
 using MoreLinq;
 using SimpleBitware.AspectNet.Debugging;
 using SimpleBitware.AspectNet.Extensions;
 using SimpleBitware.AspectNet.Cecil.Runtime;
+using SimpleBitware.AspectNet.Helpers;
 
 namespace SimpleBitware.AspectNet.Build;
 
+/// <summary>
+/// MSBuild task for weaving AspectNet aspects into assemblies.
+/// This task is executed as part of the build process to apply aspect transformations to target assemblies.
+/// </summary>
 public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 {
+    private TaskLogger? logger;
+    private readonly CecilWeaver cecilWeaver = new();
+    private LogLevel logLevel = Microsoft.Extensions.Logging.LogLevel.Error;
+
+    /// <summary>
+    /// Gets or sets the path to the assembly to be woven. This property is required.
+    /// </summary>
     [Required]
     public required string AssemblyPath { get; set; }
 
+    /// <summary>
+    /// Gets or sets the array of reference assemblies needed for weaving. This property is required.
+    /// </summary>
     [Required]
     public required ITaskItem[] References { get; set; }
-    
-    public bool ShowWeavingLogs { get; set; }
-    
-    public bool GenerateDebugFiles { get; set; }
 
+    /// <summary>
+    /// Gets or sets the logging level for diagnostic output. Valid values are Debug, Information, Warning, Error, None.
+    /// Defaults to Error if not specified or invalid.
+    /// </summary>
+    public string? LogLevel
+    {
+        get => logLevel.ToString();
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && Enum.TryParse<LogLevel>(value, ignoreCase: true, out var parsed))
+                logLevel = parsed;
+        }
+    }
+
+    /// <summary>
+    /// Executes the weaving task on the specified assembly.
+    /// </summary>
+    /// <returns>true if weaving completed successfully; false if an error occurred.</returns>
     public override bool Execute()
     {
+        Initialize();
+
         try
         {
-            Log.LogDebugMessage(ShowWeavingLogs, "Starting to weave assembly {0}", AssemblyPath);
+            logger?.LogInformation("Starting to weave assembly {0}", AssemblyPath);
 
             Guard.Against.NullOrEmpty(AssemblyPath);
             Guard.Against.FileDoesNotExists(AssemblyPath);
 
-            var targetAssemblyDirectory = GetTargetAssemblyDirectory(AssemblyPath);
-            var pdbFilePath = GetPdbFilePath(AssemblyPath);
+            var targetAssemblyDirectory = FileHelper.GetTargetAssemblyDirectory(AssemblyPath);
+            var pdbFilePath = FileHelper.GetPdbFilePath(AssemblyPath);
             var references = GetReferences();
-            var result = CecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, GenerateDebugFiles);
+            var generateDebugFiles = logLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
+            var result = cecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, generateDebugFiles);
 
-            LogResult(result);
-            Log.LogDebugMessage(ShowWeavingLogs, "Successfully completed weaving assembly {0}", AssemblyPath);
+            logger?.Log(result);
+            logger?.LogInformation("Weaving completed.");
             return true;
         }
         catch (Exception ex)
         {
-            Log.LogErrorFromException(ex, ShowWeavingLogs);
-            Log.LogErrorMessage("An error occurred while weaving assembly {0}", AssemblyPath);
+            logger?.LogErrorFromException(ex);
+            logger?.LogError("An error occurred while weaving assembly {0}", AssemblyPath);
             return false;
         }
     }
 
-    private static string GetTargetAssemblyDirectory(string assemblyPath) => Path.GetDirectoryName(assemblyPath)
-                                                                             ?? throw new InvalidOperationException($"Could not determine target assembly directory for path: {assemblyPath}");
-
-    private static string? GetPdbFilePath(string assemblyPath)
+    private void Initialize()
     {
-        var path = Path.ChangeExtension(assemblyPath, "pdb");
-        return File.Exists(path) ? path : null;
-    }
-
-    private void LogResult(WeavingResult result)
-    {
-        if (!ShowWeavingLogs)
-            return;
-
-        Log.LogDebugMessage(ShowWeavingLogs, "{0} items have been cached during weaving process.", result.CachedItems.Length);
-        foreach (var item in result.CachedItems)
-        {
-            Log.LogDebugMessage(ShowWeavingLogs, "Cached item: {0}", item);
-        }
-        
-        if(result.AssemblyFileName is not null)
-            Log.LogDebugMessage(ShowWeavingLogs, "Successfully updated assembly file: {0}", result.AssemblyFileName);
-        
-        if(result.PdbFileName is not null)
-            Log.LogDebugMessage(ShowWeavingLogs, "Successfully updated PDB file: {0}", result.PdbFileName);
+        logger = new TaskLogger(Log, logLevel);
     }
 
     private string[] GetReferences()
@@ -81,10 +91,10 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             .Distinct()
             .ToArray();
 
-        Log.LogDebugMessage(ShowWeavingLogs, "Using {0} referenced assemblies.", references.Length);
+        logger?.LogInformation("Using {0} external assemblies.", references.Length);
         references
-            .ForEach(x => Log.LogDebugMessage(ShowWeavingLogs, "Referenced assembly: {0}", x));
-        
+            .ForEach(x => logger?.LogDebug("External assembly: {0}", x));
+
         return references;
     }
 }

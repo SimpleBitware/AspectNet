@@ -125,7 +125,7 @@ public sealed class TryCatchBuilder : InstructionSetBlockBuilderBase<TryCatchBui
     }
     
     /// <summary>
-    /// Marks the end of the finally block, adds an endfinally instruction, and registers both exception handlers.
+    /// Marks the end of the finally block, adds an end_finally instruction, and registers both exception handlers.
     /// </summary>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <remarks>

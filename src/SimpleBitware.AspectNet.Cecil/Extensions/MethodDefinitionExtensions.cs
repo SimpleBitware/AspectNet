@@ -1,6 +1,8 @@
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using MoreLinq;
 using SimpleBitware.AspectNet.Abstractions;
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Cecil.Builders;
@@ -107,7 +109,7 @@ public static class MethodDefinitionExtensions
                         .SetRuntimeTypeProperty(
                             contextVariableDefinition,
                             typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.ClassType)),
-                            moduleCache.ImportReference(typeof(object).GetMethod("GetType")))
+                            moduleCache.ImportReference(typeof(object).GetMethod(nameof(GetType))!))
                         .Build()
                 )
                 .SetDictionaryProperty<string, object>(contextVariableDefinition, typeof(AspectNetAttributeContext).GetProperty(nameof(AspectNetAttributeContext.Parameters)), method.Parameters)
@@ -121,7 +123,7 @@ public static class MethodDefinitionExtensions
                     var isInnermost = (currentInstructionSet == instructionSet);
                     var aspectVariableDefinition = new VariableDefinition(moduleCache.ImportReference(customAttribute.AttributeType));
                     var exceptionVariableDefinition = new VariableDefinition(moduleCache.ImportReference(typeof(Exception)));
-                    var builtInstructionSet = builder
+                    var buildInstructionSet = builder
                         .If(isAsyncMethod, ifBlockBuilder => ifBlockBuilder
                             .AddVariable(catchExecutedVariableDefinition, addCatchExecutedBuilder =>
                                 addCatchExecutedBuilder.GetDefaultValue(catchExecutedVariableDefinition.VariableType)
@@ -130,15 +132,24 @@ public static class MethodDefinitionExtensions
                         )
                         .AddVariable(aspectVariableDefinition)
                         .AddVariable(exceptionVariableDefinition)
-                        .Execute(typeof(AspectNetDependencyInjection).GetMethod(nameof(AspectNetDependencyInjection.GetRequiredService)), aspectVariableDefinition.VariableType)
-                        .SetVariable(instanceVariableBuilder => instanceVariableBuilder
-                            .AssignResultToVariable(aspectVariableDefinition)
-                            .SetIntProperty(
-                                aspectVariableDefinition,
-                                moduleCache.ImportReference(customAttribute.AttributeType, MemberNameHelper.PropertySetterName(nameof(IAspectNetAttribute.Priority)), 1),
-                                customAttribute.GetPriorityValue())
-                            .Build()
-                        )
+                        .SetVariable(instanceVariableBuilder =>
+                        {
+                            instanceVariableBuilder
+                                .CreateInstance(customAttribute.AttributeType)
+                                .AssignResultToVariable(aspectVariableDefinition);
+
+                            customAttribute.GetAttributePropertyAssignments().ForEach(x =>
+                            {
+                                instanceVariableBuilder
+                                    .SetProperty(
+                                        aspectVariableDefinition,
+                                        x.Setter,
+                                        x.Value);
+                            });
+
+                            return instanceVariableBuilder
+                                .Build();
+                        })
                         .AddTryCatch(
                             tryBlockBuilder => tryBlockBuilder
                                 .ExecuteInstanceMethod(aspectVariableDefinition, aspectReferences.OnEntry, contextVariableDefinition)
@@ -204,9 +215,9 @@ public static class MethodDefinitionExtensions
                         )
                         .Build();
                     method.RemoveAttribute(customAttribute);
-                    return builtInstructionSet;
+                    return buildInstructionSet;
                 })
-            .AddReturn(returnValueVariableDefinition, returnTypeReference, isAsyncMethod, method.Module)
+            .AddReturn(returnValueVariableDefinition)
             .Build()
             .Apply(processor);
 

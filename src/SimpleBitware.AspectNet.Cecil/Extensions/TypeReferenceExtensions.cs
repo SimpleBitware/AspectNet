@@ -72,14 +72,14 @@ public static class TypeReferenceExtensions
     private static bool IsValueTask(this TypeReference type) => type.FullName == ValueTaskFullName;
 
     /// <summary>
-    /// Determines whether the type reference represents a generic Task&lt;T&gt;.
+    /// Determines whether the type reference represents a generic Task&lt;T&gt;
     /// </summary>
     /// <param name="type">The type reference to check.</param>
     /// <returns><c>true</c> if the type is a generic Task otherwise, <c>false</c>.</returns>
     /// <remarks>
     /// This method checks if the type is a generic instance.
     /// </remarks>
-    private static bool IsGenericTask(this TypeReference type)
+    public static bool IsGenericTask(this TypeReference type)
     {
         return type.IsGenericInstance && 
                type is GenericInstanceType genericType && 
@@ -87,7 +87,7 @@ public static class TypeReferenceExtensions
     }
     
     /// <summary>
-    /// Determines whether the type reference represents a generic or ValueTask&lt;T&gt;.
+    /// Determines whether the type reference represents a generic or ValueTask&lt;T&gt;
     /// </summary>
     /// <param name="type">The type reference to check.</param>
     /// <returns><c>true</c> if the type is a generic ValueTask; otherwise, <c>false</c>.</returns>

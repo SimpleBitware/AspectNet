@@ -36,15 +36,15 @@ public static class CustomAttributeExtensions
     /// Determines whether a collection of custom attributes contains any attributes with the specified full names.
     /// </summary>
     /// <param name="customAttributes">The collection of custom attributes to search.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter by.</param>
+    /// <param name="excludeFromWeavingAttributes">The full names of attributes to filter by.</param>
     /// <returns><c>true</c> if any of the specified attributes are found; otherwise, <c>false</c>.</returns>
     /// <remarks>
     /// This method is used to check if certain attributes (like exclusion attributes) are present
     /// before applying aspect weaving logic.
     /// </remarks>
-    public static bool ContainsFilterAttributes(this IList<CustomAttribute> customAttributes, string[] filterAttributeFullNames)
+    public static bool ContainsFilterAttributes(this IList<CustomAttribute> customAttributes, TypeReference[] excludeFromWeavingAttributes)
     {
-        return customAttributes.Any(a => filterAttributeFullNames.Any(f => f == a.AttributeType.FullName));
+        return customAttributes.Any(x => excludeFromWeavingAttributes.Any(a => a.FullName == x.AttributeType.FullName));
     }
 
     /// <summary>
@@ -64,4 +64,57 @@ public static class CustomAttributeExtensions
             .Where(customAttribute => baseAspectNetAttribute.Module.Cache().IsAspect(customAttribute.AttributeType, baseAspectNetAttribute))
             .ToArray();
     }
+
+    public static PropertyAssignment[] GetAttributePropertyAssignments(this CustomAttribute attribute)
+    {
+        var assignments = new List<PropertyAssignment>();
+        var attributeType = attribute.AttributeType.Module.Cache().Resolve(attribute.AttributeType);
+    
+        if (attributeType == null) return assignments.ToArray();
+
+        foreach (var namedArgument in attribute.Properties)
+        {
+            // Search the hierarchy for the property definition
+            var propertyDef = FindPropertyInHierarchy(attributeType, namedArgument.Name);
+
+            if (propertyDef?.SetMethod != null && propertyDef.SetMethod.IsPublic)
+            {
+                assignments.Add(new PropertyAssignment
+                {
+                    Setter = attribute.AttributeType.Module.Cache().ImportReference(propertyDef.SetMethod),
+                    Value = namedArgument.Argument.Value
+                });
+            }
+        }
+
+        return assignments.ToArray();
+    }
+
+    private static PropertyDefinition FindPropertyInHierarchy(TypeDefinition type, string propertyName)
+    {
+        var currentType = type;
+
+        while (currentType != null)
+        {
+            // Check if the property exists on the current level
+            var prop = currentType.Properties.FirstOrDefault(p => p.Name == propertyName);
+            if (prop != null) return prop;
+
+            // Move up to the base type
+            // BaseType is a TypeReference, so we must Resolve() it to get a TypeDefinition
+            var baseTypeRef = currentType.BaseType;
+            if (baseTypeRef == null || baseTypeRef.FullName == "System.Object") 
+                break;
+
+            currentType = baseTypeRef.Resolve();
+        }
+
+        return null;
+    }
+}
+
+public class PropertyAssignment
+{
+    public required MethodReference Setter { get; set; }
+    public required object Value { get; set; }
 }

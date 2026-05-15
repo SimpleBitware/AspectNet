@@ -24,6 +24,8 @@ public static class TypeDefinitionExtensions
         "System.ParamArrayAttribute"
     ];
 
+    private static readonly string ObjectTypeFullName = typeof(object).FullName!;
+
     public static TypeReference GetRuntimeTypeReference(this TypeDefinition typeDefinition)
     {
         if (!typeDefinition.HasGenericParameters)
@@ -39,12 +41,12 @@ public static class TypeDefinitionExtensions
     }
 
     /// <summary>
-    /// Gets a dictionary mapping methods to their associated aspect attributes from all types in the module.
+    /// Gets a dictionary mapping method to their associated aspect attributes from all types in the module.
     /// </summary>
     /// <param name="type">The type definitions to search.</param>
     /// <param name="classAspects"></param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type to check inheritance against.</param>
-    /// <param name="filterAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
+    /// <param name="excludeFromWeavingAttributes">The attribute types to filter out (e.g., exclusion attributes).</param>
     /// <returns>An immutable dictionary mapping method definitions to arrays of aspect attributes.</returns>
     /// <remarks>
     /// This method aggregates aspect attributes from class-level and method-level declarations,
@@ -54,14 +56,10 @@ public static class TypeDefinitionExtensions
         this TypeDefinition type,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        Type[] filterAttributes)
+        TypeReference[] excludeFromWeavingAttributes)
     {
-        var filterAttributeFullNames = filterAttributes
-            .Select(t => t.FullName)
-            .ToArray();
-
-        var methodsAspects = type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
-        var propertiesAspects = type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, filterAttributeFullNames);
+        var methodsAspects = type.Methods.GetMethodLevelAttributes(classAspects, baseAspectNetAttribute, excludeFromWeavingAttributes);
+        var propertiesAspects = type.Properties.GetPropertyLevelAttributes(classAspects, baseAspectNetAttribute, excludeFromWeavingAttributes);
 
         var memberAspects = methodsAspects.Concat(propertiesAspects);
         return memberAspects
@@ -76,43 +74,40 @@ public static class TypeDefinitionExtensions
             .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
-    public static IMemberDefinition[] GetInheritedMembersToBridge(this TypeDefinition targetType)
+    public static IMemberDefinition[] GetInheritedMembersToBridge(this TypeDefinition targetType, TypeReference aspectNetExcludeAttributeTypeReference)
     {
+        var aspectNetExcludeAttributeTypeReferenceFullName = aspectNetExcludeAttributeTypeReference.FullName;
         var membersToBridge = new List<IMemberDefinition>();
-        var currentBase = targetType.BaseType?.Resolve();
-
-        // Constant for the attribute name to avoid magic strings
-        const string ExcludeAttributeName = "AspectNetExcludeAttribute";
+        var currentBase = targetType.BaseType?.Module.Cache().Resolve(targetType.BaseType);
 
         // Set of signatures already defined in the targetType to avoid bridging what's already there
         var existingSignatures = new HashSet<string>(
             targetType.Methods.Select(m => m.FullName.Replace(targetType.FullName, ""))
         );
 
-        while (currentBase != null && currentBase.FullName != "System.Object")
+        while (currentBase != null && currentBase.FullName != ObjectTypeFullName)
         {
             // 1. Collect Methods (exclude property accessors — handled via inheritedProperties)
-            var inheritedMethods = from method in currentBase.Methods
-                where !method.IsPrivate && !method.IsStatic && !method.IsConstructor
-                where !method.IsGetter && !method.IsSetter
-                // FILTER: Check if the method has the exclude attribute
-                where !method.CustomAttributes.Any(a => a.AttributeType.Name == ExcludeAttributeName)
-                let relativeSignature = method.FullName.Replace(currentBase.FullName, "")
-                where existingSignatures.Add(relativeSignature)
-                select method;
+            var inheritedMethods = currentBase.Methods
+                .Where(method => !method.IsPrivate && method is { IsStatic: false, IsConstructor: false })
+                .Where(method => !method.IsGetter && !method.IsSetter)
+                .Where(method => method.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName))
+                .Where(method =>
+                {
+                    var relativeSignature = method.FullName.Replace(currentBase.FullName, "");
+                    return existingSignatures.Add(relativeSignature);
+                });
 
-            membersToBridge.AddRange(inheritedMethods.Cast<IMemberDefinition>());
+            membersToBridge.AddRange(inheritedMethods);
 
             // 2. Collect Properties
             var inheritedProperties = currentBase.Properties
                 .Where(p => (p.GetMethod?.IsPrivate == false) || (p.SetMethod?.IsPrivate == false))
-                // FILTER: Check if the property has the exclude attribute
-                .Where(p => !p.CustomAttributes.Any(a => a.AttributeType.Name == ExcludeAttributeName))
-                .Where(prop => !targetType.Properties.Any(p => p.Name == prop.Name));
+                .Where(p => p.CustomAttributes.All(a => a.AttributeType.FullName != aspectNetExcludeAttributeTypeReferenceFullName))
+                .Where(prop => targetType.Properties.All(p => p.Name != prop.Name));
 
-            membersToBridge.AddRange(inheritedProperties.Cast<IMemberDefinition>());
-
-            currentBase = currentBase.BaseType?.Resolve();
+            membersToBridge.AddRange(inheritedProperties);
+            currentBase = currentBase.BaseType?.Module.Cache().Resolve(currentBase.BaseType);
         }
 
         return membersToBridge.ToArray();
@@ -120,29 +115,28 @@ public static class TypeDefinitionExtensions
 
     public static void MaterializeInheritedBridges(this TypeDefinition targetType, IMemberDefinition[] members)
     {
-        if (targetType == null || members == null) return;
-
         foreach (var member in members)
         {
-            if (member is MethodDefinition method)
+            switch (member)
             {
-                MaterializeMethodBridge(targetType, method);
-            }
-            else if (member is PropertyDefinition prop)
-            {
-                MethodDefinition getMethod = prop.GetMethod != null ? MaterializeMethodBridge(targetType, prop.GetMethod) : null;
-                MethodDefinition setMethod = prop.SetMethod != null ? MaterializeMethodBridge(targetType, prop.SetMethod) : null;
-
-                TypeReference propType = getMethod?.ReturnType ?? setMethod?.Parameters.LastOrDefault()?.ParameterType;
-
-                if (propType != null)
+                case MethodDefinition method:
+                    MaterializeMethodBridge(targetType, method);
+                    break;
+                case PropertyDefinition prop:
                 {
+                    var getMethod = prop.GetMethod != null ? MaterializeMethodBridge(targetType, prop.GetMethod) : null;
+                    var setMethod = prop.SetMethod != null ? MaterializeMethodBridge(targetType, prop.SetMethod) : null;
+
+                    var propType = getMethod?.ReturnType ?? setMethod?.Parameters.LastOrDefault()?.ParameterType;
+                    if (propType == null) continue;
+                
                     var newProp = new PropertyDefinition(prop.Name, prop.Attributes, propType)
                     {
                         GetMethod = getMethod,
                         SetMethod = setMethod
                     };
                     targetType.Properties.Add(newProp);
+                    break;
                 }
             }
         }
@@ -150,11 +144,9 @@ public static class TypeDefinitionExtensions
 
     private static MethodDefinition MaterializeMethodBridge(TypeDefinition targetType, MethodDefinition baseMethod)
     {
-        if (targetType?.Module == null || baseMethod == null) return null;
-
         var module = targetType.Module;
         var baseType = targetType.BaseType;
-        var declaringType = baseMethod.DeclaringType.Resolve();
+        var declaringType = module.Cache().Resolve(baseMethod.DeclaringType);
 
         // Build generic substitutions by navigating the inheritance chain
         var substitutions = GetGenericSubstitutions(targetType, declaringType, module);
@@ -176,11 +168,7 @@ public static class TypeDefinitionExtensions
         }
 
         var bridge = new MethodDefinition(baseMethod.Name, attrs, module.TypeSystem.Void);
-
-        if (bridge.Body == null)
-        {
-            bridge.Body = new Mono.Cecil.Cil.MethodBody(bridge);
-        }
+        bridge.Body ??= new MethodBody(bridge);
 
         targetType.Methods.Add(bridge);
 
@@ -202,14 +190,14 @@ public static class TypeDefinitionExtensions
         }
 
         // 3. Map Return Type and its Attributes (e.g., Nullable)
-        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module, substitutions) ?? module.TypeSystem.Void;
+        bridge.ReturnType = SafeReplace(baseMethod.ReturnType, baseType, targetType, bridge, module, substitutions);
         CopySignatureAttributes(baseMethod.MethodReturnType, bridge.MethodReturnType, module);
 
         // 4. Map Parameters and their Attributes (e.g., ParamArray, Nullable)
         foreach (var p in baseMethod.Parameters)
         {
             var newType = SafeReplace(p.ParameterType, baseType, targetType, bridge, module, substitutions);
-            var newParam = new ParameterDefinition(p.Name, p.Attributes, module.ImportReference(newType));
+            var newParam = new ParameterDefinition(p.Name, p.Attributes, module.Cache().ImportReference(newType));
 
             // This replaces the manual ParamArray check and handles all NRT attributes automatically
             CopySignatureAttributes(p, newParam, module);
@@ -243,8 +231,6 @@ public static class TypeDefinitionExtensions
     private static TypeReference SafeReplace(TypeReference type, TypeReference baseType, TypeDefinition targetType, MethodDefinition bridge, ModuleDefinition module,
         Dictionary<GenericParameter, TypeReference> substitutions)
     {
-        if (type == null) return module.TypeSystem.Void;
-
         if (type.IsGenericParameter)
         {
             var gp = (GenericParameter)type;
@@ -264,7 +250,7 @@ public static class TypeDefinitionExtensions
             {
                 if (baseType is GenericInstanceType git1 && gp.Position < git1.GenericArguments.Count)
                 {
-                    return module.ImportReference(git1.GenericArguments[gp.Position]);
+                    return module.Cache().ImportReference(git1.GenericArguments[gp.Position]);
                 }
 
                 if (targetType.HasGenericParameters && gp.Position < targetType.GenericParameters.Count)
@@ -284,36 +270,32 @@ public static class TypeDefinitionExtensions
 
         if (type is GenericInstanceType git)
         {
-            var instance = new GenericInstanceType(module.ImportReference(git.ElementType));
+            var instance = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
             foreach (var arg in git.GenericArguments)
                 instance.GenericArguments.Add(SafeReplace(arg, baseType, targetType, bridge, module, substitutions));
             return instance;
         }
 
-        return module.ImportReference(type);
+        return module.Cache().ImportReference(type);
     }
 
     private static TypeReference CloneUnmapped(TypeReference type, ModuleDefinition module)
     {
-        if (type == null) return null;
         if (type.IsGenericParameter) return type;
 
         if (type.IsArray) return new ArrayType(CloneUnmapped(type.GetElementType(), module), ((ArrayType)type).Rank);
         if (type.IsByReference) return new ByReferenceType(CloneUnmapped(type.GetElementType(), module));
 
-        if (type.IsGenericInstance)
-        {
-            var git = (GenericInstanceType)type;
-            var newGit = new GenericInstanceType(module.ImportReference(git.ElementType));
-            foreach (var arg in git.GenericArguments)
-                newGit.GenericArguments.Add(CloneUnmapped(arg, module));
-            return newGit;
-        }
+        if (!type.IsGenericInstance) 
+            return module.Cache().ImportReference(type);
+        
+        var git = (GenericInstanceType)type;
+        var newGit = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
+        foreach (var arg in git.GenericArguments)
+            newGit.GenericArguments.Add(CloneUnmapped(arg, module));
+        return newGit;
 
-        return module.ImportReference(type);
     }
-
-    // --- NEW HELPER METHODS ---
 
     private static Dictionary<GenericParameter, TypeReference> GetGenericSubstitutions(TypeDefinition targetType, TypeDefinition declaringType, ModuleDefinition module)
     {
@@ -324,18 +306,18 @@ public static class TypeDefinitionExtensions
         {
             if (currentType.BaseType is GenericInstanceType git)
             {
-                var baseDef = git.ElementType.Resolve();
-                for (int i = 0; i < git.GenericArguments.Count; i++)
+                var baseDef = git.ElementType.Module.Cache().Resolve(git.ElementType);
+                for (var i = 0; i < git.GenericArguments.Count; i++)
                 {
                     var gp = baseDef.GenericParameters[i];
                     if (!substitutions.ContainsKey(gp))
                     {
-                        substitutions[gp] = module.ImportReference(git.GenericArguments[i]);
+                        substitutions[gp] = module.Cache().ImportReference(git.GenericArguments[i]);
                     }
                 }
             }
 
-            currentType = currentType.BaseType?.Resolve();
+            currentType = currentType.BaseType?.Module.Cache().Resolve(currentType.BaseType);
         }
 
         return substitutions;
@@ -343,7 +325,6 @@ public static class TypeDefinitionExtensions
 
     private static TypeReference SubstituteType(TypeReference type, Dictionary<GenericParameter, TypeReference> substitutions, ModuleDefinition module)
     {
-        if (type == null) return null;
         if (type is GenericParameter gp && substitutions.TryGetValue(gp, out var sub))
             return sub;
 
@@ -353,18 +334,18 @@ public static class TypeDefinitionExtensions
         if (type.IsGenericInstance)
         {
             var git = (GenericInstanceType)type;
-            var newGit = new GenericInstanceType(module.ImportReference(git.ElementType));
+            var newGit = new GenericInstanceType(module.Cache().ImportReference(git.ElementType));
             foreach (var arg in git.GenericArguments)
                 newGit.GenericArguments.Add(SubstituteType(arg, substitutions, module));
             return newGit;
         }
 
-        return module.ImportReference(type);
+        return module.Cache().ImportReference(type);
     }
 
     private static void CopySignatureAttributes(ICustomAttributeProvider source, ICustomAttributeProvider target, ModuleDefinition module)
     {
-        if (source == null || !source.HasCustomAttributes) return;
+        if (!source.HasCustomAttributes) return;
 
         foreach (var attr in source.CustomAttributes)
         {
@@ -372,32 +353,30 @@ public static class TypeDefinitionExtensions
             if (!SignatureAttributeNames.Contains(attr.AttributeType.FullName))
                 continue;
 
-            var newAttr = new CustomAttribute(module.ImportReference(attr.Constructor));
+            var customAttribute = new CustomAttribute(module.ImportReference(attr.Constructor));
 
             foreach (var arg in attr.ConstructorArguments)
             {
-                newAttr.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
+                customAttribute.ConstructorArguments.Add(ImportAttributeArgument(arg, module));
             }
 
-            target.CustomAttributes.Add(newAttr);
+            target.CustomAttributes.Add(customAttribute);
         }
     }
 
     private static CustomAttributeArgument ImportAttributeArgument(CustomAttributeArgument arg, ModuleDefinition module)
     {
+        if (arg.Value is not CustomAttributeArgument[] array) 
+            return new CustomAttributeArgument(module.Cache().ImportReference(arg.Type), arg.Value);
+        
         // Nullable attributes often use byte arrays (byte[]). We must recursively copy them.
-        if (arg.Value is CustomAttributeArgument[] array)
+        var newArray = new CustomAttributeArgument[array.Length];
+        for (var i = 0; i < array.Length; i++)
         {
-            var newArray = new CustomAttributeArgument[array.Length];
-            for (int i = 0; i < array.Length; i++)
-            {
-                newArray[i] = ImportAttributeArgument(array[i], module);
-            }
-
-            return new CustomAttributeArgument(module.ImportReference(arg.Type), newArray);
+            newArray[i] = ImportAttributeArgument(array[i], module);
         }
 
-        return new CustomAttributeArgument(module.ImportReference(arg.Type), arg.Value);
+        return new CustomAttributeArgument(module.Cache().ImportReference(arg.Type), newArray);
     }
 
     /// <summary>
@@ -406,20 +385,20 @@ public static class TypeDefinitionExtensions
     /// <param name="methods">The collection of methods to analyze.</param>
     /// <param name="classAspects">The aspect attributes defined at the class level.</param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <param name="attributesWhichExcludeMembersFromWeaving">The full names of attributes to filter out.</param>
     /// <returns>A collection of method-aspect attribute pairs.</returns>
     /// <remarks>
     /// This method processes each method, collecting both method-level and inherited class-level
-    /// aspect attributes, while filtering out methods that have exclusion attributes.
+    /// aspect attributes while filtering out methods that have exclusion attributes.
     /// </remarks>
     private static IEnumerable<KeyValuePair<MethodDefinition, CustomAttribute[]>> GetMethodLevelAttributes(
         this Collection<MethodDefinition> methods,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        string[] filterAttributeFullNames)
+        TypeReference[] attributesWhichExcludeMembersFromWeaving)
     {
         return methods
-            .Where(m => m.HasBody && !m.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .Where(m => m.HasBody && !m.CustomAttributes.ContainsFilterAttributes(attributesWhichExcludeMembersFromWeaving))
             .Select(m =>
             {
                 var methodAspects = m.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
@@ -438,7 +417,7 @@ public static class TypeDefinitionExtensions
     /// <param name="properties">The collection of properties to analyze.</param>
     /// <param name="classAspects">The aspect attributes defined at the class level.</param>
     /// <param name="baseAspectNetAttribute">The base aspect attribute type.</param>
-    /// <param name="filterAttributeFullNames">The full names of attributes to filter out.</param>
+    /// <param name="excludeFromWeavingAttributes">The full names of attributes to filter out.</param>
     /// <returns>A collection of method-aspect attribute pairs for property accessors.</returns>
     /// <remarks>
     /// This method processes property accessors (getters and setters), collecting property-level
@@ -448,10 +427,10 @@ public static class TypeDefinitionExtensions
         this Collection<PropertyDefinition> properties,
         CustomAttribute[] classAspects,
         TypeDefinition baseAspectNetAttribute,
-        string[] filterAttributeFullNames)
+        TypeReference[] excludeFromWeavingAttributes)
     {
         return properties
-            .Where(p => !p.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+            .Where(p => !p.CustomAttributes.ContainsFilterAttributes(excludeFromWeavingAttributes))
             .SelectMany(p =>
             {
                 var propertyAspects = p.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
@@ -462,7 +441,7 @@ public static class TypeDefinitionExtensions
 
                 return accessors.Select(method =>
                 {
-                    if (method.CustomAttributes.ContainsFilterAttributes(filterAttributeFullNames))
+                    if (method.CustomAttributes.ContainsFilterAttributes(excludeFromWeavingAttributes))
                         return new KeyValuePair<MethodDefinition, CustomAttribute[]>(method, []);
 
                     var methodAspects = method.CustomAttributes.GetAspectNetDerivedAttributes(baseAspectNetAttribute);
