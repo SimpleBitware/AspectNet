@@ -46,7 +46,7 @@ public partial class OrderService
 
 ## Documentation
 
-More about AspectNet on <a href="https://www.simplebitware.com/aspectnet.html" target="_blank">SimpleBitware</a> website.
+More about AspectNet on [SimpleBitware](https://www.simplebitware.com/aspectnet.html) website.
 
 ## Would you like to contribute?
 
