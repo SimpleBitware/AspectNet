@@ -56,21 +56,15 @@
               PackagePath="build"/>
     </ItemGroup>
 
-    <Target Name="AddTaskAssembliesToPack" AfterTargets="Build" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AddTaskAssembliesToPack</TargetsForTfmSpecificContentInPackage>
+    </PropertyGroup>
+
+    <Target Name="AddTaskAssembliesToPack">
         <ItemGroup>
-            <_CandidateDirs Include="$(TargetDir)"/>
-            <_TaskAssemblies Include="$(TargetDir)*.dll" Condition="Exists('$(TargetDir)')"/>
-        </ItemGroup>
-        <ItemGroup>
-            <None Remove="@(_TaskAssemblies)"/>
-            <Content Remove="@(_TaskAssemblies)"/>
-        </ItemGroup>
-        <ItemGroup>
-            <Content Include="@(_TaskAssemblies)" Condition="Exists('%(Identity)')">
-                <Pack>true</Pack>
+            <TfmSpecificPackageFile Include="$(TargetDir)*.dll">
                 <PackagePath>tasks/$(TargetFramework)/</PackagePath>
-                <Link>tasks/$(TargetFramework)/%(Filename)%(Extension)</Link>
-            </Content>
+            </TfmSpecificPackageFile>
         </ItemGroup>
     </Target>
 
