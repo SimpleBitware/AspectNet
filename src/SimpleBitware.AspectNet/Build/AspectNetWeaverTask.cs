@@ -63,10 +63,14 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
             logger?.LogInformation("Starting to weave assembly {0}", AssemblyPath);
 
             var targetAssemblyDirectory = FileHelper.GetTargetAssemblyDirectory(AssemblyPath);
+            var taskDllDirectory = Path.GetDirectoryName(GetType().Assembly.Location) ?? throw new DirectoryNotFoundException($"{GetType().Name} location not found.");
+            string[] dllSearchDirectories = [taskDllDirectory, targetAssemblyDirectory];
             var pdbFilePath = FileHelper.GetPdbFilePath(AssemblyPath);
             var references = GetReferences();
             var generateDebugFiles = logLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
-            var result = cecilWeaver.ProcessAssembly(targetAssemblyDirectory, references, AssemblyPath, pdbFilePath, generateDebugFiles);
+            
+            logger?.LogDebug("Searching dlls in {0} folders", string.Join(",", dllSearchDirectories));
+            var result = cecilWeaver.ProcessAssembly([taskDllDirectory, targetAssemblyDirectory], references, AssemblyPath, pdbFilePath, generateDebugFiles);
 
             logger?.Log(result);
             logger?.LogInformation("Weaving completed.");

@@ -5,22 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <PackageId>SimpleBitware.AspectNet.Cecil</PackageId>
-        <Authors>Lucian Bornaz</Authors>
-        <Company>Simple Bitware</Company>
-        <Description>Extensions methods for Cecil</Description>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageProjectUrl>https://github.com/SimpleBitware/AspectNet/tree/main/src/SimpleBitware.Cecil</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/SimpleBitware/AspectNet</RepositoryUrl>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageIcon>logo.png</PackageIcon>
-
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <IncludeBuildOutput>true</IncludeBuildOutput>
-        <MinVerTagPrefix>v</MinVerTagPrefix>
+        <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -31,17 +16,6 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="System.Collections.Immutable" Version="10.0.7" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Include="..\..\README.md"
-              Pack="true"
-              PackagePath=""
-              Visible="false"/>
-        <None Include="..\..\resources\logo.png"
-              Pack="true"
-              PackagePath=""
-              Visible="false"/>
     </ItemGroup>
 
     <ItemGroup>

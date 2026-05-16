@@ -24,7 +24,7 @@ public class CecilWeaver
     /// <summary>
     /// Processes an assembly.
     /// </summary>
-    /// <param name="targetAssemblyDirectory">The directory containing the target assembly and its dependencies.</param>
+    /// <param name="dllSearchDirectories">The directories containing the target assembly and its dependencies.</param>
     /// <param name="references">An array of reference assembly paths.</param>
     /// <param name="assemblyPath">The path to the assembly to process.</param>
     /// <param name="pdbFilePath">The path to the PDB file, or null if no symbols are available.</param>
@@ -36,14 +36,14 @@ public class CecilWeaver
     /// This generic method provides the core weaving logic.
     /// </remarks>
     public WeavingResult ProcessAssembly(
-        string targetAssemblyDirectory,
+        string[] dllSearchDirectories,
         string[] references,
         string assemblyPath,
         string? pdbFilePath,
         bool generateDebugFiles)
     {
         string[] cachedItems;
-        var readerParameters = GetReaderParameters(targetAssemblyDirectory, references, pdbFilePath);
+        var readerParameters = GetReaderParameters(dllSearchDirectories, references, pdbFilePath);
         var writerParameters = GetWriteParameters(readerParameters);
 
         using var assemblyStream = new MemoryStream();
@@ -116,10 +116,10 @@ public class CecilWeaver
         });
     }
     
-    private static ReaderParameters GetReaderParameters(string targetAssemblyDirectory, string[] references, string? pdbFilePath)
+    private static ReaderParameters GetReaderParameters(string[] dllSearchDirectories, string[] references, string? pdbFilePath)
     {
         var resolver = new DefaultAssemblyResolver();
-        resolver.AddSearchDirectory(targetAssemblyDirectory);
+        dllSearchDirectories.ForEach(resolver.AddSearchDirectory);
 
         foreach (var reference in references)
         {

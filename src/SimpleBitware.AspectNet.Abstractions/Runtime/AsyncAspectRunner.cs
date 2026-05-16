@@ -1,6 +1,6 @@
 using SimpleBitware.AspectNet.Abstractions.Attributes;
 
-namespace SimpleBitware.AspectNet.Cecil.Runtime;
+namespace SimpleBitware.AspectNet.Abstractions.Runtime;
 
 /// <summary>
 /// Provides runtime execution logic for asynchronous aspect operations.
