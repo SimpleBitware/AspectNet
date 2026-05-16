@@ -8,7 +8,7 @@ namespace SimpleBitware.AspectNet.Cecil.Runtime;
 /// </summary>
 /// <remarks>
 /// This class imports and caches method references for the four main aspect lifecycle methods
-/// (OnEntry, OnSuccess, OnException, OnExit) from the AbstractAspectNetAttribute base class.
+/// (OnEntry, OnSuccess, OnException, OnExit) from the IAspectNetAttribute interface.
 /// </remarks>
 public class AspectReferences
 {
@@ -18,7 +18,7 @@ public class AspectReferences
     /// <param name="moduleCache">The module cache used for importing method references.</param>
     public AspectReferences(ModuleCache moduleCache)
     {
-        var baseAspectNetAttributeTypeReference = moduleCache.Resolve(moduleCache.ImportReference(typeof(AbstractAspectNetAttribute)));
+        var baseAspectNetAttributeTypeReference = moduleCache.Resolve(moduleCache.ImportReference(typeof(IAspectNetAttribute)));
         OnEntry = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnEntry), 1);
         OnSuccess = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnSuccess), 1);
         OnException = moduleCache.ImportReference(baseAspectNetAttributeTypeReference, nameof(IAspectNetAttribute.OnException), 1);

@@ -69,15 +69,13 @@ public static class CustomAttributeExtensions
     {
         var assignments = new List<PropertyAssignment>();
         var attributeType = attribute.AttributeType.Module.Cache().Resolve(attribute.AttributeType);
-    
-        if (attributeType == null) return assignments.ToArray();
 
         foreach (var namedArgument in attribute.Properties)
         {
             // Search the hierarchy for the property definition
             var propertyDef = FindPropertyInHierarchy(attributeType, namedArgument.Name);
 
-            if (propertyDef?.SetMethod != null && propertyDef.SetMethod.IsPublic)
+            if (propertyDef?.SetMethod is { IsPublic: true })
             {
                 assignments.Add(new PropertyAssignment
                 {
@@ -90,7 +88,7 @@ public static class CustomAttributeExtensions
         return assignments.ToArray();
     }
 
-    private static PropertyDefinition FindPropertyInHierarchy(TypeDefinition type, string propertyName)
+    private static PropertyDefinition? FindPropertyInHierarchy(TypeDefinition type, string propertyName)
     {
         var currentType = type;
 
@@ -103,7 +101,7 @@ public static class CustomAttributeExtensions
             // Move up to the base type
             // BaseType is a TypeReference, so we must Resolve() it to get a TypeDefinition
             var baseTypeRef = currentType.BaseType;
-            if (baseTypeRef == null || baseTypeRef.FullName == "System.Object") 
+            if (baseTypeRef == null || baseTypeRef.FullName == typeof(object).FullName) 
                 break;
 
             currentType = baseTypeRef.Resolve();
@@ -111,10 +109,4 @@ public static class CustomAttributeExtensions
 
         return null;
     }
-}
-
-public class PropertyAssignment
-{
-    public required MethodReference Setter { get; set; }
-    public required object Value { get; set; }
 }

@@ -9,8 +9,7 @@ namespace SimpleBitware.AspectNet.Cecil.Builders;
 /// </summary>
 /// <remarks>
 /// This sealed builder provides methods to construct proper try-catch-finally structures
-/// with appropriate jump targets and exception handlers. It extends <see cref="InstructionSetBlockBuilderBase{TBuilder}"/>
-/// and manages the creation of exception handling instructions and handler objects.
+/// with appropriate jump targets and exception handlers.
 /// </remarks>
 public sealed class TryCatchBuilder : InstructionSetBlockBuilderBase<TryCatchBuilder>
 {

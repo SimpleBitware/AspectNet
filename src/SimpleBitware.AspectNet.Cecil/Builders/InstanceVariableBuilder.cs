@@ -14,8 +14,20 @@ namespace SimpleBitware.AspectNet.Cecil.Builders;
 /// It provides a fluent API for constructing complex initialization sequences including string, int,
 /// object, and dictionary property assignments.
 /// </remarks>
-public class InstanceVariableBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache): InstructionSetBuilderBase<InstanceVariableBuilder>(method, processor, moduleCache)
+public class InstanceVariableBuilder : InstructionSetBuilderBase<InstanceVariableBuilder>
 {
+    /// <summary>
+    /// Builds IL instructions for creating and initializing instances of a specified type.
+    /// </summary>
+    /// <remarks>
+    /// This builder specializes in generating IL for object instantiation and property/field initialization.
+    /// It provides a fluent API for constructing complex initialization sequences including string, int,
+    /// object, and dictionary property assignments.
+    /// </remarks>
+    public InstanceVariableBuilder(MethodDefinition method, ILProcessor processor, ModuleCache moduleCache) : base(method, processor, moduleCache)
+    {
+    }
+
     /// <summary>
     /// Creates a new instance of type T using its parameterless constructor.
     /// </summary>
@@ -382,25 +394,25 @@ public class InstanceVariableBuilder(MethodDefinition method, ILProcessor proces
         switch (value)
         {
             case int i:
-                instructions.Add(processor.Create(OpCodes.Ldc_I4, i));
+                instructions.Add(Processor.Create(OpCodes.Ldc_I4, i));
                 break;
             case long l:
-                instructions.Add(processor.Create(OpCodes.Ldc_I8, l));
+                instructions.Add(Processor.Create(OpCodes.Ldc_I8, l));
                 break;
             case float f:
-                instructions.Add(processor.Create(OpCodes.Ldc_R4, f));
+                instructions.Add(Processor.Create(OpCodes.Ldc_R4, f));
                 break;
             case double d:
-                instructions.Add(processor.Create(OpCodes.Ldc_R8, d));
+                instructions.Add(Processor.Create(OpCodes.Ldc_R8, d));
                 break;
             case string s:
-                instructions.Add(processor.Create(OpCodes.Ldstr, s));
+                instructions.Add(Processor.Create(OpCodes.Ldstr, s));
                 break;
             case bool b:
-                instructions.Add(processor.Create(b ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0));
+                instructions.Add(Processor.Create(b ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0));
                 break;
             case null:
-                processor.Emit(OpCodes.Ldnull);
+                Processor.Emit(OpCodes.Ldnull);
                 break;
             default:
                 throw new NotSupportedException($"Type {value.GetType()} is not supported as a constant.");
