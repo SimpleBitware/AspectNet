@@ -5,11 +5,12 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
-
+        
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
         <ProjectReference Include="..\..\src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj"/>
     </ItemGroup>
 

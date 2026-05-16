@@ -2,7 +2,6 @@ using SimpleBitware.AspectNet.Abstractions.Attributes;
 using SimpleBitware.AspectNet.Tests.End2End.Extensions;
 using SimpleBitware.AspectNet.Tests.End2End.Helpers;
 using SimpleBitware.AspectNet.Tests.Library.TestClasses;
-using SimpleBitware.AspectNet.Cecil;
 using SimpleBitware.AspectNet.Tests.LibraryBase.Attributes;
 using SimpleBitware.AspectNet.Tests.LibraryBase.Extensions;
 

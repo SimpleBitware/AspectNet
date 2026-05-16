@@ -22,14 +22,12 @@
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <NoPackageAnalysis>true</NoPackageAnalysis>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <DevelopmentDependency>true</DevelopmentDependency>
         <MinVerTagPrefix>v</MinVerTagPrefix>
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(Pack)' != 'true'">
-        <ProjectReference Include="..\SimpleBitware.AspectNet.Cecil\SimpleBitware.AspectNet.Cecil.csproj"/>
-    </ItemGroup>
-    <ItemGroup Condition="'$(Pack)' == 'true'">
-        <PackageReference Include="SimpleBitware.AspectNet.Cecil" Version="$(Version)"/>
+    <ItemGroup>
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Cecil\SimpleBitware.AspectNet.Cecil.csproj" PrivateAssets="All"/>
     </ItemGroup>
 
     <ItemGroup>

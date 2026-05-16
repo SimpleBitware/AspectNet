@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
@@ -71,7 +70,7 @@ public static class TypeDefinitionExtensions
                     .ToArray()
             ))
             .Where(kvp => kvp.Value.Length > 0)
-            .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
     public static IMemberDefinition[] GetInheritedMembersToBridge(this TypeDefinition targetType, TypeReference aspectNetExcludeAttributeTypeReference)
