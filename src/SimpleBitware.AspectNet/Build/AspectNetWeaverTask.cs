@@ -1,4 +1,3 @@
-using Ardalis.GuardClauses;
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
 using MoreLinq;
@@ -55,10 +54,13 @@ public class AspectNetWeaverTask : Microsoft.Build.Utilities.Task
 
         try
         {
-            logger?.LogInformation("Starting to weave assembly {0}", AssemblyPath);
+            if(string.IsNullOrWhiteSpace(AssemblyPath))
+                throw new ArgumentNullException(nameof(AssemblyPath));
 
-            Guard.Against.NullOrEmpty(AssemblyPath);
-            Guard.Against.FileDoesNotExists(AssemblyPath);
+            if (!File.Exists(AssemblyPath))
+                throw new FileNotFoundException($"File not found: {AssemblyPath}", AssemblyPath);
+            
+            logger?.LogInformation("Starting to weave assembly {0}", AssemblyPath);
 
             var targetAssemblyDirectory = FileHelper.GetTargetAssemblyDirectory(AssemblyPath);
             var pdbFilePath = FileHelper.GetPdbFilePath(AssemblyPath);
