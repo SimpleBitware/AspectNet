@@ -31,6 +31,13 @@
         </PackageReference>
     </ItemGroup>
 
+    <ItemGroup Condition="'$(Pack)' != 'true'">
+        <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj"/>
+    </ItemGroup>
+    <ItemGroup Condition="'$(Pack)' == 'true'">
+        <PackageReference Include="SimpleBitware.AspectNet.Abstractions" Version="$(Version)"/>
+    </ItemGroup>
+    
     <ItemGroup>
         <None Include="..\..\README.md"
               Pack="true"
@@ -40,10 +47,6 @@
               Pack="true"
               PackagePath=""
               Visible="false"/>
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\SimpleBitware.AspectNet.Abstractions\SimpleBitware.AspectNet.Abstractions.csproj" />
     </ItemGroup>
 
 </Project>
