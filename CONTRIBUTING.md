@@ -1,6 +1,6 @@
 # Contributing
 
-We’d love to have you contribute to AspectNet — whether it’s improving docs, fixing bugs, sharing ideas, or exploring new features. </br>
+We’d love to have you contribute to [AspectNet](https://www.simplebitware.com/aspectnet.html) — whether it’s improving docs, fixing bugs, sharing ideas, or exploring new features. </br>
 Your help shapes a cleaner, more powerful developer experience for everyone. </br>
 
 ## How to contribute
@@ -11,4 +11,5 @@ No special setup is required to run or test the solution — simply clone the re
 If you need any assistance, feel free to reach out to us.
 
 ## Tools we use for testing
-https://ilspy.org/
+https://ilspy.org/ <br/>
+https://marketplace.visualstudio.com/items?itemName=TimHeuer.nupkg-viewer (Visual Code extension)
