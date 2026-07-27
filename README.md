@@ -1,4 +1,4 @@
-<img src="resources/logo.png" width="110" align="right"></br></br>
+<img src="https://github.com/SimpleBitware/AspectNet/blob/main/resources/logo.png" width="110" align="right"></br></br>
 
 # AspectNet
 
@@ -50,4 +50,4 @@ More about AspectNet on [SimpleBitware](https://www.simplebitware.com/aspectnet.
 
 ## Would you like to contribute?
 
-Discover [here](CONTRIBUTING.md) how you can contribute to a better developer experience for all.
+Discover [here](https://github.com/SimpleBitware/AspectNet/blob/main/CONTRIBUTING.md) how you can contribute to a better developer experience for all.
