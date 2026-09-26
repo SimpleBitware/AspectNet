@@ -2,7 +2,7 @@
 
 # AspectNet
 
-AspectNet brings Aspect-Oriented Programming (AOP) to any .NET project through compile‑time IL weaving. </br>
+AspectNet brings Aspect-Oriented Programming (AOP) to any .NET project by using compile‑time IL weaving. </br>
 It enables the creation of cross‑cutting behaviors and ASP.NET‑style middleware pipelines that can be applied to any class, method, constructor, or property—regardless of visibility or static/instance context.
 
 ## Basic usage
