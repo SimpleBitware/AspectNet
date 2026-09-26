@@ -6,6 +6,7 @@
     <Project Path="src\SimpleBitware.AspectNet\SimpleBitware.AspectNet.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/SimpleBitware.AspectNet.Tests.Compatibility/SimpleBitware.AspectNet.Tests.Compatibility.csproj" />
     <Project Path="tests\SimpleBitware.AspectNet.Tests.End2End\SimpleBitware.AspectNet.Tests.End2End.csproj" />
     <Project Path="tests\SimpleBitware.AspectNet.Tests.LibraryBase\SimpleBitware.AspectNet.Tests.LibraryBase.csproj" />
     <Project Path="tests\SimpleBitware.AspectNet.Tests.Library\SimpleBitware.AspectNet.Tests.Library.csproj" />

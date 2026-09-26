@@ -17,7 +17,6 @@ public class TestClassBase<T> : ITestClass<T>
         NullablePropertyWithExcludedSet = initialValue;
     }
 
-    private T? field;
     [RecordActivity(Priority = 10)]
     public T? PropertyWithLogic
     {
