@@ -64,6 +64,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Verify netstandard2.0 compatibility
+        run: |
+          for project in src/*/*.csproj; do
+            dotnet build "$project" -c Release -f netstandard2.0 || exit 1
+          done
+
       - name: Test
         run: dotnet test -c Release --logger "trx;LogFileName=test_results.trx"
 
