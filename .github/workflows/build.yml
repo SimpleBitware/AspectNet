@@ -101,6 +101,12 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Verify netstandard2.0 compatibility
+        run: |
+          for project in src/*/*.csproj; do
+            dotnet build "$project" -c Release -f netstandard2.0 || exit 1
+          done
+
       - name: Build
         run: dotnet build -c Release --no-restore
 
