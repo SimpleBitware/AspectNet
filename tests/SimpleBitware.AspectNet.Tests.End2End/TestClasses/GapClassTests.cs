@@ -28,7 +28,7 @@ public class GapClassTests
     }
     
     [Test]
-    public void Should_NOT_Weave_Inherited_AsyncValueTaskMethod()
+    public async Task Should_NOT_Weave_Inherited_AsyncValueTaskMethod()
     {
         //given
         var inputParameter = default(decimal);
@@ -50,7 +50,7 @@ public class GapClassTests
         var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
 
         //when
-        Assert.ThrowsAsync<ArgumentException>(() => testClass.AsyncValueTaskMethod(inputParameter, CancellationToken.None).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => testClass.AsyncValueTaskMethod(inputParameter, CancellationToken.None).AsTask());
         var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
 
         //then

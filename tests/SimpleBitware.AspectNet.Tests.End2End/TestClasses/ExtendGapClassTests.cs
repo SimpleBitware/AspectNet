@@ -99,7 +99,7 @@ public class ExtendGapClassTests
     }
     
     [Test]
-    public void Should_Weave_Inherited_AsyncValueTaskMethod_With_Additional_Class_Aspect()
+    public async Task Should_Weave_Inherited_AsyncValueTaskMethod_With_Additional_Class_Aspect()
     {
         //given
         var inputParameter = 0L;
@@ -122,7 +122,7 @@ public class ExtendGapClassTests
         var expectedActivities = expectedAspectAttributes.GetActivities().ToArray();
 
         //when
-        Assert.ThrowsAsync<ArgumentException>(() => testClass.AsyncValueTaskMethod(inputParameter, CancellationToken.None).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => testClass.AsyncValueTaskMethod(inputParameter, CancellationToken.None).AsTask());
         var hasActivities = ActivitiesStorage.Activities.TryGetValue(activityKey, out var activities);
 
         //then
